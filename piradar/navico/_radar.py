@@ -1,77 +1,25 @@
-import rospy
-import roslib
+import psutil
+
 import struct
 import socket
 import threading
 import time
-from collections import deque
-from math import pi, fabs
-
-class AngularSpeedEstimator:
-    def __init__(self):
-        self.angular_speed = 0.0
-        self.measured_angular_speed = 0.0
-        self.prediction_error = 0.0
-        self.prediction_variance = 0.0
-        self.variance = 1.0
-        self.measurement_variance = 0.045 ** 2
-        self.process_noise_variance = 0.0015 ** 2
-        self.measurement_buffer = deque()
-        self.measurement_buffer_duration = rospy.Duration(0.75)
-        self.max_measurement_gap = rospy.Duration(0.45)
-
-    def update(self, t, angle):
-        if not self.measurement_buffer or (t > self.measurement_buffer[-1][0] and t < self.measurement_buffer[-1][0] + self.max_measurement_gap):
-            while self.measurement_buffer and self.measurement_buffer[0][0] < t - self.measurement_buffer_duration:
-                self.measurement_buffer.popleft()
-
-            if self.measurement_buffer:
-                positive = angle > self.measurement_buffer[-1][1]
-                angle_difference = angle - self.measurement_buffer[-1][1]
-
-                if fabs(angle_difference) > pi:
-                    positive = not positive
-
-                angle_difference = angle - self.measurement_buffer[0][1]
-                if positive and angle_difference < 0.0:
-                    angle_difference += 2.0 * pi
-                if not positive and angle_difference > 0.0:
-                    angle_difference -= 2.0 * pi
-
-                prediction_variance_factor = self.prediction_variance / self.measurement_variance
-                estimated_variance = self.variance + self.process_noise_variance * prediction_variance_factor
-
-                self.measured_angular_speed = angle_difference / (t - self.measurement_buffer[0][0]).to_sec()
-                k = estimated_variance / (estimated_variance + self.measurement_variance)
-                self.prediction_error = self.measured_angular_speed - self.angular_speed
-                self.prediction_variance = k * self.prediction_variance + (1 - k) * self.prediction_error ** 2
-                self.angular_speed += k * self.prediction_error
-                self.variance = (1.0 - k) * estimated_variance
-
-            self.measurement_buffer.append((t, angle))
-        else:
-            self.angular_speed = 0.0
-            self.measured_angular_speed = 0.0
-            self.variance = 1.0
-            self.measurement_buffer.clear()
-            self.prediction_variance = 0.0
-
-        return self.angular_speed
 
 
-def valid_interface(i):
-    return i and i.ifa_addr and i.ifa_addr.sa_family == socket.AF_INET and (i.ifa_flags & socket.IFF_UP) > 0 and (i.ifa_flags & socket.IFF_LOOPBACK) == 0 and (i.ifa_flags & socket.IFF_MULTICAST) > 0
-
+# def valid_interface(i):
+#     return i and i.ifa_addr and i.ifa_addr.sa_family == socket.AF_INET and (i.ifa_flags & socket.IFF_UP) > 0 and (i.ifa_flags & socket.IFF_LOOPBACK) == 0 and (i.ifa_flags & socket.IFF_MULTICAST) > 0
+#
 
 def get_local_addresses():
-    ret = []
-    addr_list = socket.getifaddrs()
-    if addr_list:
-        for addr in addr_list:
-            if valid_interface(addr):
-                ret.append(struct.unpack('!I', addr.ifa_addr.sa_data[2:6])[0])
-        socket.freeifaddrs(addr_list)
-    return ret
+    addresses = []
+    for interface, addrs in psutil.net_if_addrs().items():
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                addresses.append(addr.address)
+    return addresses
+
+# Example usage
+print(get_local_addresses())
 
 
 def ip_address_to_string(a):
@@ -259,10 +207,56 @@ class Radar:
         return sock
 
     def process_data(self, scanlines):
-        raise NotImplementedError
+        # Assuming scanlines is a list of Scanline objects or dictionaries
+        processed_data = []
+        for scanline in scanlines:
+            angle = scanline['angle']
+            range = scanline['range']
+            intensities = scanline['intensities']
+            processed_data.append({
+                'angle': angle,
+                'range': range,
+                'intensities': intensities
+            })
+        # Save processed_data to file or use it as needed
+        print(processed_data)
 
-    def process_report(self, report):
-        raise NotImplementedError
+    def process_report(self, in_data):
+        new_state = {}
+        id = struct.unpack_from('!H', in_data, 0)[0]
+
+        if id == 0xc401:
+            status = in_data[2]
+            if status == 1:
+                new_state["status"] = "standby"
+            elif status == 2:
+                new_state["status"] = "transmit"
+            elif status == 5:
+                new_state["status"] = "spinning_up"
+            else:
+                new_state["status"] = "unknown"
+
+        elif id == 0xc402:
+            if len(in_data) >= struct.calcsize('!HBBHHHH'):
+                range_value, mode, gain, gain_auto, sea_clutter, sea_clutter_auto, rain_clutter = struct.unpack_from('!HBBHHHH', in_data, 2)
+                new_state["range"] = str(range_value / 10)
+                new_state["mode"] = ["custom", "harbor", "offshore", "unknown", "weather", "bird"][mode]
+                new_state["gain"] = str(gain * 100 / 255.0)
+                new_state["gain_mode"] = "auto" if gain_auto else "manual"
+                new_state["sea_clutter"] = str(sea_clutter * 100 / 255.0)
+                new_state["sea_clutter_mode"] = "auto" if sea_clutter_auto else "manual"
+                new_state["rain_clutter"] = str(rain_clutter * 100 / 255.0)
+
+        # Add other cases here, following the same pattern
+
+        state_updated = False
+        for key, value in new_state.items():
+            if key not in self.m_state or self.m_state[key] != value:
+                self.m_state[key] = value
+                state_updated = True
+
+        if state_updated:
+            self.state_updated()
 
 
 class HeadingSender:
@@ -290,46 +284,9 @@ class HeadingSender:
         self.m_heading = heading
 
 
-class RosRadar(Radar):
-    def __init__(self, addresses):
-        super().__init__(addresses)
-        self.m_data_pub = rospy.Publisher(addresses.label + "/data", rospy.AnyMsg, queue_size=10)
-        self.m_state_pub = rospy.Publisher(addresses.label + "/state", rospy.AnyMsg, queue_size=10)
-        self.m_state_change_sub = rospy.Subscriber(addresses.label + "/change_state", rospy.AnyMsg, self.state_change_callback)
-        self.m_heartbeat_timer = rospy.Timer(rospy.Duration(1.0), self.heartbeat_timer_callback)
-        self.m_range_correction_factor = rospy.get_param("~range_correction_factor", 1.024)
-        self.m_frame_id = rospy.get_param("~frameId", "radar")
-        self.m_estimator = AngularSpeedEstimator()
+if __name__ == '__main__':
+    address = get_local_addresses()
+    radar = Radar(address)
 
-    def process_data(self, scanlines):
-        if not scanlines:
-            return
-        rs = rospy.AnyMsg()
-        rs.header.stamp = rospy.Time.now()
-        rs.header.frame_id = self.m_frame_id
-        rs.angle_start = 2.0 * pi * (360 - scanlines[0].angle) / 360.0
-        angle_max = 2.0 * pi * (360 - scanlines[-1].angle) / 360.0
-        if len(scanlines) > 1 and angle_max > rs.angle_start and angle_max - rs.angle_start > pi:
-            angle_max -= 2.0 * pi
-        rs.angle_increment = (angle_max - rs.angle_start) / (len(scanlines) - 1)
-        rs.range_min = 0.0
-        rs.range_max = scanlines[0].range
-        for sl in scanlines:
-            echo = rospy.AnyMsg()
-            echo.echoes = [i / 15.0 for i in sl.intensities]
-            rs.intensities.append(echo)
-        angular_speed = self.m_estimator.update(rs.header.stamp, rs.angle_start)
-        scan_time = 0.0 if angular_speed == 0.0 else 2 * pi / fabs(angular_speed)
-        rs.scan_time = rospy.Duration(scan_time)
-        rs.time_increment = rospy.Duration(fabs(rs.angle_increment) / scan_time if scan_time > 0 else 0.0)
-        self.m_data_pub.publish(rs)
-
-    def state_updated(self):
-        rcs = rospy.AnyMsg()
-        self.create_enum_control("status", "Status", ["standby", "transmit", ""], rcs)
-        self.create_float_control("range", "Range", 25, 75000, rcs)
-        self.create_enum_control("mode", "Mode", ["custom", "harbor", "offshore", "weather", "bird", ""], rcs)
-        self.create_float_with_auto_control("gain", "gain_mode", "Gain", 0, 100, rcs)
-        self.create_float_with_auto_control("sea_clutter", "sea_clutter_mode", "Sea clutter", 0, 100, rcs)
-        self.create_float_control("auto_sea_clutter_nudge", "Auto sea clut adj", -50, 50, rcs)
-        self.create_enum
+#    radar.process_report(report_data)
+#    radar.process_data(scanlines)
