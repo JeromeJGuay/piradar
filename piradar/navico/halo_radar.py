@@ -170,50 +170,36 @@ class HaloRadar:
 
     def stay_on(self):
         # should return `0xc611` I think
+        cformat = "BB"
         commands = (
             (0xa0, 0xc1),
             (0x03, 0xc2),
             (0x04, 0xc2),
             (0x05, 0xc2)
             #(0x0a, 0xc2)
-        )
-
-        fmt = "2B"
+        )\"
         for command in commands:
-            self.send_pack_data(struct.pack(fmt, *command))
+            self.send_pack_data(struct.pack(cformat, *command))
 
     def transmit(self):
+        cformat = "BBB"
         commands = (
             (0x00, 0xc1, 0x01),
             (0x01, 0xc1, 0x01)
         )
-        fmt = "3B"
         for command in commands:
-            self.send_pack_data(struct.pack(fmt, *command))
+            self.send_pack_data(struct.pack(cformat, *command))
 
     def standby(self):
+        cformat = "BBB"
         commands = (
             (0x00, 0xc1, 0x01),
             (0x01, 0xc1, 0x00)
         )
-        fmt = "3B"
         for command in commands:
-            self.send_pack_data(struct.pack(fmt, *command))
+            self.send_pack_data(struct.pack(cformat, *command))
 
-    def set_range(self, meters):
-        decimeters = meters * 10
-        command = (0xc103, decimeters)
-        fmt = "!HI"
-        self.send_pack_data(struct.pack(fmt, *command))
+    def commands(self, key, value):
+        #have object to store radar states. With all the auto_...
+        pass
 
-
-    def set_bearing_aligment(self, bearing):
-        cmd = 0xc106
-        sub_cmd = 0xc106
-        decimeters = bearing * 10
-        command = (0xc106, bearing)
-        fmt="!HIIB"
-
-
-if __name__ == '__main__':
-    radar_addresses = scan_for_halo_radar()
