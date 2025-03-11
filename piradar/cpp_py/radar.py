@@ -3,7 +3,7 @@ import socket
 import threading
 import time
 
-from piradar.navico.network import ip_address_to_string
+from piradar.navico import ip_address_to_string
 
 class Radar:
     def __init__(self, addresses):

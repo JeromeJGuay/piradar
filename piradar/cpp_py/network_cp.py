@@ -85,5 +85,7 @@ def scan_for_radar(addresses=None):
 
 if __name__ == "__main__":
 
-
-    rad_addr = scan_for_radar()
+    address = '236.6.7.5'
+    port = 6878
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((address, port))
