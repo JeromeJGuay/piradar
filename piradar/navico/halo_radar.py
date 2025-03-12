@@ -2,26 +2,10 @@ import struct
 import socket
 import threading
 
-from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses
+from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string
 from piradar.navico.halo_radar_structure import *
 
-
 HOST = ''
-# Other possible 236.6.7.10:6680
-# mcast_group = '236.6.7.9'
-# mcast_port = 6679
-
-maddresses = [
-    ('236.6.7.15', 6659),
-    ("236.6.7.10", 6878),
-    ('236.6.7.10', 6680),
-    ('236.6.7.9', 6679),
-    ]
-
-MCAST_GROUP, MCAST_PORT = maddresses[0]
-
-def ip_address_to_string(a):
-    return socket.inet_ntoa(struct.pack('!I', a))
 
 
 class AddressSet:
@@ -36,7 +20,7 @@ class AddressSet:
         return f'{self.label}: data: {ip_address_to_string(self.data.address)}:{self.data.port}, report: {ip_address_to_string(self.report.address)}:{self.report.port}, send: {ip_address_to_string(self.send.address)}:{self.send.port}'
 
 
-def scan_for_halo_radar(group=MCAST_GROUP, port=MCAST_PORT):
+def scan_for_halo_radar(group, port):
     """
 
     """
@@ -177,7 +161,7 @@ class HaloRadar:
             (0x04, 0xc2),
             (0x05, 0xc2)
             #(0x0a, 0xc2)
-        )\"
+        )
         for command in commands:
             self.send_pack_data(struct.pack(cformat, *command))
 
@@ -203,3 +187,43 @@ class HaloRadar:
         #have object to store radar states. With all the auto_...
         pass
 
+
+if __name__ == '__main__':
+    """
+    Source: 169.254.240.252 Destination: 224.0.0.22
+    Membership Report
+    Join group 236.6.7.13 for any sources
+    Join group 236.6.7.20 for any sources
+    Join group 236.6.7.14 for any sources
+    Join group 236.6.7.10 for any sources
+    Join group 236.6.7.5 for any sources
+    """
+    # NavicoAuckla_0a:a6:a1 (00:0e:91:0a:a6:a1)
+    navico_mac = "00:0e:91:0a:a6:a1"
+    sender_ip = "169.254.240.252"
+    target_ip = "169.254.240.252"
+
+    #236.6.7.13
+    #236.6.7.20
+    #236.6.7.14
+    #
+
+    # Other possible 236.6.7.10:6680
+    # mcast_group = '236.6.7.9'
+    # mcast_port = 6679
+
+    interface = "192.168.1.185"
+    groups = [
+        "236.6.7.13",
+        "236.6.7.20",
+        "236.6.7.14",
+        "236.6.7.10",
+        "236.6.7.5"
+    ]
+
+
+    for group in groups:
+        print(f"---- {group} ----")
+
+        ret=scan_for_halo_radar(group=group, port=6680)
+        print(ret)
