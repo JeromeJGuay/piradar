@@ -28,7 +28,9 @@ def create_udp_socket():
 
 
 def join_mcast_group(sock, interface_address, group_address):
-    #mreq = socket.inet_aton(address) + socket.inet_aton(interface)
+    #mreq = socket.inet_aton(address) + socket.inet_aton(interface_addressA)
+    #intf = socket.gethostbyname(socket.gethostname())
+    #sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(intf))
     mreq = struct.pack("4sL", socket.inet_aton(group_address), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 

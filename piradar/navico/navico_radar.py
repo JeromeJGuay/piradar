@@ -249,20 +249,60 @@ if __name__ == '__main__':
         ('236.6.7.19', 6689), #data ?
     ]
 
-
     address_set = AddressSet(
         label="halo A",
         data=IPAddress('236.6.7.9', 6679),
         report=IPAddress('236.6.7.5', 6878),
         send=IPAddress('236.6.7.5', 6878),
-        interface='192.168.1.243'
+        #interface='192.168.1.243'
+        interface="169.254.123.249",
     )
     #
-    hr = HaloRadar(address_set)
+    # hr = HaloRadar(address_set)
+    # hr.send_pack_data(struct.pack('H', 0xb101))
+    dhcp_address = "192.168.1.254"
+    dhcp_client_port = 68
 
-    hr.send_pack_data(struct.pack('!H', 0xb101))
 
-    # hr.standby()
+    ### 5 ###
+    # sock5 = create_udp_socket()
+    # sock5.bind((HOST, address_set.report.port))
+    # mreq = struct.pack("4s4s", socket.inet_aton(address_set.report.address), socket.inet_aton(address_set.interface))
+    # sock5.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    sock5 = create_udp_socket()
+    sock5.bind((address_set.report.address, address_set.report.port))
+    mreq = struct.pack("4sl", socket.inet_aton(address_set.report.address), socket.INADDR_ANY)
+    sock5.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
 
-    #scan_interface('192.168.1.243', '236.6.7.5', 6878)
+    def r5():
+        try:
+            print(sock5.recvfrom(1024))
+        except socket.timeout:
+            print("no")
+
+    ### 9 ###
+    sock9 = create_udp_socket()
+    sock9.bind((address_set.report.address, address_set.data.port))
+    mreq = struct.pack("4sL", socket.inet_aton(address_set.data.address), socket.INADDR_ANY)
+    # mreq = struct.pack("4s4s", socket.inet_aton(address_set.data.address), socket.inet_aton(address_set.interface))
+    sock9.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    #
+    # def r9():
+    #     try:
+    #         print(sock9.recvfrom(1024))
+    #     except socket.timeout:
+    #         print("no")
+
+    ## send sock ##
+    send_sock = create_udp_socket()
+    send_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+
+    def ping():
+        send_sock.sendto(struct.pack('H', 0xb101), (address_set.send.address, address_set.send.port))
+
+    ping()
+    for _ in range(5):
+        r5()
