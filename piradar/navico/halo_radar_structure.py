@@ -11,10 +11,10 @@ import struct
 
 
 class RawScanlineStruct:
-    format = "BBHHHHHHII512s"
+    cformat = "BBHHHHHHII512s"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.headerLen = unpacked_data[0]
         self.status = unpacked_data[1]
         self.scan_number = unpacked_data[2]
@@ -29,29 +29,29 @@ class RawScanlineStruct:
         self.data = unpacked_data[11]
 
 class RawSectorStruct:
-    format = "5sBH" + RawScanlineStruct.format * 120
+    cformat = "5sBH" + RawScanlineStruct.cformat * 120
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.stuff = unpacked_data[0]
         self.scanline_count = unpacked_data[1]
         self.scanline_size = unpacked_data[2]
-        self.lines = [RawScanlineStruct(data[3 + i * struct.calcsize(RawScanlineStruct.format): 3 + (i + 1) * struct.calcsize(RawScanlineStruct.format)]) for i in range(120)]
+        self.lines = [RawScanlineStruct(data[3 + i * struct.calcsize(RawScanlineStruct.cformat): 3 + (i + 1) * struct.calcsize(RawScanlineStruct.cformat)]) for i in range(120)]
 
 class IPAddressStruct:
-    format = "IH"
+    cformat = "IH"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.address = unpacked_data[0]
         self.port = unpacked_data[1]
 
 
 class RadarReport_b201:
-    format = "H16s" + "IH12s" * 16
+    cformat = "H16s" + "IH12s" * 16
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.id = unpacked_data[0]
         self.serialno = unpacked_data[1].decode('ascii').strip('\x00')
         self.addr0 = IPAddressStruct(data[2:10])
@@ -73,10 +73,10 @@ class RadarReport_b201:
         self.addr16 = IPAddressStruct(data[238:246])
 
 class RadarReport_c402:
-    format = "HIB3sB3sBIB11sB3sB"
+    cformat = "HIB3sB3sBIB11sB3sB"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.id = unpacked_data[0]
         self.range = unpacked_data[1]
         self.skip1 = unpacked_data[2]
@@ -95,10 +95,10 @@ class RadarReport_c402:
         self.target_expansion = unpacked_data[15]
 
 class RadarReport_c404:
-    format = "BBIHHH7sB"
+    cformat = "BBIHHH7sB"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.what = unpacked_data[0]
         self.command = unpacked_data[1]
         self.field2 = unpacked_data[2]
@@ -109,10 +109,10 @@ class RadarReport_c404:
         self.lights = unpacked_data[7]
 
 class RadarReport_c408:
-    format = "BBBBBBBBBBBBBBBBBBBB"
+    cformat = "BBBBBBBBBBBBBBBBBBBB"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.what = unpacked_data[0]
         self.command = unpacked_data[1]
         self.sea_state = unpacked_data[2]
@@ -134,10 +134,10 @@ class RadarReport_c408:
         self.doppler_speed = unpacked_data[18]
 
 class HaloHeadingPacket:
-    format = "4s4sH26s2s2sQQLL1sH5s"
+    cformat = "4s4sH26s2s2sQQLL1sH5s"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.marker = unpacked_data[0]
         self.u00 = unpacked_data[1]
         self.counter = unpacked_data[2]
@@ -153,10 +153,10 @@ class HaloHeadingPacket:
         self.u07 = unpacked_data[12]
 
 class HaloMysteryPacket:
-    format = "4s4sH26s2s2sQQLL1s1s2s2s2s"
+    cformat = "4s4sH26s2s2sQQLL1s1s2s2s2s"
 
     def __init__(self, data):
-        unpacked_data = struct.unpack(self.format, data)
+        unpacked_data = struct.unpack(self.cformat, data)
         self.marker = unpacked_data[0]
         self.u00 = unpacked_data[1]
         self.counter = unpacked_data[2]

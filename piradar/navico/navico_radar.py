@@ -2,7 +2,7 @@ import struct
 import socket
 import threading
 
-from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string
+from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string, create_udp_multicast_receiver_socket
 from piradar.navico.halo_radar_structure import *
 
 HOST = ''
@@ -32,7 +32,7 @@ def scan_for_halo_radar(group, group_port):
         listen_socket = create_udp_socket()
         listen_socket.bind((HOST, 0))
         try:
-            join_mcast_group(sock=listen_socket, address=group, interface=interface)
+            join_mcast_group(sock=listen_socket, group_address=group, interface_address=interface)
         except OSError as e:
             listen_socket.close()
             continue
@@ -67,7 +67,7 @@ def scan_interface(interface, group, group_port):
     listen_socket = create_udp_socket()
     listen_socket.bind((HOST, group_port))
 
-    join_mcast_group(sock=listen_socket, address=group, interface=interface)
+    join_mcast_group(sock=listen_socket, group_address=group, interface_address=interface)
 
     send_socket = create_udp_socket()
     send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
@@ -96,12 +96,12 @@ def scan_interface(interface, group, group_port):
 class HaloRadar:
     def __init__(self, address_set: AddressSet):
         self.address_set = address_set
+
         self.send_socket = None
         self.data_socket = None
         self.report_socket = None
-        self.data_socket = None
 
-        self.sender_thread: threading.Thread = None
+        # self.sender_thread: threading.Thread = None # Maybe add Later
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
 
@@ -120,23 +120,17 @@ class HaloRadar:
         #self.send_socket.bind((self.address_set.send.address, self.address_set.send.port))
 
     def init_report_socket(self):
-        self.report_socket = create_udp_socket()
-        self.report_socket.bind((HOST, self.address_set.report.port))
-        #self.report_socket.bind((HOST, 0))
-        join_mcast_group(
-            sock=self.report_socket,
-            address=self.address_set.report.address,
-            interface=self.address_set.interface
+        self.report_socket = create_udp_multicast_receiver_socket(
+            interface_address=self.address_set.interface,
+            group_address=self.address_set.report.address,
+            group_port=self.address_set.report.port,
         )
 
     def init_data_socket(self):
-        #self.data_socket = create_udp_socket()
-        self.data_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.data_socket.bind((HOST, self.address_set.data.port))
-        join_mcast_group(
-            sock=self.data_socket,
-            address=self.address_set.data.address,
-            interface=self.address_set.interface
+        self.data_socket = create_udp_multicast_receiver_socket(
+            interface_address=self.address_set.interface,
+            group_address=self.address_set.data.address,
+            group_port=self.address_set.data.port,
         )
 
     def send_pack_data(self, packed_data):
