@@ -4,10 +4,13 @@ Other reports:
     0xc409: RadarReport_c409
     0xc40a: RadarReport_c40a
     0xc611: RadarReport_c611-> heartbeat ? According to CPP
+
+# this are for halo. Different for G4
 """
 import struct
 
-class RawScanline:
+
+class RawScanlineStruct:
     format = "BBHHHHHHII512s"
 
     def __init__(self, data):
@@ -25,17 +28,17 @@ class RawScanline:
         self.u03 = unpacked_data[10]
         self.data = unpacked_data[11]
 
-class RawSector:
-    format = "5sBH" + RawScanline.format * 120
+class RawSectorStruct:
+    format = "5sBH" + RawScanlineStruct.format * 120
 
     def __init__(self, data):
         unpacked_data = struct.unpack(self.format, data)
         self.stuff = unpacked_data[0]
         self.scanline_count = unpacked_data[1]
         self.scanline_size = unpacked_data[2]
-        self.lines = [RawScanline(data[3 + i*struct.calcsize(RawScanline.format): 3 + (i+1)*struct.calcsize(RawScanline.format)]) for i in range(120)]
+        self.lines = [RawScanlineStruct(data[3 + i * struct.calcsize(RawScanlineStruct.format): 3 + (i + 1) * struct.calcsize(RawScanlineStruct.format)]) for i in range(120)]
 
-class IPAddress:
+class IPAddressStruct:
     format = "IH"
 
     def __init__(self, data):
@@ -51,23 +54,23 @@ class RadarReport_b201:
         unpacked_data = struct.unpack(self.format, data)
         self.id = unpacked_data[0]
         self.serialno = unpacked_data[1].decode('ascii').strip('\x00')
-        self.addr0 = IPAddress(data[2:10])
-        self.addr1 = IPAddress(data[22:30])
-        self.addr2 = IPAddress(data[36:44])
-        self.addr3 = IPAddress(data[56:64])
-        self.addr4 = IPAddress(data[70:78])
-        self.addrDataA = IPAddress(data[84:92])
-        self.addrSendA = IPAddress(data[98:106])
-        self.addrReportA = IPAddress(data[112:120])
-        self.addrDataB = IPAddress(data[126:134])
-        self.addrSendB = IPAddress(data[140:148])
-        self.addrReportB = IPAddress(data[154:162])
-        self.addr11 = IPAddress(data[168:176])
-        self.addr12 = IPAddress(data[182:190])
-        self.addr13 = IPAddress(data[196:204])
-        self.addr14 = IPAddress(data[210:218])
-        self.addr15 = IPAddress(data[224:232])
-        self.addr16 = IPAddress(data[238:246])
+        self.addr0 = IPAddressStruct(data[2:10])
+        self.addr1 = IPAddressStruct(data[22:30])
+        self.addr2 = IPAddressStruct(data[36:44])
+        self.addr3 = IPAddressStruct(data[56:64])
+        self.addr4 = IPAddressStruct(data[70:78])
+        self.addrDataA = IPAddressStruct(data[84:92])
+        self.addrSendA = IPAddressStruct(data[98:106])
+        self.addrReportA = IPAddressStruct(data[112:120])
+        self.addrDataB = IPAddressStruct(data[126:134])
+        self.addrSendB = IPAddressStruct(data[140:148])
+        self.addrReportB = IPAddressStruct(data[154:162])
+        self.addr11 = IPAddressStruct(data[168:176])
+        self.addr12 = IPAddressStruct(data[182:190])
+        self.addr13 = IPAddressStruct(data[196:204])
+        self.addr14 = IPAddressStruct(data[210:218])
+        self.addr15 = IPAddressStruct(data[224:232])
+        self.addr16 = IPAddressStruct(data[238:246])
 
 class RadarReport_c402:
     format = "HIB3sB3sBIB11sB3sB"

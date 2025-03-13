@@ -8,6 +8,7 @@ import psutil
 import socket
 import struct
 
+
 def get_local_addresses():
     addresses = []
     for interface, addrs in psutil.net_if_addrs().items():
@@ -25,9 +26,14 @@ def create_udp_socket():
 
 
 def join_mcast_group(sock, address, interface):
-    mreq = socket.inet_aton(address) + socket.inet_aton(interface)
+    #mreq = socket.inet_aton(address) + socket.inet_aton(interface)
+    mreq = struct.pack("4sL", socket.inet_aton(address), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
 
 def ip_address_to_string(addr):
     return socket.inet_ntoa(struct.pack('!I', addr))
+
+
+if __name__ == "__main__":
+    pass
