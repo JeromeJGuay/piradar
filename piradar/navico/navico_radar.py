@@ -1,11 +1,38 @@
+"""
+Decoded from B201
+
+192.168.1.185 257
+192.168.1.185 5984
+236.6.7.22 6694
+236.6.7.23 6684
+236.6.7.24 6685
+236.6.7.8 6678 # data A
+236.6.7.10 6680 #send A
+236.6.7.9 6679 #report A
+236.6.7.13 6657 # data B
+236.6.7.14 6658 # send B
+236.6.7.15 6659 # report B
+236.6.7.18 6688
+236.6.7.20 6690
+236.6.7.19 6689
+236.6.7.12 6660
+236.6.7.13 6661
+236.6.7.14 6662
+
+"""
+
+import time
 import struct
 import socket
 import threading
 
-from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string, create_udp_multicast_receiver_socket
+#from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string, create_udp_multicast_receiver_socket
+from piradar.network import create_udp_socket, Snooper
 from piradar.navico.halo_radar_structure import *
 
+
 HOST = ''
+
 
 
 class AddressSet:
@@ -20,80 +47,26 @@ class AddressSet:
         return f'{self.label}:\n data: {self.data.address}:{self.data.port},\n report: {self.report.address}:{self.report.port},\n send: {self.send.address}:{self.send.port}'
 
 
-def scan_for_halo_radar(group, group_port):
+def get_radar_group(address, port, interface=None):
     """
 
     """
-    laddrs = get_local_addresses()
-    laddrs = [laddrs[0]]
-    ret = []
 
-    for interface in laddrs:
-        listen_socket = create_udp_socket()
-        listen_socket.bind((HOST, 0))
-        try:
-            join_mcast_group(sock=listen_socket, group_address=group, interface_address=interface)
-        except OSError as e:
-            listen_socket.close()
+    snoop = Snooper(address=address, port=port, interface=interface)
+    t0 = time.time()
+    dt=10
+
+    while time.time() - t0 < dt:
+        data = snoop.recv()
+
+        if not data:
             continue
 
-        send_socket = create_udp_socket()
-        send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-        # try:
-        #     send_socket.bind((interface, 0))
-        # except OSError as e:
-        #     continue
-        send_socket.sendto(struct.pack('!H', 0xb101), (group, group_port))
-        print(interface, group, group_port)
-        for _ in range(3):
-            try:
-                in_data, from_addr = listen_socket.recvfrom(1024)
-                print(in_data, from_addr)
-                if len(in_data) == struct.calcsize(RadarReport_b201.format):
-                    b201 = RadarReport_b201(in_data)
-                    if b201.id == 0xb201:
-                        asa = AddressSet('HaloA', b201.addrDataA, b201.addrSendA,  b201.addrReportA, interface)
-                        ret.append(asa)
-                        asb = AddressSet('HaloB', b201.addrDataB, b201.addrSendB,  b201.addrReportB, interface)
-                        ret.append(asb)
-            except socket.timeout:
-                continue
-        listen_socket.close()
-        send_socket.close()
-    return ret
 
 
-def scan_interface(interface, group, group_port):
-    listen_socket = create_udp_socket()
-    listen_socket.bind((HOST, group_port))
-
-    join_mcast_group(sock=listen_socket, group_address=group, interface_address=interface)
-
-    send_socket = create_udp_socket()
-    send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-
-    send_socket.sendto(struct.pack('H', 0xb101), (group, group_port))
-    #send_socket.sendto(struct.pack('!H', 0xb201), (group, group_port))
-
-    ret = []
-    for _ in range(5):
-        try:
-            in_data, from_addr = listen_socket.recvfrom(1024)
-            print(in_data, from_addr)
-            if len(in_data) == struct.calcsize(RadarReport_b201.format):
-                b201 = RadarReport_b201(in_data)
-                if b201.id == 0xb201:
-                    asa = AddressSet('HaloA', b201.addrDataA, b201.addrSendA, b201.addrReportA, interface)
-                    ret.append(asa)
-                    asb = AddressSet('HaloB', b201.addrDataB, b201.addrSendB, b201.addrReportB, interface)
-                    ret.append(asb)
-        except socket.timeout:
-            continue
-    listen_socket.close()
-    send_socket.close()
 
 
-class HaloRadar:
+class NavicoRadar:
     def __init__(self, address_set: AddressSet):
         self.address_set = address_set
 
@@ -101,7 +74,6 @@ class HaloRadar:
         self.data_socket = None
         self.report_socket = None
 
-        # self.sender_thread: threading.Thread = None # Maybe add Later
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
 
@@ -120,18 +92,11 @@ class HaloRadar:
         #self.send_socket.bind((self.address_set.send.address, self.address_set.send.port))
 
     def init_report_socket(self):
-        self.report_socket = create_udp_multicast_receiver_socket(
-            interface_address=self.address_set.interface,
-            group_address=self.address_set.report.address,
-            group_port=self.address_set.report.port,
-        )
+        pass
 
     def init_data_socket(self):
-        self.data_socket = create_udp_multicast_receiver_socket(
-            interface_address=self.address_set.interface,
-            group_address=self.address_set.data.address,
-            group_port=self.address_set.data.port,
-        )
+        pass
+
 
     def send_pack_data(self, packed_data):
         print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
@@ -235,74 +200,9 @@ if __name__ == '__main__':
     Join group 236.6.7.10 for any sources
     Join group 236.6.7.5 for any sources
     """
-    class IPAddress:
-        def __init__(self, address, port):
-            self.address = address
-            self.port = port
 
-    groups = [
-        ('236.6.7.4', 6768),# -> a101
-        ('236.6.7.5', 6878),# Send ?
-        ('236.6.7.9', 6679), #Report (Navico A) ?
-        ('236.6.7.14', 6662), #data ?
-        ('236.6.7.15', 6659), # Report (Navico B) ?
-        ('236.6.7.19', 6689), #data ?
-    ]
+    interface = 'Ethernet 2'
+    entry_group = ('236.6.7.5', 6878)
 
-    address_set = AddressSet(
-        label="halo A",
-        data=IPAddress('236.6.7.9', 6679),
-        report=IPAddress('236.6.7.5', 6878),
-        send=IPAddress('236.6.7.5', 6878),
-        #interface='192.168.1.243'
-        interface="169.254.123.249",
-    )
-    #
-    # hr = HaloRadar(address_set)
-    # hr.send_pack_data(struct.pack('H', 0xb101))
-    dhcp_address = "192.168.1.254"
-    dhcp_client_port = 68
+    get_radar_group(address=entry_group[0], port=entry_group[1], interface=interface)
 
-
-    ### 5 ###
-    # sock5 = create_udp_socket()
-    # sock5.bind((HOST, address_set.report.port))
-    # mreq = struct.pack("4s4s", socket.inet_aton(address_set.report.address), socket.inet_aton(address_set.interface))
-    # sock5.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-    sock5 = create_udp_socket()
-    sock5.bind((address_set.report.address, address_set.report.port))
-    mreq = struct.pack("4sl", socket.inet_aton(address_set.report.address), socket.INADDR_ANY)
-    sock5.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-
-    def r5():
-        try:
-            print(sock5.recvfrom(1024))
-        except socket.timeout:
-            print("no")
-
-    ### 9 ###
-    sock9 = create_udp_socket()
-    sock9.bind((address_set.report.address, address_set.data.port))
-    mreq = struct.pack("4sL", socket.inet_aton(address_set.data.address), socket.INADDR_ANY)
-    # mreq = struct.pack("4s4s", socket.inet_aton(address_set.data.address), socket.inet_aton(address_set.interface))
-    sock9.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-    #
-    # def r9():
-    #     try:
-    #         print(sock9.recvfrom(1024))
-    #     except socket.timeout:
-    #         print("no")
-
-    ## send sock ##
-    send_sock = create_udp_socket()
-    send_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-
-    def ping():
-        send_sock.sendto(struct.pack('H', 0xb101), (address_set.send.address, address_set.send.port))
-
-    ping()
-    for _ in range(5):
-        r5()
