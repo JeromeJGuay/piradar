@@ -25,42 +25,25 @@ import time
 import struct
 import socket
 import threading
+import asyncio
 
 #from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string, create_udp_multicast_receiver_socket
 from piradar.network import create_udp_socket, Snooper
-from piradar.navico.halo_radar_structure import *
+from piradar.navico.navico_structure import *
 
 
 HOST = ''
 
 
-
 class AddressSet:
-    def __init__(self, label, data, send, report, interface):
-        self.label = label
-        self.data: IPAddressStruct = data
-        self.send: IPAddressStruct = send
-        self.report: IPAddressStruct = report
+    def __init__(self, data, send, report, interface):
+        self.data: IPAddress = data
+        self.send: IPAddress = send
+        self.report: IPAddress = report
         self.interface = interface
 
     def __repr__(self):
-        return f'{self.label}:\n data: {self.data.address}:{self.data.port},\n report: {self.report.address}:{self.report.port},\n send: {self.send.address}:{self.send.port}'
-
-
-def get_radar_group(address, port, interface=None):
-    """
-
-    """
-
-    snoop = Snooper(address=address, port=port, interface=interface)
-    t0 = time.time()
-    dt=10
-
-    while time.time() - t0 < dt:
-        data = snoop.recv()
-
-        if not data:
-            continue
+        return f'{self.interface}:\n data: {self.data.address}:{self.data.port},\n report: {self.report.address}:{self.report.port},\n send: {self.send.address}:{self.send.port}'
 
 
 
@@ -71,8 +54,9 @@ class NavicoRadar:
         self.address_set = address_set
 
         self.send_socket = None
-        self.data_socket = None
-        self.report_socket = None
+
+        self.data_snooper = None
+        self.report_snooper = None
 
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
@@ -80,8 +64,8 @@ class NavicoRadar:
         self.stop_flag = False
 
         self.init_send_socket()
-        self.init_report_socket()
-        self.init_data_socket()
+        self.init_report_snooper()
+        self.init_data_snooper()
 
         self.start_report_thread()
         self.start_data_thread()
@@ -91,12 +75,20 @@ class NavicoRadar:
         self.send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         #self.send_socket.bind((self.address_set.send.address, self.address_set.send.port))
 
-    def init_report_socket(self):
+    def init_report_snooper(self):
+        self.report_snooper = Snooper(
+            address=self.address_set.report.address,
+            port=self.address_set.report.port,
+            interface=self.address_set.interface
+        )
         pass
 
-    def init_data_socket(self):
-        pass
-
+    def init_data_snooper(self):
+        self.report_snooper = Snooper(
+            address=self.address_set.data.address,
+            port=self.address_set.data.port,
+            interface=self.address_set.interface
+        )
 
     def send_pack_data(self, packed_data):
         print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
@@ -109,39 +101,31 @@ class NavicoRadar:
 
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
-            try:
-                in_data, from_addr = self.report_socket.recvfrom(65535)
-                print(in_data, from_addr)
-                if len(in_data) >= 2: #more than 2 bytes
-                    # struct.calcsize("!H") = 2
-                    id = in_data[:2]
-                    print(id)
-                    match id:
-                        case 0xb201:
-                            report = RadarReport_b201(in_data[:struct.calcsize(RadarReport_b201.format)])
-                        case 0xc402:
-                            report = RadarReport_c402(in_data[:struct.calcsize(RadarReport_c402.format)])
-                        case 0xc404:
-                            report = RadarReport_c404(in_data[:struct.calcsize(RadarReport_c404.format)])
-                        case 0xc408:
-                            report = RadarReport_c408(in_data[:struct.calcsize(RadarReport_c408.format)])
-                    #do stuff with report (update ?)
-                    # make a state report. save it maybe idk
-            except socket.timeout:
-                continue
-        self.data_socket.close()
+            in_data = next(self.report_snooper.read())#self.report_socket.recvfrom(65535)
+            print(in_data)
+            if len(in_data) >= 2: #more than 2 bytes
+                match id:
+                    case 0xb201:
+                        report = RadarReport01B2(in_data)
+                    case 0xc402:
+                        pass
+                        #report = RadarReport_c402()
+                    case 0xc404:
+                        pass
+                        #report = RadarReport_c404()
+                    case 0xc408:
+                        pass
+                        #report = RadarReport_c408()
+                # do something with the report ?
+
 
     def data_listen(self):
-        while not self.stop_flag:  # have thread specific flags as well
-            try:
-                in_data, from_addr = self.data_socket.recvfrom(65535)
-                raw_sector = RawSectorStruct(in_data)
-                print(raw_sector.lines)
-                # process data
-                #self.process_data(raw_sector.lines)
-            except socket.timeout:
-                continue
-        self.data_socket.close()
+        while not self.stop_flag: # have thread specific flags as well
+            in_data = next(self.data_snooper.read())#self.report_socket.recvfrom(65535)
+            if in_data:
+                pass
+                #do stuff
+
 
     def start_report_thread(self):
         self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
@@ -189,6 +173,62 @@ class NavicoRadar:
         pass
 
 
+
+class RadarLocator:
+    send_interval=2
+
+    def __init__(self, interface, address, port, timeout=10):
+        self.interface = interface
+        self.address = address
+        self.port = port
+        self.groupA: AddressSet = None
+        self.groupB: AddressSet = None
+        self.radar_located = False
+        self.timeout = timeout
+
+        self.get_radar_groups()
+
+    def get_radar_groups(self):
+
+        snooper = Snooper(address=self.address, port=self.port, interface=self.interface)
+
+        def _scan():
+            t0 = time.time()
+            while time.time() - t0 < self.timeout:
+                data = next(snooper.read())
+                if data:
+                    if len(data) == RadarReport01B2.size:
+                        if data[RadarReport01B2.field_sizes[0]] == 0x01b2:
+                            report = RadarReport01B2(data)
+
+                            self.groupA = AddressSet(
+                                interface=self.interface,
+                                data=report.addrDataA,
+                                report=report.addrReportA,
+                                send=report.addrSendA,
+                            )
+                            self.groupB = AddressSet(
+                                interface=self.interface,
+                                data=report.addrDataB,
+                                report=report.addrReportB,
+                                send=report.addrSendB,
+                            )
+                            self.radar_located = True
+                            break
+
+        receive_thread = threading.Thread(target=_scan, daemon=True)
+
+        send_socket = create_udp_socket()
+        send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        cmd = struct.pack("!H", 0x01b1)
+
+        receive_thread.start()
+        while not self.radar_located:
+            time.sleep(self.send_interval)
+            send_socket.sendto(cmd, (self.address, self.port))
+        send_socket.close()
+
+
 if __name__ == '__main__':
     """
     navico_mac = "00:0e:91:0a:a6:a1"
@@ -204,5 +244,18 @@ if __name__ == '__main__':
     interface = 'Ethernet 2'
     entry_group = ('236.6.7.5', 6878)
 
-    get_radar_group(address=entry_group[0], port=entry_group[1], interface=interface)
+    # addrset = AddressSet(
+    #     data=IPAddress(entry_group),
+    #     send=IPAddress(entry_group),
+    #     report=IPAddress(entry_group),
+    #     interface=interface
+    #
+    # )
+    # nr = NavicoRadar(address_set=addrset)
+    #
+    #
+
+    rlocator = RadarLocator(interface=interface, address=entry_group[0], port=entry_group[1])
+
+
 

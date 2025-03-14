@@ -202,7 +202,10 @@ class RadarReport12C466:
 
 class IPAddress:
     def __init__(self, data: tuple[int, int]):
-        self.address = socket.inet_ntoa(struct.pack('!I', data[0]))
+        if isinstance(data[0], int):
+            self.address = socket.inet_ntoa(struct.pack('!I', data[0]))
+        else:
+            self.address = data[0]
         self.port = data[1]
 
     def __repr__(self):
@@ -240,17 +243,17 @@ class RadarReport01B2:
         self.u4 = unpacked_fields[9]
         self.addr4 = IPAddress(unpacked_fields[10])
         self.u5 = unpacked_fields[11]
-        self.addr5 = IPAddress(unpacked_fields[12])
+        self.addrDataA = IPAddress(unpacked_fields[12])
         self.u6 = unpacked_fields[13]
-        self.addr6 = IPAddress(unpacked_fields[14])
+        self.addrSendA = IPAddress(unpacked_fields[14])
         self.u7 = unpacked_fields[15]
-        self.addr7 = IPAddress(unpacked_fields[16])
+        self.addrReportA = IPAddress(unpacked_fields[16])
         self.u8 = unpacked_fields[17]
-        self.addr8 = IPAddress(unpacked_fields[18])
+        self.addrDataB = IPAddress(unpacked_fields[18])
         self.u9 = unpacked_fields[19]
-        self.addr9 = IPAddress(unpacked_fields[20])
+        self.addrSendB = IPAddress(unpacked_fields[20])
         self.u10 = unpacked_fields[21]
-        self.addr10 = IPAddress(unpacked_fields[22])
+        self.addrReportB = IPAddress(unpacked_fields[22])
         self.u11 = unpacked_fields[23]
         self.addr11 = IPAddress(unpacked_fields[24])
         self.u12 = unpacked_fields[25]
@@ -264,43 +267,6 @@ class RadarReport01B2:
         self.u16 = unpacked_fields[33]
         self.addr16 = IPAddress(unpacked_fields[34])
 
-        # self.id = unpacked_fields[0]
-        # self.serialno = unpacked_fields[1]
-        # self.addr0 = unpacked_fields[2]
-        # self.u1 = unpacked_fields[3]
-        # self.addr1 = unpacked_fields[4]
-        # self.u2 = unpacked_fields[5]
-        # self.addr2 = unpacked_fields[6]
-        # self.u3 = unpacked_fields[7]
-        # self.addr3 = unpacked_fields[8]
-        # self.u4 = unpacked_fields[9]
-        # self.addr4 = unpacked_fields[10]
-        # self.u5 = unpacked_fields[11]
-        # self.addr5 = unpacked_fields[12]
-        # self.u6 = unpacked_fields[13]
-        # self.addr6 = unpacked_fields[14]
-        # self.u7 = unpacked_fields[15]
-        # self.addr7 = unpacked_fields[16]
-        # self.u8 = unpacked_fields[17]
-        # self.addr8 = unpacked_fields[18]
-        # self.u9 = unpacked_fields[19]
-        # self.addr9 = unpacked_fields[20]
-        # self.u10 = unpacked_fields[21]
-        # self.addr10 = unpacked_fields[22]
-        # self.u11 = unpacked_fields[23]
-        # self.addr11 = unpacked_fields[24]
-        # self.u12 = unpacked_fields[25]
-        # self.addr12 = unpacked_fields[26]
-        # self.u13 = unpacked_fields[27]
-        # self.addr13 = unpacked_fields[28]
-        # self.u14 = unpacked_fields[29]
-        # self.addr14 = unpacked_fields[30]
-        # self.u15 = unpacked_fields[31]
-        # self.addr15 = unpacked_fields[32]
-        # self.u16 = unpacked_fields[33]
-        # self.addr16 = unpacked_fields[34]
-
-
     def __repr__(self):
         _repr = f"{self.__class__.__name__}\n"
         for key, value in self.__dict__.items():
@@ -308,34 +274,34 @@ class RadarReport01B2:
         return _repr
 
 
-
-# Example usage
-a=[0x1, 0xb2, 0x31, 0x36, 0x31, 0x31, 0x34, 0x30, 0x31, 0x38, 0x38, 0x30, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0xb9, 0x1, 0x1, 0x6, 0x0, 0xfd, 0xff, 0x20, 0x1, 0x2, 0x0, 0x10, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0xb9, 0x17, 0x60, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x16, 0x1a, 0x26, 0x1f, 0x0, 0x20, 0x1, 0x2, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x17, 0x1a, 0x1c, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x18, 0x1a, 0x1d, 0x10, 0x0, 0x20, 0x1, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x8, 0x1a, 0x16, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xa, 0x1a, 0x18, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x9, 0x1a, 0x17, 0x10, 0x0, 0x20, 0x2, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xd, 0x1a, 0x1, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xe, 0x1a, 0x2, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xf, 0x1a, 0x3, 0x12, 0x0, 0x20, 0x1, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x12, 0x1a, 0x20, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x14, 0x1a, 0x22, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x13, 0x1a, 0x21, 0x12, 0x0, 0x20, 0x2, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xc, 0x1a, 0x4, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xd, 0x1a, 0x5, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xe, 0x1a, 0x6]
-data=b"\x01\xb2\x31\x36\x31\x31\x34\x30\x31\x38\x38\x30\x00\x00\x00\x00\x00\x00\xc0\xa8\x01\xb9\x01\x01\x06\x00\xfd\xff\x20\x01\x02\x00\x10\x00\x00\x00\xc0\xa8\x01\xb9\x17\x60\x11\x00\x00\x00\xec\x06\x07\x16\x1a\x26\x1f\x00\x20\x01\x02\x00\x10\x00\x00\x00\xec\x06\x07\x17\x1a\x1c\x11\x00\x00\x00\xec\x06\x07\x18\x1a\x1d\x10\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x08\x1a\x16\x11\x00\x00\x00\xec\x06\x07\x0a\x1a\x18\x12\x00\x00\x00\xec\x06\x07\x09\x1a\x17\x10\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0d\x1a\x01\x11\x00\x00\x00\xec\x06\x07\x0e\x1a\x02\x12\x00\x00\x00\xec\x06\x07\x0f\x1a\x03\x12\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x12\x1a\x20\x11\x00\x00\x00\xec\x06\x07\x14\x1a\x22\x12\x00\x00\x00\xec\x06\x07\x13\x1a\x21\x12\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0c\x1a\x04\x11\x00\x00\x00\xec\x06\x07\x0d\x1a\x05\x12\x00\x00\x00\xec\x06\x07\x0e\x1a\x06"
-print(RadarReport01B2.size)
-#raport = RadarReport01B2(data[:144])
-#ONLY VALID FORMAT TO UNPACK B201
-
-# endian = "!"
-# cformats = ['H', '16s', 'LH', '12B', 'LH', '4B',
-#             'LH', '10B', 'LH', '4B', 'LH', '10B',
-#             'LH', '4B', 'LH', '4B', 'LH', '10B',
-#             'LH', '4B', 'LH', '4B', 'LH', '10B',
-#             'LH', '4B', 'LH', '4B', 'LH', '10B',
-#             'LH', '4B', 'LH', '4B', 'LH']
 #
-# size = struct.calcsize(endian + "".join(cformats))
-# field_sizes = [struct.calcsize(f) for f in cformats]
-# field_offsets = [0] + list(accumulate(field_sizes))[:-1]
+# # Example usage
+# a=[0x1, 0xb2, 0x31, 0x36, 0x31, 0x31, 0x34, 0x30, 0x31, 0x38, 0x38, 0x30, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0xb9, 0x1, 0x1, 0x6, 0x0, 0xfd, 0xff, 0x20, 0x1, 0x2, 0x0, 0x10, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0xb9, 0x17, 0x60, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x16, 0x1a, 0x26, 0x1f, 0x0, 0x20, 0x1, 0x2, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x17, 0x1a, 0x1c, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x18, 0x1a, 0x1d, 0x10, 0x0, 0x20, 0x1, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x8, 0x1a, 0x16, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xa, 0x1a, 0x18, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x9, 0x1a, 0x17, 0x10, 0x0, 0x20, 0x2, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xd, 0x1a, 0x1, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xe, 0x1a, 0x2, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xf, 0x1a, 0x3, 0x12, 0x0, 0x20, 0x1, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x12, 0x1a, 0x20, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x14, 0x1a, 0x22, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0x13, 0x1a, 0x21, 0x12, 0x0, 0x20, 0x2, 0x3, 0x0, 0x10, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xc, 0x1a, 0x4, 0x11, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xd, 0x1a, 0x5, 0x12, 0x0, 0x0, 0x0, 0xec, 0x6, 0x7, 0xe, 0x1a, 0x6]
+# data=b"\x01\xb2\x31\x36\x31\x31\x34\x30\x31\x38\x38\x30\x00\x00\x00\x00\x00\x00\xc0\xa8\x01\xb9\x01\x01\x06\x00\xfd\xff\x20\x01\x02\x00\x10\x00\x00\x00\xc0\xa8\x01\xb9\x17\x60\x11\x00\x00\x00\xec\x06\x07\x16\x1a\x26\x1f\x00\x20\x01\x02\x00\x10\x00\x00\x00\xec\x06\x07\x17\x1a\x1c\x11\x00\x00\x00\xec\x06\x07\x18\x1a\x1d\x10\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x08\x1a\x16\x11\x00\x00\x00\xec\x06\x07\x0a\x1a\x18\x12\x00\x00\x00\xec\x06\x07\x09\x1a\x17\x10\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0d\x1a\x01\x11\x00\x00\x00\xec\x06\x07\x0e\x1a\x02\x12\x00\x00\x00\xec\x06\x07\x0f\x1a\x03\x12\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x12\x1a\x20\x11\x00\x00\x00\xec\x06\x07\x14\x1a\x22\x12\x00\x00\x00\xec\x06\x07\x13\x1a\x21\x12\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0c\x1a\x04\x11\x00\x00\x00\xec\x06\x07\x0d\x1a\x05\x12\x00\x00\x00\xec\x06\x07\x0e\x1a\x06"
+# print(RadarReport01B2.size)
+# #raport = RadarReport01B2(data[:144])
+# #ONLY VALID FORMAT TO UNPACK B201
 #
-# for i in range(len(field_sizes)):
-#     print(struct.unpack_from(endian + cformats[i], data, offset=field_offsets[i]))
-
-report = RadarReport01B2(data)
-# unpacked_fields = struct.unpack("!" + RadarReport01B2.cformat, data)
+# # endian = "!"
+# # cformats = ['H', '16s', 'LH', '12B', 'LH', '4B',
+# #             'LH', '10B', 'LH', '4B', 'LH', '10B',
+# #             'LH', '4B', 'LH', '4B', 'LH', '10B',
+# #             'LH', '4B', 'LH', '4B', 'LH', '10B',
+# #             'LH', '4B', 'LH', '4B', 'LH', '10B',
+# #             'LH', '4B', 'LH', '4B', 'LH']
+# #
+# # size = struct.calcsize(endian + "".join(cformats))
+# # field_sizes = [struct.calcsize(f) for f in cformats]
+# # field_offsets = [0] + list(accumulate(field_sizes))[:-1]
+# #
+# # for i in range(len(field_sizes)):
+# #     print(struct.unpack_from(endian + cformats[i], data, offset=field_offsets[i]))
 #
-#
-# import socket
-# for i in range(len(unpacked_fields)):
-#     if isinstance(unpacked_fields[i], int) and unpacked_fields[i] > 1e5:
-#         print(socket.inet_ntoa(struct.pack('!I', unpacked_fields[i])), unpacked_fields[i+1])
+# report = RadarReport01B2(data)
+# # unpacked_fields = struct.unpack("!" + RadarReport01B2.cformat, data)
+# #
+# #
+# # import socket
+# # for i in range(len(unpacked_fields)):
+# #     if isinstance(unpacked_fields[i], int) and unpacked_fields[i] > 1e5:
+# #         print(socket.inet_ntoa(struct.pack('!I', unpacked_fields[i])), unpacked_fields[i+1])

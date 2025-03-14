@@ -62,19 +62,36 @@ class Snooper:
             interface=interface,
             bpf_filter=f"dst host {address} and dst port {port}",  # either address or address and port should work
             use_ek=True,
-            include_raw=True
+            include_raw=True,
         )
 
-    def recv(self):
-        packet = self.capture.sniff(packet_count=1, timeout=1)
+
+    #            return
+    def read(self):
+        packet = self.capture.sniff_continuously()
         if packet:
-            return packet.data.data.value
+            yield None
         else:
-            return None
-
-#            return
-        #return next(self.capture.sniff_continuously(1)).data.data.value
+            yield packet.data.data.value
 
 
-if __name__ == "__main__":
-    pass
+# if __name__ == "__main__":
+#     import threading
+#     import time
+#
+#
+#     interface = 'Ethernet 2'
+#     entry_group = ('236.6.7.5', 6878)
+#
+#     s = Snooper(*entry_group, interface)
+#
+#     flag = True
+#
+#     def scan():
+#         while flag:
+#             print(next(s.read()))
+#             time.sleep(5)
+#
+#
+#     thread = threading.Thread(target=scan, daemon=True)
+#     thread.start()
