@@ -68,11 +68,11 @@ class Snooper:
 
     #            return
     def read(self):
-        packet = self.capture.sniff_continuously()
+        packet = next(self.capture.sniff_continuously(1))
         if packet:
-            yield None
+            return None
         else:
-            yield packet.data.data.value
+            return packet.data.data.value
 
 
 # if __name__ == "__main__":

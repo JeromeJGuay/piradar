@@ -1,0 +1,219 @@
+import struct
+
+ENDIAN = "!"
+
+
+COMMAND_STAY_ON_A = [0xa0, 0xc1]
+COMMAND_STAY_ON_B = [0x03, 0xc2]
+COMMAND_STAY_ON_C = [0x04, 0xc2]
+COMMAND_STAY_ON_D = [0x05, 0xc2]
+COMMAND_STAY_ON_E = [0x0a, 0xc2]
+
+
+class TxOnCmd:
+    A = struct.pack("BBB", 0x00, 0xc1, 0x01)
+    B = struct.pack("BBB", 0x01, 0xc1, 0x01)
+
+
+class TxOffCmd:
+    A = struct.pack("BBB", 0x00, 0xc1, 0x01)
+    B = struct.pack("BBB", 0x01, 0xc1, 0x00)
+
+
+class StayOnCmd:
+    A = struct.pack("BB", 0xa0, 0xc1)
+    B = struct.pack("BB", 0x03, 0xc2)
+    C = struct.pack("BB", 0x04, 0xc2)
+    D = struct.pack("BB", 0x05, 0xc2)
+    E = struct.pack("BB", 0x0a, 0xc2)
+
+
+class RangeCmd:
+    cformat = "HI"
+    cmd = 0x03c1
+
+    def pack(self, value):
+        value = int(value * 10)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class BearingAlignmentCmd:
+    cformat = "HH"
+    cmd = 0x05c1
+
+    def pack(self, value):
+        value = int(value * 10)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class GainCmd:
+    cformat = "HIIB"
+    cmd = 0x06c1
+    sub_cmd = 0x00
+
+    def pack(self, auto: bool, value: int):
+        value = int(value * 255 / 100)
+        value = min(int(value), 255)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
+
+
+class SeaClutterCmd:
+    cformat = "HIIB"
+    cmd = 0x06c1
+    sub_cmd = 0x02
+
+    def pack(self, auto: bool, value: int):
+        value = int(value * 255 / 100)
+        value = min(int(value), 255)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
+
+
+class RainClutterCmd:
+    cformat = "HIIB"
+    cmd = 0x06c1
+    sub_cmd = 0x04
+
+    def pack(self, auto: bool, value: int):
+        value = int(value * 255 / 100)
+        value = min(int(value), 255)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
+
+
+class SidelobeSuppressionCmd:
+    cformat = "HIIB"
+    cmd = 0x06c1
+    sub_cmd = 0x05
+
+    def pack(self, auto: bool, value: int):
+        value = int(value * 255 / 100)
+        value = min(int(value), 255)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
+
+class AutoSeaClutterNudgeCmd:
+    cformat = "HBbbB"
+    cmd = 0x11c1
+    sub_cmd = 0x01
+    tail = 0x04
+
+    def pack(self, value):
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, value, value, self.tail)
+
+
+class DopplerCmd:
+    cformat = "HB"
+    cmd = 0x23c1
+
+    def pack(self, value):
+        """Values of 1, 2, (0-off) normal, approaching_only"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+class DopplerSpeedCmd:
+    cformat = "HH"
+    cmd = 0x24c1
+
+    def pack(self, value):
+        value = int(value * 100)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class AntennaHeightCmd:
+    cformat = "HII"
+    cmd = 0x30c1
+    one = 0x01
+
+    def pack(self, value):
+        value = int(value * 1000) # to mm
+        return struct.pack(ENDIAN + self.cformat, self.cmd, self.one, value)
+
+
+class InterferanceRejection:
+    cformat = "HB"
+    cmd = 0x08c1
+
+    def pack(self, value):
+        """Values of 0 to 3 off, low, medium, high"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class SeaStateCmd:
+    cformat = "HB"
+    cmd = 0x0bc1
+
+    def pack(self, value):
+        """Values of 1 or 2, (0-calm) moderate, rough"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class ScanSpeedCmd:
+    cformat = "HB"
+    cmd = 0x0fc1
+
+    def pack(self, value):
+        """Values of 1 or 3, (0-low) medium, high"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class ModeCmd:
+    cformat = "HB"
+    cmd = 0x10c1
+
+    def pack(self, value):
+        """Values of 1 ,2, 3, 5 (0-default), harbor, offshore, weather, bird"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class TargetExpansionCmd:
+    cformat = "HB"
+    cmd = 0x12c1
+
+    def pack(self, value):
+        """Values of 0 to 3 off, low, medium, high"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class NoiseRejectionCmd:
+    cformat = "HB"
+    cmd = 0x21c1
+
+    def pack(self, value):
+        """Values of 0 to 3 off, low, medium, high"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class TargetSeparationCmd:
+    cformat = "HB"
+    cmd = 0x22c1
+
+    def pack(self, value):
+        """Values of 0 to 3 off, low, medium, high"""
+        value = int(value)
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+class EnumCmd: # fixme me many commands
+    cformat = "HB"
+    cmd: int
+    value: int
+
+    def __init__(self, key, value):
+        pass
+
+    def pack(self, value):
+        # fixme
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+
+
+if __name__ == '__main__':
+    #radar_addresses = scan_for_halo_radar()
+    print(RangeCmd().pack(100))
+    print(AntennaHeightCmd().pack(100))
