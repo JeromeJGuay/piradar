@@ -234,11 +234,6 @@ class NavicoRadar:
 
 
 
-
-
-
-
-
 class RadarLocator:
     send_interval=2
 
