@@ -38,14 +38,16 @@ def join_mcast_group(sock, interface_address, group_address):
     #sock.setsockopt(socket.SOL_SOCKET, socket.IP_ADD_MEMBERSHIP, mreq)
 
 
-
 def create_udp_multicast_receiver_socket(interface_address, group_address, group_port):
     sock = create_udp_socket()
 
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, RCV_SOCKET_BUFSIZE)
+    # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, RCV_SOCKET_BUFSIZE)
 
-    sock.bind((HOST, group_port))
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
 
+    #sock.bind((HOST, group_port))
+    sock.bind((group_address, group_port))
 
     join_mcast_group(sock, interface_address, group_address)
     return sock

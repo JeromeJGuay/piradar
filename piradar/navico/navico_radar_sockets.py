@@ -28,8 +28,8 @@ import threading
 import asyncio
 from unittest import case
 
-#from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string, create_udp_multicast_receiver_socket
-from piradar.network import create_udp_socket, Snooper
+from piradar.network import create_udp_socket, join_mcast_group, get_local_addresses, ip_address_to_string, create_udp_multicast_receiver_socket
+#from piradar.network import create_udp_socket, Snooper
 from piradar.navico.navico_structure import *
 from piradar.navico.navico_command import *
 
@@ -46,9 +46,6 @@ class AddressSet:
 
     def __repr__(self):
         return f'{self.interface}:\n data: {self.data.address}:{self.data.port},\n report: {self.report.address}:{self.report.port},\n send: {self.send.address}:{self.send.port}'
-
-
-
 
 
 class NavicoRadar:
@@ -74,10 +71,10 @@ class NavicoRadar:
 
 
         self.init_send_socket()
-        self.init_report_snooper()
+        self.init_report_socket()
         #self.init_data_snooper()
 
-        self.start_report_thread()
+        self.start_report_socket()
         #self.start_data_thread()
 
     def init_send_socket(self):
@@ -85,18 +82,18 @@ class NavicoRadar:
         self.send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
         # not binding required
 
-    def init_report_snooper(self):
-        self.report_snooper = Snooper(
-            address=self.address_set.report.address,
-            port=self.address_set.report.port,
-            interface=self.address_set.interface
+    def init_report_socket(self):
+        self.report_socket = create_udp_multicast_receiver_socket(
+            interface_address=self.address_set.interface,
+            group_address=self.address_set.report.address,
+            group_port=self.address_set.report.port
         )
 
-    def init_data_snooper(self):
-        self.data_snooper = Snooper(
-            address=self.address_set.data.address,
-            port=self.address_set.data.port,
-            interface=self.address_set.interface
+    def init_data_socket(self):
+        self.data_socket = create_udp_multicast_receiver_socket(
+            interface_address=self.address_set.interface,
+            group_address=self.address_set.data.address,
+            group_port=self.address_set.data.port
         )
 
     def send_pack_data(self, packed_data):
@@ -110,10 +107,8 @@ class NavicoRadar:
 
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
-            capture = next(self.report_snooper.capture.sniff_continuously())
-            if capture:
-                in_data = capture.data.data.value
-
+            in_data = self.report_socket.recvfrom(1024)
+            if in_data:
                 if len(in_data) >= 2: #more than 2 bytes
                     id = struct.unpack("!H", in_data[:2])
                     match id:
@@ -145,14 +140,10 @@ class NavicoRadar:
 
     def data_listen(self):
         while not self.stop_flag: # have thread specific flags as well
-            capture = next(self.data_snooper.capture.sniff_continuously(1))
-
-            if capture:
-                in_data = capture.data.data.value
+            in_data = self.data_socket.recvfrom(1024)
+            if in_data:
                 print("data:", in_data)
-                if in_data:
-                    pass
-                    #do stuff
+                pass
 
     def start_report_thread(self):
         self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
@@ -234,43 +225,33 @@ class NavicoRadar:
 
 
 
-
-
-
-
-
 class RadarLocator:
-    send_interval=2
+    send_interval = 2
+    group_address = '236.6.7.5'
+    group_port = 6878
 
-    def __init__(self, address, port, interface=None, timeout=20):
+    def __init__(self, interface, timeout=30):
         self.interface = interface
-        self.address = address
-        self.port = port
-        self.groupA: AddressSet = None
-        self.groupB: AddressSet = None
         self.radar_located = False
+        self.groupA: AddressSet = None
+        self.group: AddressSet = None
         self.timeout = timeout
 
-        self.get_radar_groups()
-
-    def get_radar_groups(self):
-
-        snooper = Snooper(address=self.address, port=self.port, interface=self.interface)
+    def locate(self):
+        report_socket = create_udp_multicast_receiver_socket(
+            interface_address=self.interface,
+            group_address=self.group_address,
+            group_port=self.group_port
+        )
 
         def _scan():
-            t0 = time.time()
-
-            while time.time() - t0 < self.timeout:
-                capture = next(snooper.capture.sniff_continuously(1))
-                print(capture)
-                if capture:
-                    data = capture.data.data.value
-                    if len(data) == RadarReport01B2.size:
-                        print("good length")
-                        print(data[:2])
-                        if data[:2] == b'\x01\xb2':
-                            report = RadarReport01B2(data)
-
+            in_data = report_socket.recvfrom(1024)
+            if in_data:
+                if len(in_data) >= 2: #more than 2 bytes
+                    id = struct.unpack("!H", in_data[:2])
+                    match id:
+                        case RadarReport01B2.id: #'#case b'\xb2\x01':
+                            report = RadarReport01B2(in_data)
                             self.groupA = AddressSet(
                                 interface=self.interface,
                                 data=report.addrDataA,
@@ -284,43 +265,26 @@ class RadarLocator:
                                 send=report.addrSendB,
                             )
                             self.radar_located = True
-                    break
-                time.sleep(1)
-                print("No data")
-            self.radar_located = True
+                            report_socket.close()
 
         receive_thread = threading.Thread(target=_scan, daemon=True)
 
         send_socket = create_udp_socket()
-        send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
         cmd = struct.pack("!H", 0x01b1)
+        # not binding required
 
         receive_thread.start()
         while not self.radar_located:
             print(cmd)
             time.sleep(self.send_interval)
-            send_socket.sendto(cmd, (self.address, self.port))
+            send_socket.sendto(cmd, (self.group_address, self.group_port))
         send_socket.close()
 
 
-if __name__ == '__main__':
-    """
-    navico_mac = "00:0e:91:0a:a6:a1"
-    Source: 169.254.240.252 Destination: 224.0.0.22
-    Membership Report
-    Join group 236.6.7.13 for any sources
-    Join group 236.6.7.20 for any sources
-    Join group 236.6.7.14 for any sources
-    Join group 236.6.7.10 for any sources
-    Join group 236.6.7.5 for any sources
-    """
+if __name__ == "__main__":
 
-    interface = "ethernet 2"
-    #entry_group = ("236.6.7.9", 6679)
-    entry_group = ('236.6.7.5', 6878)
-
-
-   # rlocator = RadarLocator(interface=interface, address=entry_group[0], port=entry_group[1])
+    interface = "192.168.1.185" # change it
 
     addrset = AddressSet(
         data=IPAddress(('236.6.7.8', 6678)),
@@ -329,7 +293,10 @@ if __name__ == '__main__':
         interface=interface
     )
 
-   # addrset = rlocator.groupB
+    # addrset = rlocator.groupB
 
     nr = NavicoRadar(address_set=addrset)
     nr.transmit()
+
+
+
