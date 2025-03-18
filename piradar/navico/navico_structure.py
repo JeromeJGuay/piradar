@@ -3,6 +3,21 @@ import struct
 import socket
 
 
+class ReportIds:
+    _01B2 = 0x01b2
+    _01C4 = 0x01c4
+    _02C4 = 0x02c4
+    _03C4 = 0x03c4
+    _04C4 = 0x04c4
+    # _05C4 = 0x05c4 # Not use (maybe it doesnt not exist)
+    _06C4 = 0x06c4
+    # _07C4 = 0x07c4 # Not use (maybe it doesnt not exist)
+    _08C4 = 0x08c4
+    # _09C4 = 0x09c4 # Not use (maybe it doesnt not exist)
+    # _10C4 = 0x10c4 # Not use (maybe it doesnt not exist)
+    # _11C4 = 0x11c4 # Not use (maybe it doesnt not exist)
+    _12C4 = 0x12c4
+
 
 class IPAddress:
     def __init__(self, data: tuple[int, int]):
@@ -28,7 +43,7 @@ class RadarReport01B2:
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
-    id = 0x01b2
+
     def __init__(self, data):
         unpacked_fields = [
             struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
@@ -85,7 +100,7 @@ class RadarReport01C418:
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
-    id = 0x01c4
+
     def __init__(self, data):
         unpacked_fields = [
             struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
@@ -105,7 +120,6 @@ class RadarReport01C418:
 class RadarReport02C499:
     endian = "!"
     cformats = [] #TODO
-    id = 0x02c4
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -151,7 +165,6 @@ class RadarReport02C499:
 class RadarReport03C4129:
     endian = "!"
     cformats = [] #TODO
-    id = 0x03c4
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -178,7 +191,6 @@ class RadarReport03C4129:
 class RadarReport04C466:
     endian = "!"
     cformats = [] #TODO
-    id = 0x04c4
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -209,13 +221,10 @@ class RadarReport04C466:
 #   uint16_t end_angle;
 # };
 
-class RadarReport06C4:
-    id = 0x06c4
 
 class RadarReport06C468:
     endian = "!"
     cformats = [] #TODO
-    id = 0x06c4
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -241,7 +250,6 @@ class RadarReport06C468:
 class RadarReport06C474:
     endian = "!"
     cformats = [] #TODO
-    id = 0x06c4
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -264,14 +272,9 @@ class RadarReport06C474:
         #TODO
 
 
-class RadarReport08C4:
-    id = 0x08c4
-
-
 class RadarReport08C418:
     endian = "!"
     cformats = [] #TODO
-    id = 0x09c4
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -403,7 +406,6 @@ class HaloMysteryPacket:
             struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
-
 
 
 if __name__ == "__main__":
