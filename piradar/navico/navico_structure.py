@@ -4,6 +4,7 @@ import socket
 
 from dataclasses import dataclass
 
+ENDIAN = "!"
 
 class ReportIds:
     _01B2 = 0x01b2
@@ -34,7 +35,6 @@ class IPAddress:
 
 
 class RadarReport01B2:
-    endian = "!"
     cformats = ['H', '16s', 'LH', '12B', 'LH', '4B',
                 'LH', '10B', 'LH', '4B', 'LH', '10B',
                 'LH', '4B', 'LH', '4B', 'LH', '10B',
@@ -42,13 +42,13 @@ class RadarReport01B2:
                 'LH', '4B', 'LH', '4B', 'LH', '10B',
                 'LH', '4B', 'LH', '4B', 'LH']
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
 
@@ -96,16 +96,15 @@ class RadarReport01B2:
 
 
 class RadarReport01C418:
-    endian = "!"
     cformats = ["B", "B", "B", "B", "B", "B", "H", "H", "H"]
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         self.what = unpacked_fields[0]
@@ -120,11 +119,10 @@ class RadarReport01C418:
 
 
 class RadarReport02C499:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -158,18 +156,17 @@ class RadarReport02C499:
           uint8_t target_boost;            // 42
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         # TODO
 
 
 class RadarReport03C4129:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -185,17 +182,16 @@ class RadarReport03C4129:
         uint8_t u02[7];
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         # TODO
 
 class RadarReport04C466:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -211,7 +207,7 @@ class RadarReport04C466:
           uint8_t accent_light;        // 19     accent light 0..3
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
     #TODO
@@ -226,11 +222,10 @@ class SectorBlanking:
 
 
 class RadarReport06C468:
-    endian = "!"
     cformats = ["B", "B", "L", "6c", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -244,7 +239,7 @@ class RadarReport06C468:
         uint8_t field3[12];                // 56-67
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         self.what = unpacked_fields[0]
@@ -262,11 +257,10 @@ class RadarReport06C468:
 
 
 class RadarReport06C474:
-    endian = "!"
     cformats = ["B", "B", "L", "6c", "30B"] + 4 * [SectorBlanking.cformat] + ["12B"]
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -280,7 +274,7 @@ class RadarReport06C474:
         uint8_t field4[12];                // 62-73
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         self.what = unpacked_fields[0]
@@ -298,11 +292,10 @@ class RadarReport06C474:
 
 
 class RadarReport08C418:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -326,17 +319,17 @@ class RadarReport08C418:
         uint8_t field14;                       // 17
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         # TODO
 
 class RadarReport08C421:
-    endian = "!"
+
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -346,17 +339,16 @@ class RadarReport08C421:
         uint16_t doppler_speed;
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         # TODO
 
 class RadarReport12C466:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -367,17 +359,16 @@ class RadarReport12C466:
         uint8_t serialno[12];  // 2-13 Device serial number at 3G (All?)
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         # TODO
 
 class HaloHeadingPacket:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -397,17 +388,16 @@ class HaloHeadingPacket:
         {0xff, 0x7f, 0x79, 0xf8, 0xfc}                                                               // u07
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ] #TODO
 
 
 class HaloMysteryPacket:
-    endian = "!"
     cformats = [] #TODO
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -429,17 +419,16 @@ class HaloMysteryPacket:
         {0xff, 0xff}
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
 
 
 class RawScanline:
-    endian = "!"
     cformats = ["B", "B", "H", "H", "H", "H", "H", "H", "H", "L", "L", "512B"]
 
-    size = struct.calcsize(endian + "".join(cformats))
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    size = struct.calcsize(ENDIAN + "".join(cformats))
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -458,7 +447,7 @@ class RawScanline:
           uint8_t data[1024 / 2];
         """
         unpacked_fields = [
-            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
 
@@ -477,14 +466,13 @@ class RawScanline:
 
 
 class RawSector:
-    endian = "!"
     number_of_lines = 120
     cformats = ["5B", "B", "H"]# + nlines * ["".join(RawScanline.cformats)]
 
-    size = struct.calcsize(endian + "".join(cformats))
+    size = struct.calcsize(ENDIAN + "".join(cformats))
     header_size = int(size - number_of_lines * RawScanline.size)
 
-    field_sizes = [struct.calcsize(f) for f in cformats]
+    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
     def __init__(self, data):
@@ -496,7 +484,7 @@ class RawSector:
         """
         header_data = data[:self.header_size]
         unpacked_header= [
-            struct.unpack_from(self.endian + ff, buffer=header_data, offset=fo)
+            struct.unpack_from(ENDIAN + ff, buffer=header_data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         self.stuff = unpacked_header[0]

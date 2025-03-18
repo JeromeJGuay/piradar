@@ -7,7 +7,7 @@ Other relevent sockopt (maybe):
 import psutil
 import socket
 import struct
-import pyshark
+# import pyshark
 
 
 HOST = ""
@@ -46,24 +46,24 @@ def ip_address_to_string(addr):
     return socket.inet_ntoa(struct.pack('!I', addr))
 
 
-class Snooper:
-
-    def __init__(self, address, port, interface=None):
-        self.capture = pyshark.LiveCapture(
-            interface=interface,
-            bpf_filter=f"dst host {address} and dst port {port}",  # either address or address and port should work
-            use_ek=True,
-            include_raw=True,
-        )
-
-
-    #            return
-    def read(self):
-        packet = next(self.capture.sniff_continuously(1))
-        if packet:
-            return None
-        else:
-            return packet.data.data.value
+# class Snooper:
+#
+#     def __init__(self, address, port, interface=None):
+#         self.capture = pyshark.LiveCapture(
+#             interface=interface,
+#             bpf_filter=f"dst host {address} and dst port {port}",  # either address or address and port should work
+#             use_ek=True,
+#             include_raw=True,
+#         )
+#
+#
+#     #            return
+#     def read(self):
+#         packet = next(self.capture.sniff_continuously(1))
+#         if packet:
+#             return None
+#         else:
+#             return packet.data.data.value
 
 
 # if __name__ == "__main__":

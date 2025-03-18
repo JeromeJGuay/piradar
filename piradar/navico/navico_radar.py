@@ -114,7 +114,7 @@ class NavicoRadar:
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
             try:
-                in_data = self.report_socket.recvfrom(RCV_BUFF)
+                in_data = self.report_socket.recv(RCV_BUFF)
             except socket.timeout:
                 continue
             if in_data and len(in_data) >= 2:
@@ -122,13 +122,16 @@ class NavicoRadar:
 
     def data_listen(self):
         while not self.stop_flag: # have thread specific flags as well
-            in_data = self.data_socket.recvfrom(RCV_BUFF)
+            try:
+                in_data = self.data_socket.recv(RCV_BUFF)
+            except socket.timeout:
+                continue
             if in_data:
                 print("data:", in_data)
                 self.process_data(in_data=in_data)
 
     def process_report(self, in_data):
-        id = struct.unpack("!H", in_data[:2])
+        id = struct.unpack("!H", in_data[:2])[0]
         match id:
             case ReportIds._01B2:  # '#case b'\xb2\x01':
                 report = RadarReport01B2(in_data)
@@ -330,27 +333,31 @@ class RadarLocator:
         )
 
         def _scan():
-            in_data = report_socket.recvfrom(RCV_BUFF)
-            if in_data:
-                if len(in_data) >= 2: #more than 2 bytes
-                    id = struct.unpack("!H", in_data[:2])
-                    match id:
-                        case RadarReport01B2.id: #'#case b'\xb2\x01':
-                            report = RadarReport01B2(in_data)
-                            self.groupA = AddressSet(
-                                interface=self.interface,
-                                data=report.addrDataA,
-                                report=report.addrReportA,
-                                send=report.addrSendA,
-                            )
-                            self.groupB = AddressSet(
-                                interface=self.interface,
-                                data=report.addrDataB,
-                                report=report.addrReportB,
-                                send=report.addrSendB,
-                            )
-                            self.radar_located = True
-                            report_socket.close()
+            while not self.radar_located:
+                try:
+                    in_data, _addrs = report_socket.recvfrom(RCV_BUFF)
+                except socket.timeout:
+                    continue
+                if in_data:
+                    if len(in_data) >= 2: #more than 2 bytes
+                        id = struct.unpack("!H", in_data[:2])[0]
+                        match id:
+                            case ReportIds._01B2: #'#case b'\xb2\x01':
+                                report = RadarReport01B2(in_data)
+                                self.groupA = AddressSet(
+                                    interface=self.interface,
+                                    data=report.addrDataA,
+                                    report=report.addrReportA,
+                                    send=report.addrSendA,
+                                )
+                                self.groupB = AddressSet(
+                                    interface=self.interface,
+                                    data=report.addrDataB,
+                                    report=report.addrReportB,
+                                    send=report.addrSendB,
+                                )
+                                self.radar_located = True
+                                report_socket.close()
 
         receive_thread = threading.Thread(target=_scan, daemon=True)
 
@@ -375,6 +382,7 @@ class RadarLocator:
 if __name__ == "__main__":
 
     interface = "192.168.1.243"
+    # interface = "192.168.1.228"
 
     rlocator = RadarLocator()
     rlocator.locate()
