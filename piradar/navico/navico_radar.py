@@ -54,16 +54,18 @@ class AddressSet:
 
 
 class NavicoRadar:
-    def __init__(self, address_set: AddressSet):
+    def __init__(self, address_set: AddressSet, output_file):
         self.address_set = address_set
+        self.output_file = output_file
 
         self.send_socket = None
 
-        self.data_snooper = None
-        self.report_snooper = None
+        self.data_socket = None
+        self.report_socket = None
 
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
+        # self.stay_alive_thread: threading.Thread = None # TODO
 
         self.stop_flag = False
 
@@ -125,7 +127,6 @@ class NavicoRadar:
                 print("data:", in_data)
                 self.process_data(in_data=in_data)
 
-
     def process_report(self, in_data):
         id = struct.unpack("!H", in_data[:2])
         match id:
@@ -156,9 +157,43 @@ class NavicoRadar:
 
     # do something with the report ?
 
-
     def process_data(self, in_data):
-        pass
+
+        # PACKET MIGHT BE BROKEN FIXME
+
+        raw_sector = RawSector(in_data)
+
+        print(f"Scan count: {raw_sector.scanline_count}")
+        scanlines = []
+        for spoke in raw_sector.lines:
+            print(f"Spoke count: {spoke.scan_number}") #fixme maybe
+            # WILL DEPEND ON RADAR TYPE THIS IS JUST FOR HALO FIXME
+            if spoke.status == 2: # Valid
+                s = Scanline
+                print("large range", spoke.large_range)
+                print("small range", spoke.large_range)
+                print("angle", spoke.angle)
+                if spoke.large_range == 128:
+
+                    if spoke.small_range == -1: # or 0xffff maybe
+                        s.range = 0
+                    else:
+                        s.range = spoke.small_range / 4
+                else:
+                    s.range = spoke.large_range * spoke.small_range / 512
+
+                s.angle = spoke.angle * 360 / 4096
+
+                s.intensites = []
+                for bi in range(512): #divided by 15 in processData
+                    s.intensites.append(spoke.data[bi] & 0xf) / 15
+                    s.intensites.append((spoke.data[bi] & 0xf) >> 4) / 15
+
+            scanlines.append(s)
+
+        self.write_scanline(scanlines)
+
+
 
     def start_report_thread(self):
         self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
@@ -192,51 +227,86 @@ class NavicoRadar:
         cmd = None
         # valid_cmd = [
         #     "range", "bearing", "gain", "sea_clutter", "rain_clutter",
-        #     "side_lobe", "interferance", "sea_state", "scan_speed",
-        #     "mode", "target_expansion", "target_sepration", "noise", "doppler"
+        #     "side_lobe", "interferance_rejection", "sea_state", "scan_speed",
+        #     "mode", "target_expansion", "target_sepration", "noise_rejection", "doppler"
         # ]
+
+        olmh_map = {"off": 0, "low": 1, "medium": 2, "high": 3}
+
         match key:
             case "range":
-                cmd = RangeCmd.pack(value=value)
+                value = int(value * 10)
+                cmd = RangeCmd().pack(value=value)
             case "bearing":
-                cmd = BearingAlignmentCmd.pack(value=value)
+                value = int(value * 10)
+                cmd = BearingAlignmentCmd().pack(value=value)
             case "gain":
+                value = int(value * 255 / 100)
+                value = min(int(value), 255)
                 cmd = GainCmd.pack(auto=self.auto_gain, value=value)
-            # FIXME all the command will requires mapping to value
-            # case "sea_clutter":
-            #     cmd = SeaClutterCmd.pack(auto=self.auto_sea_clutter, value=value)
-            # case "rain_clutter":
-            #     cmd = RainClutterCmd.pack(auto=self.auto_rain_clutter, value=value)
-            # case "auto_sea_clutter_nudge":
-            #     cmd = AutoSeaClutterNudgeCmd.pack(value)
-            # case "side_lobe":
-            #     cmd = SidelobeSuppressionCmd.pack(auto=self.auto_sidelobe, value=value)
-            # case "interferance":
-            #     cmd = InterferanceRejection.pack(value=value)
-            # case "sea_State":
-            #     cmd = SeaStateCmd.pack(value=value)
-            # case "scan_speed":
-            #     cmd = ScanSpeedCmd.pack(value=value)
-            # case "mode":
-            #     cmd = ModeCmd.pack(value=value)
-            # case "target_expansion":
-            #     cmd = TargetExpansionCmd.pack(value=value)
-            # case "target_separation":
-            #     cmd = TargetSeparationCmd.pack(value=value)
-            # case "noise":
-            #     cmd = NoiseRejectionCmd.pack(value=value)
-            # case "doppler":
-            #     cmd = DopplerCmd.pack(value=value)
-            # case "dopper_speed":
-            #     cmd = DopplerSpeedCmd.pack(value=value)
-            # case "antenna_height":
-            #     cmd = AntennaHeightCmd.pack(value=value)
+            case "interferance_rejection":
+                value = olmh_map[value]
+                cmd = InterferanceRejection().pack(value=value)
+            case "sea_clutter":
+                value = int(value * 255 / 100)
+                value = min(int(value), 255)
+                cmd = SeaClutterCmd().pack(auto=self.auto_sea_clutter, value=value)
+            case "rain_clutter":
+                value = int(value * 255 / 100)
+                value = min(int(value), 255)
+                cmd = RainClutterCmd().pack(auto=self.auto_rain_clutter, value=value)
+            case "side_lobe":
+                value = int(value * 255 / 100)
+                value = min(int(value), 255)
+                cmd = SidelobeSuppressionCmd().pack(auto=self.auto_sidelobe, value=value)
+            case "sea_State":
+                value = {"off": 0, "moderate": 1, "rough": 2}[value]
+                cmd = SeaStateCmd().pack(value=value)
+            case "scan_speed":
+                value = {"low": 0, "medium": 1, "high": 2}[value]
+                cmd = ScanSpeedCmd().pack(value=value)
+            case "mode":
+                value = {"default": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
+                cmd = ModeCmd().pack(value=value)
+            case "auto_sea_clutter_nudge":
+                value = int(value)
+                cmd = AutoSeaClutterNudgeCmd().pack(value)
+            case "target_expansion":
+                value = olmh_map[value]
+                cmd = TargetExpansionCmd().pack(value=value)
+            case "target_separation":
+                value = olmh_map[value]
+                cmd = TargetSeparationCmd().pack(value=value)
+            case "noise_rejection":
+                value = olmh_map[value]
+                cmd = NoiseRejectionCmd().pack(value=value)
+            case "doppler":
+                value = {"off": 0, "normal": 1, "approaching_only": 2}[value]
+                cmd = DopplerCmd().pack(value=value)
+            case "dopper_speed":
+                value = value * 100
+                cmd = DopplerSpeedCmd().pack(value=value)
+            case "antenna_height":
+                value = value * 1000
+                cmd = AntennaHeightCmd().pack(value=value)
+            case "light":
+                value = olmh_map[value]
+                cmd = LightCmd().pack(value=value)
             case _:
                 print("invalid command")
 
 
         if cmd:
             self.send_pack_data(cmd)
+
+    def write_scanline(self, scanlines: list[Scanline]):
+        with open(self.output_file, "a") as f:
+            for scanline in scanlines:
+                f.write(f"angle={scanline.angle}\n")
+                f.write(f"range={scanline.range}\n")
+                f.write(f"intensities={','.join(scanline.intensities)}")
+
+
 
 
 
@@ -295,6 +365,11 @@ class RadarLocator:
             time.sleep(self.send_interval)
             send_socket.sendto(cmd, (self.group_address, self.group_port))
         send_socket.close()
+
+
+
+
+
 
 
 if __name__ == "__main__":

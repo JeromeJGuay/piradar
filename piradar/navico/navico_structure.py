@@ -2,6 +2,8 @@ from itertools import accumulate
 import struct
 import socket
 
+from dataclasses import dataclass
+
 
 class ReportIds:
     _01B2 = 0x01b2
@@ -215,16 +217,17 @@ class RadarReport04C466:
     #TODO
 
 
-# struct SectorBlankingReport {
-#   uint8_t enabled;
-#   uint16_t start_angle;
-#   uint16_t end_angle;
-# };
+class SectorBlanking:
+    cformat = "B2H"
+    def __init__(self, data: tuple[int, int, int]):
+        self.enable = data[0]
+        self.start_angle = data[1]
+        self.end_angle = data[2]
 
 
 class RadarReport06C468:
     endian = "!"
-    cformats = [] #TODO
+    cformats = ["B", "B", "L", "6c", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -244,12 +247,23 @@ class RadarReport06C468:
             struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
-        #TODO
+        self.what = unpacked_fields[0]
+        self.command = unpacked_fields[1]
+        self.field1 = unpacked_fields[2]
+        self.name = unpacked_fields[3]
+        self.field2 = unpacked_fields[4]
+        self.blanking = (
+            SectorBlanking(unpacked_fields[5]),
+            SectorBlanking(unpacked_fields[6]),
+            SectorBlanking(unpacked_fields[7]),
+            SectorBlanking(unpacked_fields[8])
+        )
+        self.field3 = unpacked_fields[9]
 
 
 class RadarReport06C474:
     endian = "!"
-    cformats = [] #TODO
+    cformats = ["B", "B", "L", "6c", "30B"] + 4 * [SectorBlanking.cformat] + ["12B"]
 
     size = struct.calcsize(endian + "".join(cformats))
     field_sizes = [struct.calcsize(f) for f in cformats]
@@ -269,7 +283,18 @@ class RadarReport06C474:
             struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
-        #TODO
+        self.what = unpacked_fields[0]
+        self.command = unpacked_fields[1]
+        self.field1 = unpacked_fields[2]
+        self.name = unpacked_fields[3]
+        self.field2 = unpacked_fields[4]
+        self.blanking = (
+            SectorBlanking(unpacked_fields[5]),
+            SectorBlanking(unpacked_fields[6]),
+            SectorBlanking(unpacked_fields[7]),
+            SectorBlanking(unpacked_fields[8])
+        )
+        self.field3 = unpacked_fields[9]
 
 
 class RadarReport08C418:
@@ -376,6 +401,7 @@ class HaloHeadingPacket:
             for ff, fo in zip(self.cformats, self.field_offsets)
         ] #TODO
 
+
 class HaloMysteryPacket:
     endian = "!"
     cformats = [] #TODO
@@ -408,6 +434,95 @@ class HaloMysteryPacket:
         ]
 
 
+class RawScanline:
+    endian = "!"
+    cformats = ["B", "B", "H", "H", "H", "H", "H", "H", "H", "L", "L", "512B"]
+
+    size = struct.calcsize(endian + "".join(cformats))
+    field_sizes = [struct.calcsize(f) for f in cformats]
+    field_offsets = [0] + list(accumulate(field_sizes))[:-1]
+
+    def __init__(self, data):
+        """
+          uint8_t headerLen;       // 1 bytes
+          uint8_t status;          // 1 bytes
+          uint16_t scan_number;    // 2 bytes, 0-4095
+          uint16_t u00;            // Always 0x4400 (integer)
+          uint16_t large_range;     // 2 bytes or -1
+          uint16_t angle;          // 2 bytes
+          uint16_t heading;        // 2 bytes heading with RI-10/11 or -1. See bitmask explanation above.
+          uint16_t small_range;     // 2 bytes or -1
+          uint16_t rotation;       // 2 bytes, rotation/angle
+          uint32_t u02;            // 4 bytes signed integer, always -1
+          uint32_t u03;            // 4 bytes signed integer, mostly -1 (0x80 in last byte) or 0xa0 in last byte
+          uint8_t data[1024 / 2];
+        """
+        unpacked_fields = [
+            struct.unpack_from(self.endian + ff, buffer=data, offset=fo)
+            for ff, fo in zip(self.cformats, self.field_offsets)
+        ]
+
+        self.header_size = unpacked_fields[0]
+        self.status = unpacked_fields[1]
+        self.scan_number = unpacked_fields[2]
+        self.u00 = unpacked_fields[3]
+        self.large_range = unpacked_fields[4]
+        self.angle = unpacked_fields[5]
+        self.heading = unpacked_fields[6]
+        self.small_range = unpacked_fields[7]
+        self.rotation_range = unpacked_fields[8]
+        self.u02 = unpacked_fields[9]
+        self.u03 = unpacked_fields[10]
+        self.data = unpacked_fields[11]
+
+
+class RawSector:
+    endian = "!"
+    number_of_lines = 120
+    cformats = ["5B", "B", "H"]# + nlines * ["".join(RawScanline.cformats)]
+
+    size = struct.calcsize(endian + "".join(cformats))
+    header_size = int(size - number_of_lines * RawScanline.size)
+
+    field_sizes = [struct.calcsize(f) for f in cformats]
+    field_offsets = [0] + list(accumulate(field_sizes))[:-1]
+
+    def __init__(self, data):
+        """
+          uint8_t stuff[5];
+          uint8_t scanline_count;
+          uint16_t scanline_size;
+          RawScanline lines[120];  //  scan lines, or spokes
+        """
+        header_data = data[:self.header_size]
+        unpacked_header= [
+            struct.unpack_from(self.endian + ff, buffer=header_data, offset=fo)
+            for ff, fo in zip(self.cformats, self.field_offsets)
+        ]
+        self.stuff = unpacked_header[0]
+        self.scanline_count = unpacked_header[1]
+        self.scanline_size = unpacked_header[2]
+
+
+        lines_data = data[self.header_size:]
+
+        self.lines = [
+            RawScanline(lines_data[i * RawScanline.size:RawScanline.size]) for i in range(self.number_of_lines)
+        ]
+
+
+@dataclass
+class Scanline:
+    angle: float
+    range: float
+    intensities: list[float]
+
+
+
 if __name__ == "__main__":
-    data=b"\x01\xb2\x31\x36\x31\x31\x34\x30\x31\x38\x38\x30\x00\x00\x00\x00\x00\x00\xc0\xa8\x01\xb9\x01\x01\x06\x00\xfd\xff\x20\x01\x02\x00\x10\x00\x00\x00\xc0\xa8\x01\xb9\x17\x60\x11\x00\x00\x00\xec\x06\x07\x16\x1a\x26\x1f\x00\x20\x01\x02\x00\x10\x00\x00\x00\xec\x06\x07\x17\x1a\x1c\x11\x00\x00\x00\xec\x06\x07\x18\x1a\x1d\x10\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x08\x1a\x16\x11\x00\x00\x00\xec\x06\x07\x0a\x1a\x18\x12\x00\x00\x00\xec\x06\x07\x09\x1a\x17\x10\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0d\x1a\x01\x11\x00\x00\x00\xec\x06\x07\x0e\x1a\x02\x12\x00\x00\x00\xec\x06\x07\x0f\x1a\x03\x12\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x12\x1a\x20\x11\x00\x00\x00\xec\x06\x07\x14\x1a\x22\x12\x00\x00\x00\xec\x06\x07\x13\x1a\x21\x12\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0c\x1a\x04\x11\x00\x00\x00\xec\x06\x07\x0d\x1a\x05\x12\x00\x00\x00\xec\x06\x07\x0e\x1a\x06"
-    r=RadarReport01B2(data)
+    #data=b"\x01\xb2\x31\x36\x31\x31\x34\x30\x31\x38\x38\x30\x00\x00\x00\x00\x00\x00\xc0\xa8\x01\xb9\x01\x01\x06\x00\xfd\xff\x20\x01\x02\x00\x10\x00\x00\x00\xc0\xa8\x01\xb9\x17\x60\x11\x00\x00\x00\xec\x06\x07\x16\x1a\x26\x1f\x00\x20\x01\x02\x00\x10\x00\x00\x00\xec\x06\x07\x17\x1a\x1c\x11\x00\x00\x00\xec\x06\x07\x18\x1a\x1d\x10\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x08\x1a\x16\x11\x00\x00\x00\xec\x06\x07\x0a\x1a\x18\x12\x00\x00\x00\xec\x06\x07\x09\x1a\x17\x10\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0d\x1a\x01\x11\x00\x00\x00\xec\x06\x07\x0e\x1a\x02\x12\x00\x00\x00\xec\x06\x07\x0f\x1a\x03\x12\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x12\x1a\x20\x11\x00\x00\x00\xec\x06\x07\x14\x1a\x22\x12\x00\x00\x00\xec\x06\x07\x13\x1a\x21\x12\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0c\x1a\x04\x11\x00\x00\x00\xec\x06\x07\x0d\x1a\x05\x12\x00\x00\x00\xec\x06\x07\x0e\x1a\x06"
+    #r=RadarReport01B2(data)
+
+    data = b"\x01\xb2"
+
+    rs = RawScanline(data)
