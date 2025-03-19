@@ -22,13 +22,15 @@ Decoded from B201
 """
 
 import time
-import datetime
-import struct
+import subprocess
+import os
 import socket
+import datetime
 import threading
+import queue
 from typing import Literal
 
-from piradar.network import create_udp_socket, get_local_addresses, create_udp_multicast_receiver_socket
+from piradar.network import create_udp_socket, create_udp_multicast_receiver_socket
 from piradar.navico.navico_structure import *
 from piradar.navico.navico_command import *
 
@@ -221,6 +223,9 @@ class NavicoRadar:
         self.report_thread: threading.Thread = None
         self.stay_alive_thread: threading.Thread = None
 
+        self.renderer_thread: threading.Thread = None
+        self.renderer_queue = queue.Queue()
+
         self.is_connected = False
         self.stop_flag = False
 
@@ -235,14 +240,18 @@ class NavicoRadar:
         self.init_report_socket()
         self.init_data_socket()
 
+        self.start_renderer_java()
+        self.init_renderer_socket()
+
         self.start_report_thread()
         self.start_data_thread()
         self.start_keep_alive_thread()
+        self.start_renderer_thread()
 
         while not self.is_connected:
             time.sleep(1)
 
-        self.send_radar_parameters(init_radar_parameters)
+        self.set_radar_parameters(init_radar_parameters)
 
 
     def init_send_socket(self):
@@ -264,6 +273,11 @@ class NavicoRadar:
             group_port=self.address_set.data.port
         )
 
+    def init_renderer_socket(self):
+        server_address = (HOST, 5000)
+        self.renderer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.renderer_sock.connect(server_address)
+
     def start_report_thread(self):
         self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
         self.report_thread.start()
@@ -275,6 +289,10 @@ class NavicoRadar:
     def start_keep_alive_thread(self):
         self.keep_alive_thread = threading.Thread(target=self.keep_alive, daemon=True)
         self.keep_alive_thread.start()
+
+    def start_renderer_thread(self):
+        self.renderer_thread = threading.Thread(target=self.send_spoke_to_renderer, daemon=True)
+        self.renderer_thread.start()
 
     def send_pack_data(self, packed_data):
         #print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
@@ -406,7 +424,6 @@ class NavicoRadar:
             spoke_data = SpokeData()
             spoke_data.spoke_number = spoke.spoke_number
 
-
             if spoke.status == 2: # Valid
 
                 #### This here could change depending on model
@@ -432,8 +449,9 @@ class NavicoRadar:
                     spoke_data.intensites += [low, high]
 
             sector_data.spoke_data.append(spoke_data)
+            self.renderer_queue.put(spoke_data)
 
-        self.write_sector_data(SectorData)
+        self.write_sector_data(sector_data=sector_data)
 
 
     ### Belows are all the commands method ###
@@ -545,7 +563,7 @@ class NavicoRadar:
         if cmd:
             self.send_pack_data(cmd)
 
-    def send_radar_parameters(self, radar_parameters: RadarParameters):
+    def set_radar_parameters(self, radar_parameters: RadarParameters):
         # Base
         if radar_parameters.range:
             self.commands("range", radar_parameters.range)
@@ -594,6 +612,30 @@ class NavicoRadar:
     def write_raw_data_packet(self, raw_data: bytearray):
         with open(self, self.raw_output_file, "wb") as f:
             f.write(raw_data)
+
+    def start_renderer_java(self):
+        run_cmd = [
+            "java",
+            "--add-modules", "javafx.controls",
+            "./RadarRenderer"
+        ]
+
+        # Run the Java application
+        subprocess.run(run_cmd)
+
+    def send_spoke_to_renderer(self):
+        while not self.stop_flag:
+            spoke_data = self.renderer_queue.get()
+            intensity = spoke_data.intensities
+            angle = spoke_data.angle
+            _range = spoke_data._range
+
+            # Format the data as a comma-separated string
+            message = f"{intensity},{angle},{_range}\n"
+
+            # Send data to Java application
+            self.renderer_sock.sendall(message.encode('utf-8'))
+
 
 
 class RadarLocator:
@@ -658,36 +700,36 @@ class RadarLocator:
 
 
 
-if __name__ == "__main__":
-
-    interface = "192.168.1.243"
-    # interface = "192.168.1.228"
-
-    #rlocator = RadarLocator(interface=interface)
-    #rlocator.locate()
-
-    addrset = AddressSet(
-        data=IPAddress(('236.6.7.8', 6678)),
-        send=IPAddress(('236.6.7.10', 6680)),
-        report=IPAddress(('236.6.7.9', 6679)),
-        interface=interface
-    )
-
-    #addrset = rlocator.groupB
-    output_file=""
-    raw_output_file=""
-
-    radar_parameters = RadarParameters(
-        range=1e3,
-        bearing=0,
-        gain=255/2,
-        antenna_height=10,
-        scan_speed="low"
-    )
-
-    # nr = NavicoRadar(address_set=addrset,
-    #                  init_radar_parameters=radar_parameters,
-    #                  output_file=output_file,
-    #                  raw_output_file=raw_output_file)
-    #
-    #
+# if __name__ == "__main__":
+#
+#     interface = "192.168.1.243"
+#     # interface = "192.168.1.228"
+#
+#     #rlocator = RadarLocator(interface=interface)
+#     #rlocator.locate()
+#
+#     addrset = AddressSet(
+#         data=IPAddress(('236.6.7.8', 6678)),
+#         send=IPAddress(('236.6.7.10', 6680)),
+#         report=IPAddress(('236.6.7.9', 6679)),
+#         interface=interface
+#     )
+#
+#     #addrset = rlocator.groupB
+#     output_file=""
+#     raw_output_file=""
+#
+#     radar_parameters = RadarParameters(
+#         range=1e3,
+#         bearing=0,
+#         gain=255/2,
+#         antenna_height=10,
+#         scan_speed="low"
+#     )
+#
+#     # nr = NavicoRadar(address_set=addrset,
+#     #                  init_radar_parameters=radar_parameters,
+#     #                  output_file=output_file,
+#     #                  raw_output_file=raw_output_file)
+#     #
+#     #
