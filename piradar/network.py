@@ -1,18 +1,10 @@
-"""
-Other relevent sockopt (maybe):
-    # ttl = 2 # 2-hop restriction in network TIME TO LIVE
-    # sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-"""
-
 import psutil
 import socket
 import struct
-# import pyshark
 
 
 HOST = ""
 RCV_SOCKET_BUFSIZE = 65535
-
 
 
 def get_local_addresses():
@@ -45,44 +37,3 @@ def create_udp_multicast_receiver_socket(interface_address, group_address, group
 def ip_address_to_string(addr):
     return socket.inet_ntoa(struct.pack('!I', addr))
 
-
-# class Snooper:
-#
-#     def __init__(self, address, port, interface=None):
-#         self.capture = pyshark.LiveCapture(
-#             interface=interface,
-#             bpf_filter=f"dst host {address} and dst port {port}",  # either address or address and port should work
-#             use_ek=True,
-#             include_raw=True,
-#         )
-#
-#
-#     #            return
-#     def read(self):
-#         packet = next(self.capture.sniff_continuously(1))
-#         if packet:
-#             return None
-#         else:
-#             return packet.data.data.value
-
-
-# if __name__ == "__main__":
-#     import threading
-#     import time
-#
-#
-#     interface = 'Ethernet 2'
-#     entry_group = ('236.6.7.5', 6878)
-#
-#     s = Snooper(*entry_group, interface)
-#
-#     flag = True
-#
-#     def scan():
-#         while flag:
-#             print(next(s.read()))
-#             time.sleep(5)
-#
-#
-#     thread = threading.Thread(target=scan, daemon=True)
-#     thread.start()

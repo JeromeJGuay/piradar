@@ -3,24 +3,19 @@ import struct
 ENDIAN = "!"
 
 
-COMMAND_STAY_ON_A = [0xa0, 0xc1]
-COMMAND_STAY_ON_B = [0x03, 0xc2]
-COMMAND_STAY_ON_C = [0x04, 0xc2]
-COMMAND_STAY_ON_D = [0x05, 0xc2]
-COMMAND_STAY_ON_E = [0x0a, 0xc2]
+class TxOnCmds:
+    A = struct.pack(ENDIAN+"HB", 0x00c1, 0x01)
+    B = struct.pack(ENDIAN+"HB", 0x01c1, 0x01)
 
 
-class TxOnCmd:
-    A = struct.pack("BBB", 0x00, 0xc1, 0x01)
-    B = struct.pack("BBB", 0x01, 0xc1, 0x01)
+class TxOffCmds:
+    A = struct.pack(ENDIAN+"HB", 0x00c1, 0x01)
+    B = struct.pack(ENDIAN+"HB", 0x01c1, 0x00)
 
 
-class TxOffCmd:
-    A = struct.pack("BBB", 0x00, 0xc1, 0x01)
-    B = struct.pack("BBB", 0x01, 0xc1, 0x00)
 
-
-class StayOnCmd:
+class StayOnCmds:
+    A0 = struct.pack(ENDIAN+"HB", 0xa0c1, 0x02)
     A = struct.pack("BB", 0xa0, 0xc1)
     B = struct.pack("BB", 0x03, 0xc2)
     C = struct.pack("BB", 0x04, 0xc2)
@@ -28,13 +23,15 @@ class StayOnCmd:
     E = struct.pack("BB", 0x0a, 0xc2)
 
 
-class RangeCmd:
+class _RangeCmd:
     cformat = "HI"
     cmd = 0x03c1
 
     def pack(self, value: int):
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
+
+RangeCmd = _RangeCmd() # TODO
 
 class BearingAlignmentCmd:
     cformat = "HH"
@@ -79,6 +76,7 @@ class SidelobeSuppressionCmd:
     def pack(self, auto: bool, value: int):
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
 
+
 class AutoSeaClutterNudgeCmd:
     cformat = "HBbbB"
     cmd = 0x11c1
@@ -97,6 +95,7 @@ class DopplerCmd:
     def pack(self, value):
         """Values of 1, 2, (0-off) normal, approaching_only"""
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
 
 class DopplerSpeedCmd:
     cformat = "HH"
@@ -138,7 +137,9 @@ class ScanSpeedCmd:
     cmd = 0x0fc1
 
     def pack(self, value: int):
-        """Values of 1 or 3, (0-low) medium, high"""
+        """Values of 1 or 3, (0-low) medium, high
+        Maybe its 0 to reset and 1 to increase ?
+        """
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 

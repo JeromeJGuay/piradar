@@ -197,20 +197,20 @@ class NavicoRadar:
     ### Belows are all the commands method ###
 
     def stay_alive(self, mode=0):
-        self.send_pack_data(StayOnCmd.A)
+        self.send_pack_data(StayOnCmds.A)
         if mode == 0:
-            self.send_pack_data(StayOnCmd.B)
-            self.send_pack_data(StayOnCmd.C)
-            self.send_pack_data(StayOnCmd.D)
-            self.send_pack_data(StayOnCmd.E)
+            self.send_pack_data(StayOnCmds.B)
+            self.send_pack_data(StayOnCmds.C)
+            self.send_pack_data(StayOnCmds.D)
+            self.send_pack_data(StayOnCmds.E)
 
     def transmit(self):
-        self.send_pack_data(TxOnCmd.A)
-        self.send_pack_data(TxOnCmd.B)
+        self.send_pack_data(TxOnCmds.A)
+        self.send_pack_data(TxOnCmds.B)
 
     def standby(self):
-        self.send_pack_data(TxOffCmd.A)
-        self.send_pack_data(TxOffCmd.B)
+        self.send_pack_data(TxOffCmds.A)
+        self.send_pack_data(TxOffCmds.B)
 
     def commands(self, key, value):
         #have object to store radar states. With all the auto_...

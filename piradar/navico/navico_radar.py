@@ -22,6 +22,7 @@ Decoded from B201
 """
 
 import time
+import datetime
 import struct
 import socket
 import threading
@@ -41,22 +42,93 @@ RCV_BUFF = 65535
 ENTRY_GROUP_ADDRESS = '236.6.7.5'
 ENTRY_GROUP_PORT = 6878
 
+RANGE_SCALE = 10 * 2 ** (-1/2)
 
+
+@dataclass
 class AddressSet:
-    def __init__(self, data, send, report, interface):
-        self.data: IPAddress = data
-        self.send: IPAddress = send
-        self.report: IPAddress = report
-        self.interface = interface
+    data: IPAddress
+    send: IPAddress
+    report: IPAddress
+    interface = interface
+
 
     def __repr__(self):
         return f'{self.interface}:\n data: {self.data.address}:{self.data.port},\n report: {self.report.address}:{self.report.port},\n send: {self.send.address}:{self.send.port}'
 
 
+@dataclass
+class SpokeData:
+    spoke_number: int = None
+    angle: float = None
+    range: float = None
+    intensities: list[float] = None
+
+
+
+@dataclass
+class SectorData:
+    time: str = None
+    number_of_spokes: int = None
+    spoke_data: list[SpokeData] = None
+
+
+
+@dataclass
+class SpatialReport:
+    """Report 04C4"""
+    bearing: float = None
+    antenna_height: float = None
+
+
+@dataclass
+class SystemReport:
+    """Report 03C4"""
+    radar_type: str = None
+
+
+@dataclass
+class BlankingReport:
+    """Report 06c4"""
+    pass
+
+
+@dataclass
+class SettingReport:
+    """Report 08C4"""
+    sea_state: int = None
+    local_interference_rejection: int = None
+    scan_speed: int = None
+    sls_auto: int = None
+    side_lobe_suppression: int = None
+    noise_rejection: int = None
+    target_seperation: int = None
+    sea_clutter: int = None
+    auto_sea_clutter: int = None
+
+
+@dataclass
+class DopplerReport:
+    """Report 08C4"""
+    doppler_state: int = None
+    doppler_speed: int = None
+
+
+@dataclass
+class SerialNumberReport:
+    """Report 12C4"""
+    serial_number: str = None
+
+
+
+
 class NavicoRadar:
-    def __init__(self, address_set: AddressSet, output_file):
+    def __init__(self, address_set: AddressSet, output_file, raw_output_file):
         self.address_set = address_set
         self.output_file = output_file
+        self.raw_output_file = raw_output_file # fixme Make a object to store these parameter
+
+        # make object to store initatil parameter to pass to Radar
 
         self.send_socket = None
 
@@ -76,12 +148,16 @@ class NavicoRadar:
         self.auto_rain_clutter = False
         self.auto_sidelobe = False
 
-
         self.init_send_socket()
         self.init_report_socket()
+        self.init_data_socket()
 
         self.start_report_thread()
         self.start_data_thread()
+
+        ### Spoke tracker ###
+        self.expected_number_of_spokes = 0
+        self.spoke_counter = 0
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -110,6 +186,7 @@ class NavicoRadar:
         self.stop_flag = True
         self.report_thread.join()
         self.data_thread.join()
+        self.send_socket.close()
 
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
@@ -124,6 +201,7 @@ class NavicoRadar:
         while not self.stop_flag: # have thread specific flags as well
             try:
                 in_data = self.data_socket.recv(RCV_BUFF)
+                self.write_raw_data_packet(in_data)
             except socket.timeout:
                 continue
             if in_data:
@@ -163,40 +241,54 @@ class NavicoRadar:
     def process_data(self, in_data):
 
         # PACKET MIGHT BE BROKEN FIXME
+        # Any processing could be done in a new thread using Queue (maybe).
+        raw_sector = RawSectorData(in_data)
 
-        raw_sector = RawSector(in_data)
+        print(f"Number of spokes in sector: {raw_sector.number_of_spokes}")
+        sector_data = SectorData()
+        sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        sector_data.number_of_spokes = raw_sector.number_of_spokes
 
-        print(f"Scan count: {raw_sector.scanline_count}")
-        scanlines = []
-        for spoke in raw_sector.lines:
-            print(f"Spoke count: {spoke.scan_number}") #fixme maybe
+        for spoke in raw_sector.spokes:
+            print(f"Spoke number: {spoke.spoke_number} [should be between 0-4096]") #fixme maybe
             # WILL DEPEND ON RADAR TYPE THIS IS JUST FOR HALO FIXME
+
+            print("angle", spoke.angle)
+            print("heading", spoke.heading)
+            print("small range", spoke.small_range)
+            print("large range", spoke.large_range)
+            print("angle", spoke.angle)
+
+            spoke_data = SpokeData()
+            spoke_data.spoke_number = spoke.spoke_number
+
+
             if spoke.status == 2: # Valid
-                s = Scanline
-                print("large range", spoke.large_range)
-                print("small range", spoke.large_range)
-                print("angle", spoke.angle)
+
+                #### This here could change depending on model
                 if spoke.large_range == 128:
-
                     if spoke.small_range == -1: # or 0xffff maybe
-                        s.range = 0
+                        spoke_data.range = 0
                     else:
-                        s.range = spoke.small_range / 4
+                        spoke_data.range = spoke.small_range / 4
                 else:
-                    s.range = spoke.large_range * spoke.small_range / 512
+                    spoke_data.range = spoke.large_range * spoke.small_range / 512
 
-                s.angle = spoke.angle * 360 / 4096
+                spoke_data.range *= RANGE_SCALE # 10 / sqrt(2)
 
-                s.intensites = []
-                for bi in range(512): #divided by 15 in processData
-                    s.intensites.append(spoke.data[bi] & 0xf) / 15
-                    s.intensites.append((spoke.data[bi] & 0xf) >> 4) / 15
+                spoke_data.angle = spoke.angle * 360 / 4096 # 0..4096 = 0..360
 
-            scanlines.append(s)
+                spoke_data.intensites = []
+                for bi in range(512):
+                    low = spoke.data[bi] & 0x0f # 0000 1111
+                    high = (spoke.data[bi] & 0xf0) >> 4 # 1111 0000
+                    # This should work since data has to be a byte size value.
+                    # high = spoke.data[bi] >> 4  # 1111 0000
+                    spoke_data.intensites += [low, high]
 
-        self.write_scanline(scanlines)
+            sector_data.spoke_data.append(spoke_data)
 
-
+        self.write_scanline(SectorData)
 
     def start_report_thread(self):
         self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
@@ -209,27 +301,28 @@ class NavicoRadar:
     ### Belows are all the commands method ###
 
     def stay_alive(self, mode=0):
-        self.send_pack_data(StayOnCmd.A)
-        if mode == 0:
-            self.send_pack_data(StayOnCmd.B)
-            self.send_pack_data(StayOnCmd.C)
-            self.send_pack_data(StayOnCmd.D)
-            self.send_pack_data(StayOnCmd.E)
+        self.send_pack_data(StayOnCmds.A0)# maybe just this will work
+        if mode == 1:
+            self.send_pack_data(StayOnCmds.A)
+            self.send_pack_data(StayOnCmds.B)
+            self.send_pack_data(StayOnCmds.C)
+            self.send_pack_data(StayOnCmds.D)
+            self.send_pack_data(StayOnCmds.E)
 
     def transmit(self):
-        self.send_pack_data(TxOnCmd.A)
-        self.send_pack_data(TxOnCmd.B)
+        self.send_pack_data(TxOnCmds.A)
+        self.send_pack_data(TxOnCmds.B)
 
     def standby(self):
-        self.send_pack_data(TxOffCmd.A)
-        self.send_pack_data(TxOffCmd.B)
+        self.send_pack_data(TxOffCmds.A)
+        self.send_pack_data(TxOffCmds.B)
 
     def commands(self, key, value):
         auto = True # set as attributes
         #have object to store radar states. With all the auto_...
         cmd = None
         # valid_cmd = [
-        #     "range", "bearing", "gain", "sea_clutter", "rain_clutter",
+        #     "range", "range_custom", "bearing", "gain", "sea_clutter", "rain_clutter",
         #     "side_lobe", "interferance_rejection", "sea_state", "scan_speed",
         #     "mode", "target_expansion", "target_sepration", "noise_rejection", "doppler"
         # ]
@@ -238,6 +331,13 @@ class NavicoRadar:
 
         match key:
             case "range":
+                pre_define_ranges = [50, 75, 100, 250, 500, 750,
+                                     1e3, 1.5e3, 2e3, 4e3, 6e3,
+                                     8e3, 12e3, 15e3, 24e3]
+                value = int(pre_define_ranges[value] * 10)
+                cmd = RangeCmd().pack(value=value)
+            case "range_custom":
+                value = max(50, min(24e3, value))
                 value = int(value * 10)
                 cmd = RangeCmd().pack(value=value)
             case "bearing":
@@ -246,7 +346,7 @@ class NavicoRadar:
             case "gain":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = GainCmd.pack(auto=self.auto_gain, value=value)
+                cmd = GainCmd().pack(auto=self.auto_gain, value=value)
             case "interferance_rejection":
                 value = olmh_map[value]
                 cmd = InterferanceRejection().pack(value=value)
@@ -298,19 +398,19 @@ class NavicoRadar:
             case _:
                 print("invalid command")
 
-
         if cmd:
             self.send_pack_data(cmd)
 
-    def write_scanline(self, scanlines: list[Scanline]):
+    def write_scanline(self, sector_data: SectorData):
         with open(self.output_file, "a") as f:
-            for scanline in scanlines:
-                f.write(f"angle={scanline.angle}\n")
-                f.write(f"range={scanline.range}\n")
-                f.write(f"intensities={','.join(scanline.intensities)}")
+            f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
+            for spoke_data in sector_data:
+                f.write(f"SH:{spoke_data.time},{spoke_data.scan_number},{spoke_data.angle},{spoke_data.range}\n")
+                f.write(f"SD:{','.join(spoke_data.intensities)}\n")
 
-
-
+    def write_raw_data_packet(self, raw_data: bytearray):
+        with open(self, self.raw_output_file, "wb") as f:
+            f.write(raw_data)
 
 
 class RadarLocator:
@@ -378,25 +478,28 @@ class RadarLocator:
 
 
 
-
 if __name__ == "__main__":
 
     interface = "192.168.1.243"
     # interface = "192.168.1.228"
 
-    rlocator = RadarLocator()
-    rlocator.locate()
+    #rlocator = RadarLocator(interface=interface)
+    #rlocator.locate()
 
-    #addrset = AddressSet(
-    #    data=IPAddress(('236.6.7.8', 6678)),
-    #    send=IPAddress(('236.6.7.10', 6680)),
-    #    report=IPAddress(('236.6.7.9', 6679)),
-    #    interface=interface
-    #)
+    addrset = AddressSet(
+        data=IPAddress(('236.6.7.8', 6678)),
+        send=IPAddress(('236.6.7.10', 6680)),
+        report=IPAddress(('236.6.7.9', 6679)),
+        interface=interface
+    )
 
-    # addrset = rlocator.groupB
+    #addrset = rlocator.groupB
+    output_file=""
+    raw_output_file=""
+    nr = NavicoRadar(address_set=addrset, output_file=output_file, raw_output_file=raw_output_file)
 
-    # nr = NavicoRadar(address_set=addrset)
-    # nr.transmit()
+    nr.commands("range", 1000) #1000 km
+
+    nr.transmit()
 
 

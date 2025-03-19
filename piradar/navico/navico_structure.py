@@ -324,6 +324,7 @@ class RadarReport08C418:
         ]
         # TODO
 
+
 class RadarReport08C421:
 
     cformats = [] #TODO
@@ -363,6 +364,7 @@ class RadarReport12C466:
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         # TODO
+
 
 class HaloHeadingPacket:
     cformats = [] #TODO
@@ -424,7 +426,7 @@ class HaloMysteryPacket:
         ]
 
 
-class RawScanline:
+class RawSpokeData:
     cformats = ["B", "B", "H", "H", "H", "H", "H", "H", "H", "L", "L", "512B"]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
@@ -453,7 +455,7 @@ class RawScanline:
 
         self.header_size = unpacked_fields[0]
         self.status = unpacked_fields[1]
-        self.scan_number = unpacked_fields[2]
+        self.spoke_number = unpacked_fields[2]
         self.u00 = unpacked_fields[3]
         self.large_range = unpacked_fields[4]
         self.angle = unpacked_fields[5]
@@ -465,12 +467,19 @@ class RawScanline:
         self.data = unpacked_fields[11]
 
 
-class RawSector:
-    number_of_lines = 120
-    cformats = ["5B", "B", "H"]# + nlines * ["".join(RawScanline.cformats)]
+class RawSectorData:
+    """
+    32 line expected. FIXME TODO
+    make it so the number of line can vary according the size of the packet. that is:
+    8 + number_of_lines * 536
+    """
+    # The number of spoke of the data is computed in the __init__().
+    number_of_spokes = 32# 32. Maybe less ? make it so it can take more or less lines depending on the
+
+    cformats = ["5B", "B", "H"] + number_of_spokes * ["".join(RawSpokeData.cformats)]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
-    header_size = int(size - number_of_lines * RawScanline.size)
+    header_size = int(size - number_of_spokes * RawSpokeData.size)
 
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
@@ -488,22 +497,16 @@ class RawSector:
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
         self.stuff = unpacked_header[0]
-        self.scanline_count = unpacked_header[1]
+        self.number_of_spokes = unpacked_header[1]
         self.scanline_size = unpacked_header[2]
 
+        self.number_of_spokes = int((RawSectorData.size - RawSectorData.header_size) / RawSpokeData.size)
 
-        lines_data = data[self.header_size:]
+        spokes_data = data[self.header_size:]
 
-        self.lines = [
-            RawScanline(lines_data[i * RawScanline.size:RawScanline.size]) for i in range(self.number_of_lines)
+        self.spokes = [
+            RawSpokeData(spokes_data[i * RawSpokeData.size: (i + 1) * RawSpokeData.size]) for i in range(self.number_of_spokes)
         ]
-
-
-@dataclass
-class Scanline:
-    angle: float
-    range: float
-    intensities: list[float]
 
 
 
@@ -511,6 +514,8 @@ if __name__ == "__main__":
     #data=b"\x01\xb2\x31\x36\x31\x31\x34\x30\x31\x38\x38\x30\x00\x00\x00\x00\x00\x00\xc0\xa8\x01\xb9\x01\x01\x06\x00\xfd\xff\x20\x01\x02\x00\x10\x00\x00\x00\xc0\xa8\x01\xb9\x17\x60\x11\x00\x00\x00\xec\x06\x07\x16\x1a\x26\x1f\x00\x20\x01\x02\x00\x10\x00\x00\x00\xec\x06\x07\x17\x1a\x1c\x11\x00\x00\x00\xec\x06\x07\x18\x1a\x1d\x10\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x08\x1a\x16\x11\x00\x00\x00\xec\x06\x07\x0a\x1a\x18\x12\x00\x00\x00\xec\x06\x07\x09\x1a\x17\x10\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0d\x1a\x01\x11\x00\x00\x00\xec\x06\x07\x0e\x1a\x02\x12\x00\x00\x00\xec\x06\x07\x0f\x1a\x03\x12\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x12\x1a\x20\x11\x00\x00\x00\xec\x06\x07\x14\x1a\x22\x12\x00\x00\x00\xec\x06\x07\x13\x1a\x21\x12\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0c\x1a\x04\x11\x00\x00\x00\xec\x06\x07\x0d\x1a\x05\x12\x00\x00\x00\xec\x06\x07\x0e\x1a\x06"
     #r=RadarReport01B2(data)
 
-    data = b"\x01\xb2"
+    #data = b"\x01\xb2"
 
-    rs = RawScanline(data)
+    print(RawSpokeData.size)
+    print(RawSectorData.size)
+    print(RawSectorData.size // RawSpokeData.size)
