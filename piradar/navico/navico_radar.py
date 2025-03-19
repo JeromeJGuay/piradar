@@ -71,7 +71,7 @@ class RawReports:
 class SpokeData:
     spoke_number: int = None
     angle: float = None
-    range: float = None
+    _range: float = None
     intensities: list[float] = None
 
 
@@ -86,7 +86,7 @@ class SectorData:
 class SettingReport:
     """Report 02C4"""
 
-    range: float = None
+    _range: float = None
     mode: str = None
     gain: float = None
     sea_state_auto: str = None
@@ -321,7 +321,7 @@ class NavicoRadar:
             case ReportIds._02C4: #SETTINGS
                 self.raw_reports.r02c4 = RadarReport02C499(in_data)
 
-                self.reports.setting.range = self.raw_reports.r02c4.range / 10 #unsure about the division
+                self.reports.setting._range = self.raw_reports.r02c4.range / 10 #unsure about the division
                 mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
                 self.reports.setting.mode = mode_map[self.raw_reports.r02c4.mode]
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
@@ -410,15 +410,16 @@ class NavicoRadar:
             if spoke.status == 2: # Valid
 
                 #### This here could change depending on model
-                if spoke.large_range == 128:
+                if spoke.large_range == 128: #why not smaller ? is this the min value for large_range ?
                     if spoke.small_range == -1: # or 0xffff maybe
-                        spoke_data.range = 0
+                        spoke_data._range = 0
                     else:
-                        spoke_data.range = spoke.small_range / 4
+                        spoke_data._range = spoke.small_range / 4
                 else:
-                    spoke_data.range = spoke.large_range * spoke.small_range / 512
+                    # I guess this is at normal resolutin using 4 bytes ? with not use a L
+                    spoke_data._range = spoke.large_range * spoke.small_range / 512
 
-                spoke_data.range *= RANGE_SCALE # 10 / sqrt(2)
+                spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
 
                 spoke_data.angle = spoke.angle * 360 / 4096 # 0..4096 = 0..360
 
@@ -508,7 +509,7 @@ class NavicoRadar:
                 cmd = RainClutterCmd().pack(auto=self.radar_parameters.auto_rain_clutter, value=value)
             case "interference_rejection":
                 value = olmh_map[value]
-                cmd = InterferenceRejection().pack(value=value)
+                cmd = InterferenceRejectionCmd().pack(value=value)
             case "side_lobe_suppression":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
@@ -587,7 +588,7 @@ class NavicoRadar:
         with open(self.output_file, "a") as f:
             f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
             for spoke_data in sector_data:
-                f.write(f"SH:{spoke_data.time},{spoke_data.scan_number},{spoke_data.angle},{spoke_data.range}\n")
+                f.write(f"SH:{spoke_data.time},{spoke_data.scan_number},{spoke_data.angle},{spoke_data._range}\n")
                 f.write(f"SD:{','.join(spoke_data.intensities)}\n")
 
     def write_raw_data_packet(self, raw_data: bytearray):

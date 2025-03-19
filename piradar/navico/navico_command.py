@@ -1,5 +1,29 @@
 import struct
 
+__all__ = [
+    'TxOnCmds',
+    'TxOffCmds',
+    'StayOnCmds',
+    'RangeCmd',
+    'BearingAlignmentCmd',
+    'GainCmd',
+    'SeaClutterCmd',
+    'RainClutterCmd',
+    'SidelobeSuppressionCmd',
+    'AutoSeaClutterNudgeCmd',
+    'DopplerModeCmd',
+    'DopplerSpeedCmd',
+    'AntennaHeightCmd',
+    'InterferenceRejectionCmd',
+    'SeaStateAutoCmd',
+    'ScanSpeedCmd',
+    'ModeCmd',
+    'NoiseRejectionCmd',
+    'TargetExpansionCmd',
+    'TargetSeparationCmd',
+    'LightCmd'
+]
+
 ENDIAN = "!"
 
 
@@ -11,7 +35,6 @@ class TxOnCmds:
 class TxOffCmds:
     A = struct.pack(ENDIAN+"HB", 0x00c1, 0x01)
     B = struct.pack(ENDIAN+"HB", 0x01c1, 0x00)
-
 
 
 class StayOnCmds:
@@ -30,10 +53,7 @@ class _RangeCmd:
     def pack(self, value: int):
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
-
-RangeCmd = _RangeCmd() # TODO
-
-class BearingAlignmentCmd:
+class _BearingAlignmentCmd:
     cformat = "HH"
     cmd = 0x05c1
 
@@ -41,7 +61,7 @@ class BearingAlignmentCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class GainCmd:
+class _GainCmd:
     cformat = "HIIB"
     cmd = 0x06c1
     sub_cmd = 0x00
@@ -50,7 +70,7 @@ class GainCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
 
 
-class SeaClutterCmd:
+class _SeaClutterCmd:
     cformat = "HIIB"
     cmd = 0x06c1
     sub_cmd = 0x02
@@ -59,7 +79,7 @@ class SeaClutterCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
 
 
-class RainClutterCmd:
+class _RainClutterCmd:
     cformat = "HIIB"
     cmd = 0x06c1
     sub_cmd = 0x04
@@ -68,7 +88,7 @@ class RainClutterCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
 
 
-class SidelobeSuppressionCmd:
+class _SidelobeSuppressionCmd:
     cformat = "HIIB"
     cmd = 0x06c1
     sub_cmd = 0x05
@@ -77,7 +97,7 @@ class SidelobeSuppressionCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, auto, value)
 
 
-class AutoSeaClutterNudgeCmd:
+class _AutoSeaClutterNudgeCmd:
     cformat = "HBbbB"
     cmd = 0x11c1
     sub_cmd = 0x01
@@ -88,7 +108,7 @@ class AutoSeaClutterNudgeCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, value, value, self.tail)
 
 
-class DopplerModeCmd:
+class _DopplerModeCmd:
     cformat = "HB"
     cmd = 0x23c1
 
@@ -97,7 +117,7 @@ class DopplerModeCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class DopplerSpeedCmd:
+class _DopplerSpeedCmd:
     cformat = "HH"
     cmd = 0x24c1
 
@@ -105,7 +125,7 @@ class DopplerSpeedCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class AntennaHeightCmd:
+class _AntennaHeightCmd:
     cformat = "HII"
     cmd = 0x30c1
     one = 0x01
@@ -114,7 +134,7 @@ class AntennaHeightCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.one, value)
 
 
-class InterferenceRejection:
+class _InterferenceRejection:
     cformat = "HB"
     cmd = 0x08c1
 
@@ -123,7 +143,7 @@ class InterferenceRejection:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class SeaStateAutoCmd:
+class _SeaStateAutoCmd:
     cformat = "HB"
     cmd = 0x0bc1
 
@@ -132,7 +152,7 @@ class SeaStateAutoCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class ScanSpeedCmd:
+class _ScanSpeedCmd:
     cformat = "HB"
     cmd = 0x0fc1
 
@@ -143,7 +163,7 @@ class ScanSpeedCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class ModeCmd:
+class _ModeCmd:
     cformat = "HB"
     cmd = 0x10c1
 
@@ -152,16 +172,7 @@ class ModeCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class TargetExpansionCmd:
-    cformat = "HB"
-    cmd = 0x12c1
-
-    def pack(self, value: int):
-        """Values of 0 to 3 off, low, medium, high"""
-        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
-
-
-class NoiseRejectionCmd:
+class _NoiseRejectionCmd:
     cformat = "HB"
     cmd = 0x21c1
 
@@ -170,7 +181,17 @@ class NoiseRejectionCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class TargetSeparationCmd:
+class _TargetExpansionCmd:
+    cformat = "HB"
+    cmd = 0x12c1
+
+    def pack(self, value: int):
+        """Values of 0 to 3 off, low, medium, high"""
+        return struct.pack(ENDIAN + self.cformat, self.cmd, value)
+
+
+
+class _TargetSeparationCmd:
     cformat = "HB"
     cmd = 0x22c1
 
@@ -179,7 +200,7 @@ class TargetSeparationCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class LightCmd:
+class _LightCmd:
     cformat = "HB"
     cmd = 0x31c1
 
@@ -188,22 +209,23 @@ class LightCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-# class EnumCmd: # fixme me many commands
-#     cformat = "HB"
-#     cmd: int
-#     value: int
-#
-#     def __init__(self, key, value):
-#         pass
-#
-#     def pack(self, value):
-#         # fixme
-#         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
+RangeCmd = _RangeCmd() # TODO
+BearingAlignmentCmd = _BearingAlignmentCmd()
+GainCmd = _GainCmd()
+SeaClutterCmd = _SeaClutterCmd()
+RainClutterCmd = _RainClutterCmd()
+SidelobeSuppressionCmd = _SidelobeSuppressionCmd()
+AutoSeaClutterNudgeCmd = _AutoSeaClutterNudgeCmd()
+DopplerModeCmd = _DopplerModeCmd()
+DopplerSpeedCmd = _DopplerSpeedCmd()
+AntennaHeightCmd = _AntennaHeightCmd()
+InterferenceRejectionCmd = _InterferenceRejection()
+SeaStateAutoCmd = _SeaStateAutoCmd()
+ScanSpeedCmd = _ScanSpeedCmd()
+ModeCmd = _ModeCmd()
+NoiseRejectionCmd = _NoiseRejectionCmd()
+TargetExpansionCmd = _TargetExpansionCmd()
+TargetSeparationCmd = _TargetSeparationCmd()
+LightCmd = _LightCmd()
 
-
-
-if __name__ == '__main__':
-    #radar_addresses = scan_for_halo_radar()
-    print(RangeCmd().pack(100))
-    print(AntennaHeightCmd().pack(100))
