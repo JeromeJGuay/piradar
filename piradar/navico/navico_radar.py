@@ -81,6 +81,9 @@ class SectorData:
     number_of_spokes: int = None
     spoke_data: list[SpokeData] = None
 
+    def __post_init__(self):
+        self.spoke_data = []
+
 
 @dataclass
 class SettingReport:
@@ -323,7 +326,10 @@ class NavicoRadar:
 
                 self.reports.setting._range = self.raw_reports.r02c4.range / 10 #unsure about the division
                 mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
-                self.reports.setting.mode = mode_map[self.raw_reports.r02c4.mode]
+                if self.raw_reports.r02c4.mode == 255:  # returned 255,
+                    self.raw_reports.r02c4.mode = mode_map[0]
+                else:
+                    self.reports.setting.mode = mode_map[self.raw_reports.r02c4.mode]
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
                 sea_stato_auto_map = {0: "off", 1: "harbour", 2: "offshore"}
                 self.reports.setting.sea_state_auto = sea_stato_auto_map[self.raw_reports.r02c4.sea_state_auto]
@@ -423,17 +429,17 @@ class NavicoRadar:
 
                 spoke_data.angle = spoke.angle * 360 / 4096 # 0..4096 = 0..360
 
-                spoke_data.intensites = []
+                spoke_data.intensities = []
                 for bi in range(512):
                     low = spoke.data[bi] & 0x0f # 0000 1111
                     high = (spoke.data[bi] & 0xf0) >> 4 # 1111 0000
                     # This should work since data has to be a byte size value.
                     # high = spoke.data[bi] >> 4  # 1111 0000
-                    spoke_data.intensites += [low, high]
+                    spoke_data.intensities += [low, high]
 
             sector_data.spoke_data.append(spoke_data)
 
-        self.write_sector_data(SectorData)
+        self.write_sector_data(sector_data)
 
 
     ### Belows are all the commands method ###
@@ -477,69 +483,69 @@ class NavicoRadar:
                                      1e3, 1.5e3, 2e3, 4e3, 6e3,
                                      8e3, 12e3, 15e3, 24e3]
                 value = int(pre_define_ranges[value] * 10)
-                cmd = RangeCmd().pack(value=value)
+                cmd = RangeCmd.pack(value=value)
             case "range_custom":
                 value = max(50, min(24e3, value))
                 value = int(value * 10)
-                cmd = RangeCmd().pack(value=value)
+                cmd = RangeCmd.pack(value=value)
             case "bearing":
                 value = int(value * 10)
-                cmd = BearingAlignmentCmd().pack(value=value)
+                cmd = BearingAlignmentCmd.pack(value=value)
             case "gain":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = GainCmd().pack(auto=self.radar_parameters.auto_gain, value=value)
+                cmd = GainCmd.pack(auto=self.radar_parameters.auto_gain, value=value)
             case "antenna_height":
                 value = value * 1000
                 value = int(value)
-                cmd = AntennaHeightCmd().pack(value=value)
+                cmd = AntennaHeightCmd.pack(value=value)
             case "scan_speed":
                 value = {"low": 0, "medium": 1, "high": 2}[value]
-                cmd = ScanSpeedCmd().pack(value=value)
+                cmd = ScanSpeedCmd.pack(value=value)
             case "sea_state_auto":
                 value = {"off": 0, "harbour": 1, "offshore": 2}[value]
-                cmd = SeaStateAutoCmd().pack(value=value)
+                cmd = SeaStateAutoCmd.pack(value=value)
             case "sea_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SeaClutterCmd().pack(auto=self.radar_parameters.auto_sea_clutter, value=value)
+                cmd = SeaClutterCmd.pack(auto=self.radar_parameters.auto_sea_clutter, value=value)
             case "rain_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = RainClutterCmd().pack(auto=self.radar_parameters.auto_rain_clutter, value=value)
+                cmd = RainClutterCmd.pack(auto=self.radar_parameters.auto_rain_clutter, value=value)
             case "interference_rejection":
                 value = olmh_map[value]
-                cmd = InterferenceRejectionCmd().pack(value=value)
+                cmd = InterferenceRejectionCmd.pack(value=value)
             case "side_lobe_suppression":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SidelobeSuppressionCmd().pack(auto=self.radar_parameters.auto_side_lobe_suppression, value=value)
+                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_parameters.auto_side_lobe_suppression, value=value)
             case "mode":
                 value = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
-                cmd = ModeCmd().pack(value=value)
+                cmd = ModeCmd.pack(value=value)
             case "auto_sea_clutter_nudge":
                 value = int(value)
-                cmd = AutoSeaClutterNudgeCmd().pack(value)
+                cmd = AutoSeaClutterNudgeCmd.pack(value)
             case "target_expansion":
                 value = olmh_map[value]
-                cmd = TargetExpansionCmd().pack(value=value)
+                cmd = TargetExpansionCmd.pack(value=value)
             case "target_separation":
                 value = olmh_map[value]
-                cmd = TargetSeparationCmd().pack(value=value)
+                cmd = TargetSeparationCmd.pack(value=value)
             # target boost seems to be missing FIXME
             case "noise_rejection":
                 value = olmh_map[value]
-                cmd = NoiseRejectionCmd().pack(value=value)
+                cmd = NoiseRejectionCmd.pack(value=value)
             case "doppler_mode":
                 value = {"off": 0, "normal": 1, "approaching_only": 2}[value]
-                cmd = DopplerModeCmd().pack(value=value)
+                cmd = DopplerModeCmd.pack(value=value)
             case "doppler_speed":
                 value = value * 100
                 value = int(value)
-                cmd = DopplerSpeedCmd().pack(value=value)
+                cmd = DopplerSpeedCmd.pack(value=value)
             case "light":
                 value = olmh_map[value]
-                cmd = LightCmd().pack(value=value)
+                cmd = LightCmd.pack(value=value)
             case _:
                 print("invalid command")
         if cmd:
@@ -587,12 +593,13 @@ class NavicoRadar:
     def write_sector_data(self, sector_data: SectorData):
         with open(self.output_file, "a") as f:
             f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
-            for spoke_data in sector_data:
-                f.write(f"SH:{spoke_data.time},{spoke_data.scan_number},{spoke_data.angle},{spoke_data._range}\n")
-                f.write(f"SD:{','.join(spoke_data.intensities)}\n")
+            for spoke_data in sector_data.spoke_data:
+                f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
+                f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ','') + "\n") #FIXME
+                #f.write(f"SD:{','.join(spoke_data.intensities)}\n")
 
     def write_raw_data_packet(self, raw_data: bytearray):
-        with open(self, self.raw_output_file, "wb") as f:
+        with open(self.raw_output_file, "wb") as f:
             f.write(raw_data)
 
 

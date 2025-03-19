@@ -495,17 +495,17 @@ class RawSpokeData:
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
 
-        self.header_size = unpacked_fields[0]
-        self.status = unpacked_fields[1]
-        self.spoke_number = unpacked_fields[2]
-        self.u00 = unpacked_fields[3]
-        self.large_range = unpacked_fields[4]
-        self.angle = unpacked_fields[5]
-        self.heading = unpacked_fields[6]
-        self.small_range = unpacked_fields[7]
-        self.rotation_range = unpacked_fields[8]
-        self.u02 = unpacked_fields[9]
-        self.u03 = unpacked_fields[10]
+        self.header_size = unpacked_fields[0][0]
+        self.status = unpacked_fields[1][0]
+        self.spoke_number = unpacked_fields[2][0]
+        self.u00 = unpacked_fields[3][0]
+        self.large_range = unpacked_fields[4][0]
+        self.angle = unpacked_fields[5][0]
+        self.heading = unpacked_fields[6][0]
+        self.small_range = unpacked_fields[7][0]
+        self.rotation_range = unpacked_fields[8][0]
+        self.u02 = unpacked_fields[9][0]
+        self.u03 = unpacked_fields[10][0]
         self.data = unpacked_fields[11]
 
 
@@ -536,11 +536,11 @@ class RawSectorData:
         header_data = data[:self.header_size]
         unpacked_header= [
             struct.unpack_from(ENDIAN + ff, buffer=header_data, offset=fo)
-            for ff, fo in zip(self.cformats, self.field_offsets)
+            for ff, fo in zip(self.cformatsp[:3], self.field_offsets) # this is bad pratice [:3] fixme
         ]
-        self.stuff = unpacked_header[0]
-        self.number_of_spokes = unpacked_header[1]
-        self.scanline_size = unpacked_header[2]
+        self.stuff = unpacked_header[0][0]
+        self.number_of_spokes = unpacked_header[1][0]
+        self.scanline_size = unpacked_header[2][0]
 
         self.number_of_spokes = int((RawSectorData.size - RawSectorData.header_size) / RawSpokeData.size)
 
