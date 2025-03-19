@@ -88,7 +88,7 @@ class AutoSeaClutterNudgeCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.sub_cmd, value, value, self.tail)
 
 
-class DopplerCmd:
+class DopplerModeCmd:
     cformat = "HB"
     cmd = 0x23c1
 
@@ -114,7 +114,7 @@ class AntennaHeightCmd:
         return struct.pack(ENDIAN + self.cformat, self.cmd, self.one, value)
 
 
-class InterferanceRejection:
+class InterferenceRejection:
     cformat = "HB"
     cmd = 0x08c1
 

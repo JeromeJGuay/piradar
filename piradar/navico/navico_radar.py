@@ -26,8 +26,7 @@ import datetime
 import struct
 import socket
 import threading
-import asyncio
-from unittest import case
+from typing import Literal
 
 from piradar.network import create_udp_socket, get_local_addresses, create_udp_multicast_receiver_socket
 #from piradar.network import create_udp_socket, Snooper
@@ -58,6 +57,18 @@ class AddressSet:
 
 
 @dataclass
+class RawReports:
+    r01b2: RadarReport01B2 = None
+    r01c4: RadarReport02C499 = None
+    r02c4: RadarReport02C499 = None
+    r03c4: RadarReport03C4129 = None
+    r04c4: RadarReport04C466 = None
+    r06c4: RadarReport06C468 | RadarReport06C474
+    r08C4: RadarReport08C418 | RadarReport08C421 = None
+    r12c4: RadarReport12C466 = None
+
+
+@dataclass
 class SpokeData:
     spoke_number: int = None
     angle: float = None
@@ -65,13 +76,11 @@ class SpokeData:
     intensities: list[float] = None
 
 
-
 @dataclass
 class SectorData:
     time: str = None
     number_of_spokes: int = None
     spoke_data: list[SpokeData] = None
-
 
 
 @dataclass
@@ -96,21 +105,23 @@ class BlankingReport:
 @dataclass
 class SettingReport:
     """Report 08C4"""
-    sea_state: int = None
-    local_interference_rejection: int = None
+    sea_state: str = None
+    interference_rejection: int = None
     scan_speed: int = None
-    sls_auto: int = None
+
     side_lobe_suppression: int = None
     noise_rejection: int = None
-    target_seperation: int = None
+    target_separation: int = None
     sea_clutter: int = None
-    auto_sea_clutter: int = None
+
+    side_lobe_suppresion_auto: bool = None
+    auto_sea_clutter: bool = None
 
 
 @dataclass
 class DopplerReport:
     """Report 08C4"""
-    doppler_state: int = None
+    doppler_state: str = None
     doppler_speed: int = None
 
 
@@ -120,6 +131,43 @@ class SerialNumberReport:
     serial_number: str = None
 
 
+@dataclass
+class RadarParameters:
+    # Base
+    range: float = None # maybe define literal with pre_define ranges ?
+    bearing: float = None
+    gain: float = None
+    antenna_height: float = None
+    scan_speed: Literal["low", "medium", "high"] = None  # Doubt # Default-0, increase-1 ? max-2 ???
+
+    # filters
+
+    sea_state: Literal['off', 'moderate', 'rough'] = None
+
+    sea_clutter: int = None
+    rain_clutter: int = None
+
+    interference_rejection: Literal["off", "low", "medium", "high"] = None
+    side_lobe_suppression: int = None
+
+    mode: Literal["default", "harbor", "offshore", "weather", "bird"] = None
+
+    auto_sea_clutter_nudge: int = None
+
+    target_expansion: Literal["off", "low", "medium", "high"] = None
+    target_separation: Literal["off", "low", "medium", "high"] = None
+    noise_rejection: Literal["off", "low", "medium", "high"] = None
+
+    doppler_mode: Literal['off', 'normal', 'approaching_only'] = None
+    doppler_speed: float = None
+
+    light: Literal["off", "low", "medium", "high"] = None
+
+    # auto
+    auto_gain: bool = False
+    auto_sea_clutter: bool = False
+    auto_rain_clutter: bool = False
+    auto_side_lobe_suppression: bool = False
 
 
 class NavicoRadar:
@@ -154,10 +202,6 @@ class NavicoRadar:
 
         self.start_report_thread()
         self.start_data_thread()
-
-        ### Spoke tracker ###
-        self.expected_number_of_spokes = 0
-        self.spoke_counter = 0
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -323,7 +367,7 @@ class NavicoRadar:
         cmd = None
         # valid_cmd = [
         #     "range", "range_custom", "bearing", "gain", "sea_clutter", "rain_clutter",
-        #     "side_lobe", "interferance_rejection", "sea_state", "scan_speed",
+        #     "side_lobe", "interference_rejection", "sea_state", "scan_speed",
         #     "mode", "target_expansion", "target_sepration", "noise_rejection", "doppler"
         # ]
 
@@ -347,9 +391,16 @@ class NavicoRadar:
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
                 cmd = GainCmd().pack(auto=self.auto_gain, value=value)
-            case "interferance_rejection":
-                value = olmh_map[value]
-                cmd = InterferanceRejection().pack(value=value)
+            case "antenna_height":
+                value = value * 1000
+                value = int(value)
+                cmd = AntennaHeightCmd().pack(value=value)
+            case "scan_speed":
+                value = {"low": 0, "medium": 1, "high": 2}[value]
+                cmd = ScanSpeedCmd().pack(value=value)
+            case "sea_State":
+                value = {"off": 0, "moderate": 1, "rough": 2}[value]
+                cmd = SeaStateCmd().pack(value=value)
             case "sea_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
@@ -358,16 +409,13 @@ class NavicoRadar:
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
                 cmd = RainClutterCmd().pack(auto=self.auto_rain_clutter, value=value)
-            case "side_lobe":
+            case "interference_rejection":
+                value = olmh_map[value]
+                cmd = InterferenceRejection().pack(value=value)
+            case "side_lobe_suppression":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
                 cmd = SidelobeSuppressionCmd().pack(auto=self.auto_sidelobe, value=value)
-            case "sea_State":
-                value = {"off": 0, "moderate": 1, "rough": 2}[value]
-                cmd = SeaStateCmd().pack(value=value)
-            case "scan_speed":
-                value = {"low": 0, "medium": 1, "high": 2}[value]
-                cmd = ScanSpeedCmd().pack(value=value)
             case "mode":
                 value = {"default": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
                 cmd = ModeCmd().pack(value=value)
@@ -383,21 +431,18 @@ class NavicoRadar:
             case "noise_rejection":
                 value = olmh_map[value]
                 cmd = NoiseRejectionCmd().pack(value=value)
-            case "doppler":
+            case "doppler_mode":
                 value = {"off": 0, "normal": 1, "approaching_only": 2}[value]
-                cmd = DopplerCmd().pack(value=value)
-            case "dopper_speed":
+                cmd = DopplerModeCmd().pack(value=value)
+            case "doppler_speed":
                 value = value * 100
+                value = int(value)
                 cmd = DopplerSpeedCmd().pack(value=value)
-            case "antenna_height":
-                value = value * 1000
-                cmd = AntennaHeightCmd().pack(value=value)
             case "light":
                 value = olmh_map[value]
                 cmd = LightCmd().pack(value=value)
             case _:
                 print("invalid command")
-
         if cmd:
             self.send_pack_data(cmd)
 
