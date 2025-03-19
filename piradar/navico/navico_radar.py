@@ -171,6 +171,8 @@ class RadarParameters:
 
 
 class NavicoRadar:
+    stay_alive_interval = 10 #seconds
+
     def __init__(self, address_set: AddressSet, output_file, raw_output_file):
         self.address_set = address_set
         self.output_file = output_file
@@ -185,16 +187,12 @@ class NavicoRadar:
 
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
-        # self.stay_alive_thread: threading.Thread = None # TODO
+        self.stay_alive_thread: threading.Thread = None
 
         self.stop_flag = False
 
         ### RADAR PARAMETER ###
-        ### maybe put into an object ? ####
-        self.auto_gain = False
-        self.auto_sea_clutter = False
-        self.auto_rain_clutter = False
-        self.auto_sidelobe = False
+        self.rada_parameters = RadarParameters() # Not clear how to update this at the moment. Or use it
 
         self.init_send_socket()
         self.init_report_socket()
@@ -202,6 +200,7 @@ class NavicoRadar:
 
         self.start_report_thread()
         self.start_data_thread()
+        self.start_keep_alive_thread()
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -221,6 +220,18 @@ class NavicoRadar:
             group_address=self.address_set.data.address,
             group_port=self.address_set.data.port
         )
+
+    def start_report_thread(self):
+        self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
+        self.report_thread.start()
+
+    def start_data_thread(self):
+        self.data_thread = threading.Thread(target=self.data_listen, daemon=True)
+        self.data_thread.start()
+
+    def start_keep_alive_thread(self):
+        self.keep_alive_thread = threading.Thread(target=self.keep_alive, daemon=True)
+        self.keep_alive_thread.start()
 
     def send_pack_data(self, packed_data):
         #print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
@@ -334,17 +345,14 @@ class NavicoRadar:
 
         self.write_scanline(SectorData)
 
-    def start_report_thread(self):
-        self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
-        self.report_thread.start()
-
-    def start_data_thread(self):
-        self.data_thread = threading.Thread(target=self.data_listen, daemon=True)
-        self.data_thread.start()
 
     ### Belows are all the commands method ###
+    def keep_alive(self):
+        while self.stop_flag:
+            self.send_pack_data(StayOnCmds.A0)
+            time.sleep(self.stay_alive_interval)
 
-    def stay_alive(self, mode=0):
+    def stay_alive_cmds(self, mode=0):
         self.send_pack_data(StayOnCmds.A0)# maybe just this will work
         if mode == 1:
             self.send_pack_data(StayOnCmds.A)
@@ -390,7 +398,7 @@ class NavicoRadar:
             case "gain":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = GainCmd().pack(auto=self.auto_gain, value=value)
+                cmd = GainCmd().pack(auto=self.rada_parameters.auto_gain, value=value)
             case "antenna_height":
                 value = value * 1000
                 value = int(value)
@@ -404,18 +412,18 @@ class NavicoRadar:
             case "sea_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SeaClutterCmd().pack(auto=self.auto_sea_clutter, value=value)
+                cmd = SeaClutterCmd().pack(auto=self.rada_parameters.auto_sea_clutter, value=value)
             case "rain_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = RainClutterCmd().pack(auto=self.auto_rain_clutter, value=value)
+                cmd = RainClutterCmd().pack(auto=self.rada_parameters.auto_rain_clutter, value=value)
             case "interference_rejection":
                 value = olmh_map[value]
                 cmd = InterferenceRejection().pack(value=value)
             case "side_lobe_suppression":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SidelobeSuppressionCmd().pack(auto=self.auto_sidelobe, value=value)
+                cmd = SidelobeSuppressionCmd().pack(auto=self.rada_parameters.auto_side_lobe_suppression, value=value)
             case "mode":
                 value = {"default": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
                 cmd = ModeCmd().pack(value=value)
