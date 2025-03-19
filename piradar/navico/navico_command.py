@@ -123,7 +123,7 @@ class InterferenceRejection:
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
 
-class SeaStateCmd:
+class SeaStateAutoCmd:
     cformat = "HB"
     cmd = 0x0bc1
 

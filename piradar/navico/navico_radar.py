@@ -29,7 +29,6 @@ import threading
 from typing import Literal
 
 from piradar.network import create_udp_socket, get_local_addresses, create_udp_multicast_receiver_socket
-#from piradar.network import create_udp_socket, Snooper
 from piradar.navico.navico_structure import *
 from piradar.navico.navico_command import *
 
@@ -49,7 +48,7 @@ class AddressSet:
     data: IPAddress
     send: IPAddress
     report: IPAddress
-    interface = interface
+    interface: str
 
 
     def __repr__(self):
@@ -59,11 +58,11 @@ class AddressSet:
 @dataclass
 class RawReports:
     r01b2: RadarReport01B2 = None
-    r01c4: RadarReport02C499 = None
+    r01c4: RadarReport01C418 = None
     r02c4: RadarReport02C499 = None
     r03c4: RadarReport03C4129 = None
     r04c4: RadarReport04C466 = None
-    r06c4: RadarReport06C468 | RadarReport06C474
+    r06c4: RadarReport06C468 | RadarReport06C474 = None
     r08C4: RadarReport08C418 | RadarReport08C421 = None
     r12c4: RadarReport12C466 = None
 
@@ -84,10 +83,25 @@ class SectorData:
 
 
 @dataclass
+class SettingReport:
+    """Report 02C4"""
+
+    range: float = None
+    mode: str = None
+    gain: float = None
+    sea_state_auto: str = None
+    sea_clutter: float = None
+    rain_clutter: float = None
+    interference_rejection: str = None
+    target_expansion: str = None
+    target_boost: str = None
+
+@dataclass
 class SpatialReport:
     """Report 04C4"""
     bearing: float = None
     antenna_height: float = None
+    light: float = None
 
 
 @dataclass
@@ -103,19 +117,20 @@ class BlankingReport:
 
 
 @dataclass
-class SettingReport:
+class FilterReport:
     """Report 08C4"""
     sea_state: str = None
-    interference_rejection: int = None
-    scan_speed: int = None
+    interference_rejection: str = None
+    scan_speed: str = None # why is scanspeed here not in the 04C4 reports....
 
     side_lobe_suppression: int = None
-    noise_rejection: int = None
-    target_separation: int = None
-    sea_clutter: int = None
+    noise_rejection: str = None
+    target_separation: str = None
+    sea_clutter: int = None # on Halo
 
-    side_lobe_suppresion_auto: bool = None
-    auto_sea_clutter: bool = None
+    auto_side_lobe_suppresion: bool = None
+    auto_sea_clutter: bool = None # on halo
+
 
 
 @dataclass
@@ -131,6 +146,19 @@ class SerialNumberReport:
     serial_number: str = None
 
 
+
+@dataclass
+class Reports:
+    spatial = SpatialReport()
+    system = SystemReport()
+    blanking = BlankingReport()
+    setting = SettingReport()
+    filters = FilterReport()
+    doppler = DopplerReport()
+    serial = SerialNumberReport()
+
+
+
 @dataclass
 class RadarParameters:
     # Base
@@ -142,7 +170,7 @@ class RadarParameters:
 
     # filters
 
-    sea_state: Literal['off', 'moderate', 'rough'] = None
+    sea_state: Literal['off', 'harbour', 'offshore'] = None #automoatic mode ?? sea clutter maybe ?
 
     sea_clutter: int = None
     rain_clutter: int = None
@@ -150,7 +178,7 @@ class RadarParameters:
     interference_rejection: Literal["off", "low", "medium", "high"] = None
     side_lobe_suppression: int = None
 
-    mode: Literal["default", "harbor", "offshore", "weather", "bird"] = None
+    mode: Literal["custom", "harbor", "offshore", "weather", "bird"] = None
 
     auto_sea_clutter_nudge: int = None
 
@@ -173,7 +201,11 @@ class RadarParameters:
 class NavicoRadar:
     stay_alive_interval = 10 #seconds
 
-    def __init__(self, address_set: AddressSet, output_file, raw_output_file):
+    def __init__(
+            self, address_set: AddressSet,
+            init_radar_parameters: RadarParameters,
+            output_file, raw_output_file
+    ):
         self.address_set = address_set
         self.output_file = output_file
         self.raw_output_file = raw_output_file # fixme Make a object to store these parameter
@@ -189,10 +221,15 @@ class NavicoRadar:
         self.report_thread: threading.Thread = None
         self.stay_alive_thread: threading.Thread = None
 
+        self.is_connected = False
         self.stop_flag = False
 
         ### RADAR PARAMETER ###
-        self.rada_parameters = RadarParameters() # Not clear how to update this at the moment. Or use it
+        self.radar_parameters = RadarParameters()# Not clear how to update this at the moment. Or use it
+
+        ### Reports ###
+        self.raw_reports = RawReports()
+        self.reports = Reports()
 
         self.init_send_socket()
         self.init_report_socket()
@@ -201,6 +238,12 @@ class NavicoRadar:
         self.start_report_thread()
         self.start_data_thread()
         self.start_keep_alive_thread()
+
+        while not self.is_connected:
+            time.sleep(1)
+
+        self.send_radar_parameters(init_radar_parameters)
+
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -250,6 +293,7 @@ class NavicoRadar:
             except socket.timeout:
                 continue
             if in_data and len(in_data) >= 2:
+                self.is_connected = True
                 self.process_report(in_data=in_data)
 
     def data_listen(self):
@@ -265,27 +309,72 @@ class NavicoRadar:
 
     def process_report(self, in_data):
         id = struct.unpack("!H", in_data[:2])[0]
+        olmh_map = {0: "off", 1: "low", 2: "medium", 3: "high"} # maybe set as class attributes
         match id:
             case ReportIds._01B2:  # '#case b'\xb2\x01':
-                report = RadarReport01B2(in_data)
+                self.raw_reports.r01b2 = RadarReport01B2(in_data)
 
-            case ReportIds._06C4:
+            case ReportIds._01C4: #STATUS
+                self.raw_reports.r01c4 = RadarReport01C418(in_data)
+                print(f"report {in_data[:2]} not decoded yet")
+
+            case ReportIds._02C4: #SETTINGS
+                self.raw_reports.r02c4 = RadarReport02C499(in_data)
+
+                self.reports.setting.range = self.raw_reports.r02c4.range / 10 #unsure about the division
+                mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
+                self.reports.setting.mode = mode_map[self.raw_reports.r02c4.mode]
+                self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
+                sea_stato_auto_map = {0: "off", 1: "harbour", 2: "offshore"}
+                self.reports.setting.sea_state_auto = sea_stato_auto_map[self.raw_reports.r02c4.sea_state_auto]
+                self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter * (100 / 255)
+                self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter * (100 / 255)
+
+                if self.raw_reports.r02c4.interference_rejection: #maybe add `if`s elsewhere ???
+                    self.reports.setting.interference_rejection = olmh_map[self.raw_reports.r02c4.interference_rejection]
+                if self.raw_reports.r02c4.target_expansion:
+                    self.reports.setting.target_expansion = olmh_map[self.raw_reports.r02c4.target_expansion]
+                if self.raw_reports.r02c4.target_boost:
+                    self.reports.setting.target_boost = olmh_map[self.raw_reports.r02c4.target_boost] #missing in commands
+
+                print(f"report {in_data[:2]} not decoded yet")
+
+            case ReportIds._03C4: # SYSTEM
+                self.raw_reports.r03c4 = RadarReport03C4129(in_data)
+                # use to get model ?
+                print(f"report {in_data[:2]} not decoded yet")
+
+            case ReportIds._04C4: #SPATIAL
+                self.raw_reports.r04c4 = RadarReport04C466(in_data)
+
+                self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
+                self.reports.spatial.antenna_height = self.raw_reports.r04c4.antenna_height / 1000
+                if self.raw_reports.r04c4.accent_light:
+                    self.reports.spatial.light = olmh_map[self.raw_reports.r04c4.accent_light]
+                # accent light ??? s
+
+            case ReportIds._06C4: # BLANKING
                 match len(in_data):
                     case RadarReport06C468.size:
-                        report = RadarReport06C468(in_data)
-                        print(f"report {in_data[:2]} not impletmented yet")
+                        self.raw_reports.r06c4 = RadarReport06C468(in_data)
                     case RadarReport06C474.size:
-                        report = RadarReport06C474(in_data)
-                        print(f"report {in_data[:2]} not impletmented yet")
+                        self.raw_reports.r06c4 = RadarReport06C474(in_data)
+                    # self.reports.blanking # Fixme
 
-            case ReportIds._08C4:
+            case ReportIds._08C4: #FILTERS
                 match len(in_data):
-                    case RadarReport08C418.size:
-                        report = RadarReport08C418(in_data)
-                        print(f"report {in_data[:2]} not impletmented yet")
-                    case RadarReport08C421.size:
-                        report = RadarReport08C421(in_data)
+                    case RadarReport08C418.size: # Without Dooplers
+                        self.raw_reports.r08c4 = RadarReport08C418(in_data)
+
+                    case RadarReport08C421.size: #With Dooplers
+                        self.raw_reports.r08c4 = RadarReport08C421(in_data)
+                # do som,ething like if dopper in raw_reports -> set values
                 print(f"report {in_data[:2]} not impletmented yet")
+
+            case ReportIds._12C4: # SERIAL
+                report = RadarReport12C466(in_data)
+                self.raw_reports.r12c4 = report
+                print(f"report {in_data[:2]} not decoded yet")
 
             case _:
                 print(f"report {in_data[:2]} not impletmented yet")
@@ -343,7 +432,7 @@ class NavicoRadar:
 
             sector_data.spoke_data.append(spoke_data)
 
-        self.write_scanline(SectorData)
+        self.write_sector_data(SectorData)
 
 
     ### Belows are all the commands method ###
@@ -398,7 +487,7 @@ class NavicoRadar:
             case "gain":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = GainCmd().pack(auto=self.rada_parameters.auto_gain, value=value)
+                cmd = GainCmd().pack(auto=self.radar_parameters.auto_gain, value=value)
             case "antenna_height":
                 value = value * 1000
                 value = int(value)
@@ -406,26 +495,26 @@ class NavicoRadar:
             case "scan_speed":
                 value = {"low": 0, "medium": 1, "high": 2}[value]
                 cmd = ScanSpeedCmd().pack(value=value)
-            case "sea_State":
-                value = {"off": 0, "moderate": 1, "rough": 2}[value]
-                cmd = SeaStateCmd().pack(value=value)
+            case "sea_state_auto":
+                value = {"off": 0, "harbour": 1, "offshore": 2}[value]
+                cmd = SeaStateAutoCmd().pack(value=value)
             case "sea_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SeaClutterCmd().pack(auto=self.rada_parameters.auto_sea_clutter, value=value)
+                cmd = SeaClutterCmd().pack(auto=self.radar_parameters.auto_sea_clutter, value=value)
             case "rain_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = RainClutterCmd().pack(auto=self.rada_parameters.auto_rain_clutter, value=value)
+                cmd = RainClutterCmd().pack(auto=self.radar_parameters.auto_rain_clutter, value=value)
             case "interference_rejection":
                 value = olmh_map[value]
                 cmd = InterferenceRejection().pack(value=value)
             case "side_lobe_suppression":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SidelobeSuppressionCmd().pack(auto=self.rada_parameters.auto_side_lobe_suppression, value=value)
+                cmd = SidelobeSuppressionCmd().pack(auto=self.radar_parameters.auto_side_lobe_suppression, value=value)
             case "mode":
-                value = {"default": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
+                value = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
                 cmd = ModeCmd().pack(value=value)
             case "auto_sea_clutter_nudge":
                 value = int(value)
@@ -436,6 +525,7 @@ class NavicoRadar:
             case "target_separation":
                 value = olmh_map[value]
                 cmd = TargetSeparationCmd().pack(value=value)
+            # target boost seems to be missing FIXME
             case "noise_rejection":
                 value = olmh_map[value]
                 cmd = NoiseRejectionCmd().pack(value=value)
@@ -454,7 +544,46 @@ class NavicoRadar:
         if cmd:
             self.send_pack_data(cmd)
 
-    def write_scanline(self, sector_data: SectorData):
+    def send_radar_parameters(self, radar_parameters: RadarParameters):
+        # Base
+        if radar_parameters.range:
+            self.commands("range", radar_parameters.range)
+        if radar_parameters.bearing:
+            self.commands("bearing", radar_parameters.bearing)
+        if radar_parameters.gain:
+            self.commands("gain", radar_parameters.gain)
+        if radar_parameters.antenna_height:
+            self.commands("antenna_height", radar_parameters.antenna_height)
+        if radar_parameters.scan_speed:
+            self.commands("scan_speed", radar_parameters.scan_speed)
+        if radar_parameters.sea_state:
+            self.commands("sea_state", radar_parameters.sea_state)
+        if radar_parameters.sea_clutter:
+            self.commands("sea_clutter", radar_parameters.sea_clutter)
+        if radar_parameters.rain_clutter:
+            self.commands("rain_clutter", radar_parameters.rain_clutter)
+        if radar_parameters.interference_rejection:
+            self.commands("interference_rejection", radar_parameters.interference_rejection)
+        if radar_parameters.side_lobe_suppression:
+            self.commands('side_lobe_suppression', radar_parameters.side_lobe_suppression)
+        if radar_parameters.mode:
+            self.commands("mode", radar_parameters.mode)
+        if radar_parameters.auto_sea_clutter_nudge:
+            self.commands('auto_sea_clutter_nudge', radar_parameters.auto_sea_clutter_nudge)
+        if radar_parameters.target_expansion:
+            self.commands("target_expansion", radar_parameters.target_expansion)
+        if radar_parameters.target_separation:
+            self.commands("target_separation", radar_parameters.target_separation)
+        if radar_parameters.noise_rejection:
+            self.commands("noise_rejection", radar_parameters.noise_rejection)
+        if radar_parameters.doppler_mode:
+            self.commands("doppler_mode", radar_parameters.doppler_mode)
+        if radar_parameters.doppler_speed:
+            self.commands("doppler_speed", radar_parameters.doppler_speed)
+        if radar_parameters.light:
+            self.commands("light", radar_parameters.light)
+
+    def write_sector_data(self, sector_data: SectorData):
         with open(self.output_file, "a") as f:
             f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
             for spoke_data in sector_data:
@@ -528,9 +657,6 @@ class RadarLocator:
 
 
 
-
-
-
 if __name__ == "__main__":
 
     interface = "192.168.1.243"
@@ -549,10 +675,18 @@ if __name__ == "__main__":
     #addrset = rlocator.groupB
     output_file=""
     raw_output_file=""
-    nr = NavicoRadar(address_set=addrset, output_file=output_file, raw_output_file=raw_output_file)
 
-    nr.commands("range", 1000) #1000 km
+    radar_parameters = RadarParameters(
+        range=1e3,
+        bearing=0,
+        gain=255/2,
+        antenna_height=10,
+        scan_speed="low"
+    )
 
-    nr.transmit()
-
-
+    # nr = NavicoRadar(address_set=addrset,
+    #                  init_radar_parameters=radar_parameters,
+    #                  output_file=output_file,
+    #                  raw_output_file=raw_output_file)
+    #
+    #
