@@ -185,7 +185,7 @@ class Reports:
 
 
 @dataclass
-class RadarSettings:
+class NavicoRadarSettings:
     # Base
     _range: int = None  #Literal[50, 75, 100, 250, 500, 750, 1e3, 1.5e3, 2e3, 4e3, 6e3, 8e3, 12e3, 15e3, 24e3]
     bearing: float = None
@@ -226,7 +226,7 @@ class NavicoRadarController:
 
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
-            init_radar_parameters: RadarSettings,
+            init_radar_parameters: NavicoRadarSettings,
             output_dir: str,
             keep_alive_interval: int = 10,
     ):
@@ -259,7 +259,7 @@ class NavicoRadarController:
 
         ### RADAR PARAMETER ###
         # Not clear how to update this at the moment. Or use it
-        self.radar_parameters = RadarSettings()
+        self.radar_parameters = NavicoRadarSettings()
 
         ### Reports Object ###
         self.raw_reports = RawReports()
@@ -632,7 +632,7 @@ class NavicoRadarController:
         if cmd:
             self.send_pack_data(cmd)
 
-    def send_radar_parameters(self, radar_parameters: RadarSettings):
+    def send_radar_parameters(self, radar_parameters: NavicoRadarSettings):
         # Base
         if radar_parameters._range:
             self.commands("range", radar_parameters._range)
