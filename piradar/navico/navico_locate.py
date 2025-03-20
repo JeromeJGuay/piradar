@@ -5,7 +5,7 @@ import socket
 import threading
 
 from ..network import create_udp_multicast_receiver_socket, create_udp_socket
-from .navico_radar import MulticastInterfaces
+from .navico_controller import MulticastInterfaces
 from .navico_structure import RadarReport01B2, REPORTS_IDS
 
 HOST = ""

@@ -1,4 +1,4 @@
-from .navico_radar import MulticastInterfaces, MulticastAddress, RadarSettings, NavicoRadar
+from .navico_controller import MulticastInterfaces, MulticastAddress, RadarSettings, NavicoRadarController
 
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
 # interface = "192.168.1.243"
@@ -43,7 +43,7 @@ radar_parameters = RadarSettings(
     scan_speed=scan_speed
 )
 
-navico_radar = NavicoRadar(
+navico_radar = NavicoRadarController(
     address_set=addrset,
     init_radar_parameters=radar_parameters,
     output_dir=output_dir,

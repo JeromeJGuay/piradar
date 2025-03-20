@@ -46,11 +46,14 @@ RANGE_SCALE = 10 * 2 ** (-1/2)
 class Navico4G:
     pass
 
+
 class Navico3G:
     pass
 
+
 class NavicoBR24:
     pass
+
 
 class NavicoHALO:
     pass
@@ -89,6 +92,7 @@ class RawReports:
 @dataclass
 class SpokeData:
     spoke_number: int = None
+    heading: float = None
     angle: float = None
     _range: float = None
     intensities: list[float] = None
@@ -103,6 +107,10 @@ class SectorData:
     def __post_init__(self):
         self.spoke_data = []
 
+@dataclass
+class StatusReport:
+    """Report 01C4"""
+    status: str = None
 
 @dataclass
 class SettingReport:
@@ -111,7 +119,8 @@ class SettingReport:
     _range: float = None
     mode: str = None
     gain: float = None
-    sea_state_auto: str = None
+    auto_gain: bool = None
+    auto_sea_state: str = None
     sea_clutter: float = None
     rain_clutter: float = None
     interference_rejection: str = None
@@ -165,6 +174,7 @@ class SerialNumberReport:
 
 @dataclass
 class Reports:
+    status = StatusReport
     spatial = SpatialReport()
     system = SystemReport()
     blanking = BlankingReport()
@@ -212,7 +222,7 @@ class RadarSettings:
     auto_side_lobe_suppression: bool = False
 
 
-class NavicoRadar:
+class NavicoRadarController:
 
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
@@ -345,6 +355,9 @@ class NavicoRadar:
                 self.process_data(in_data=raw_packet)
 
     def process_report(self, raw_packet):
+
+        ### TODO FINISH THE REPORT PARSING ###
+
         olmh_map = {0: "off", 1: "low", 2: "medium", 3: "high"}  # maybe set as class attributes
 
         report_id = struct.unpack("!H", raw_packet[:2])[0]
@@ -358,36 +371,50 @@ class NavicoRadar:
 
             case REPORTS_IDS._01C4: #STATUS
                 self.raw_reports.r01c4 = RadarReport01C4(raw_packet)
+                radar_status_map = {1: "standby", 2: "transmit", 5: "spinning-up"}
+                if self.raw_reports.r01c4.radar_status in radar_status_map:
+                    self.reports.status.status = self.raw_reports.r01c4.radar_status
+                else:
+                    self.reports.status.status = "unknown"
 
-            case REPORTS_IDS._02C4: #SETTINGS
+            case REPORTS_IDS._02C4:  # SETTINGS
                 self.raw_reports.r02c4 = RadarReport02C4(raw_packet)
 
                 self.reports.setting._range = self.raw_reports.r02c4.range / 10 #unsure about the division
+
                 mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
-                if self.raw_reports.r02c4.mode == 255:  # returned 255,
-                    self.raw_reports.r02c4.mode = mode_map[0]
+                if self.raw_reports.r02c4.mode not in mode_map:  # returned 255,
+                    self.raw_reports.r02c4.mode = "unknown"
                 else:
                     self.reports.setting.mode = mode_map[self.raw_reports.r02c4.mode]
+
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
+                self.reports.setting.auto_gain = bool(self.raw_reports.r02c4.auto_gain)
+
                 sea_stato_auto_map = {0: "off", 1: "harbour", 2: "offshore"}
-                self.reports.setting.sea_state_auto = sea_stato_auto_map[self.raw_reports.r02c4.sea_state_auto]
+                self.reports.setting.auto_sea_state = sea_stato_auto_map[self.raw_reports.r02c4.auto_sea_state]
+
                 self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter * (100 / 255)
+
                 self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter * (100 / 255)
 
                 if self.raw_reports.r02c4.interference_rejection: #maybe add `if`s elsewhere ???
                     self.reports.setting.interference_rejection = olmh_map[self.raw_reports.r02c4.interference_rejection]
+
                 if self.raw_reports.r02c4.target_expansion:
                     self.reports.setting.target_expansion = olmh_map[self.raw_reports.r02c4.target_expansion]
+
                 if self.raw_reports.r02c4.target_boost:
                     self.reports.setting.target_boost = olmh_map[self.raw_reports.r02c4.target_boost] #missing in commands
 
-            case REPORTS_IDS._03C4: # SYSTEM
+            case REPORTS_IDS._03C4:  # SYSTEM
                 self.raw_reports.r03c4 = RadarReport03C4(raw_packet)
                 radar_type_map = {0x01: Navico4G, 0x08: Navico3G, 0x0F: NavicoBR24, 0x00: NavicoHALO}
                 self.reports.system.radar_type = radar_type_map[self.raw_reports.r03c4.radar_type]
+                if self.reports.system.radar_type is NavicoBR24:
+                    raise ValueError("NavicoBR24 radar type not supported (yet)")
 
-
-            case REPORTS_IDS._04C4: #SPATIAL
+            case REPORTS_IDS._04C4:  # SPATIAL
                 self.raw_reports.r04c4 = RadarReport04C4(raw_packet)
 
                 self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
@@ -424,33 +451,61 @@ class NavicoRadar:
 
         for raw_spoke in raw_sector.spokes:
             print(f"Spoke number: {raw_spoke.spoke_number} [should be between 0-4096]") #fixme maybe
-            # WILL DEPEND ON RADAR TYPE THIS IS JUST FOR HALO FIXME
-
-            print(f"spoke number: {raw_spoke.spoke_number}, "
-                  f"angle: {raw_spoke.angle * 360 / 4096}, "
-                  f"heading: {raw_spoke.heading}")
-            print(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, "
-                  f"large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
+            print(f"spoke number: {raw_spoke.spoke_number}, angle: {raw_spoke.angle * 360 / 4096}, heading: {raw_spoke.heading}")
+            print(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
 
             spoke_data = SpokeData()
             spoke_data.spoke_number = raw_spoke.spoke_number
+            # CPP heading_raw = (line->common.heading[1] << 8) | line->common.heading[0];
+            spoke_data.heading = (raw_spoke.heading & 0x00ff) << 8 | (raw_spoke.heading & 0xff00)
 
-            if raw_spoke.status == 2: # Valid
-                #### This here could change depending on model
-                if raw_spoke.large_range == 128: #why not smaller ? is this the min value for large_range ?
-                    if raw_spoke.small_range == -1: # or 0xffff maybe
-                        spoke_data._range = 0
+            if raw_spoke.status == 2: # Valid # and not 0x12 #according to NavicoReceive
+                if self.reports.system.radar_type == NavicoBR24:
+                    print("ERROR: Navico BR24 is not implemented")
+                    # range_raw = ((line->br24.range[2] & 0xff) << 16 | (line->br24.range[1] & 0xff) << 8 | (line->br24.range[0] & 0xff));
+                    # angle_raw = (line->br24.angle[1] << 8) | line->br24.angle[0];
+                    # range_meters = (int)((double)range_raw * 10.0 / sqrt(2.0));
+
+                elif self.reports.system.radar_type in [Navico4G, Navico3G]:
+                    """ FIXME
+                    ## looks like it goes for SMALL endian 2Bytes int instead of BIG endian
+                    uint16_t large_range = (line->br4g.largerange[1] << 8) | line->br4g.largerange[0];
+                    uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
+                    angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
+                    """
+
+                    spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
+
+                    if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
+                        if raw_spoke.small_range == 0xffff:
+                            spoke_data._range = 0
+                        else:
+                            spoke_data._range = raw_spoke.small_range / 4
                     else:
-                        spoke_data._range = raw_spoke.small_range / 4
-                else:
-                    # I guess this is at normal resolutin using 4 bytes ? with not use a L
-                    spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
+                        spoke_data._range = raw_spoke.large_range * 64
 
-                spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
+                elif self.reports.system.radar_type == NavicoHALO:
+                    """ FIXME
+                    ## looks like it goes for SMALL endian 2Bytes int instead of BIG endian
+                    uint16_t large_range = (line->br4g.largerange[1] << 8) | line->br4g.largerange[0];
+                    uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
+                    angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
+                    """
+                    spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
 
-                print(f"Acutal range {spoke_data}")
+                    if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
+                        if raw_spoke.small_range == 0xffff:
+                            spoke_data._range = 0
+                        else:
+                            spoke_data._range = raw_spoke.small_range / 4
+                    else:
+                        spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
-                spoke_data.angle = raw_spoke.angle * 360 / 4096 # 0..4096 = 0..360
+                    spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
+
+                    print(f"Acutal range {spoke_data}")
+
+
 
                 spoke_data.intensities = []
                 for bi in range(512):
@@ -459,6 +514,8 @@ class NavicoRadar:
                     # This should work since data has to be a byte size value.
                     # high = spoke.data[bi] >> 4  # 1111 0000
                     spoke_data.intensities += [low, high]
+                else:
+                    raise ValueError(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
             else:
                 print("Invalid Spoke")
 

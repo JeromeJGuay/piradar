@@ -140,7 +140,7 @@ class RadarReport01C4:
 
 class RadarReport02C4:
     expected_size = 99 # acutal size is 43 (99 from openCPN radar pi???
-    cformats = ["B", "B", "L", "B", "B", "L", "B", "B", "B", "H", "L", "B", "B", "B", "L", "L",
+    cformats = ["B", "B", "L", "B", "B", "B", "3B", "B", "B", "B", "H", "L", "B", "B", "B", "L", "L",
                 "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B",
                 "56B" # Add if needed to have a size 99. at the moment size is 43
                 ]
@@ -156,7 +156,8 @@ class RadarReport02C4:
           uint32_t range;                  //  2-3   0x06 0x09
           uint8_t field4;                  // 6    0
           uint8_t mode;                    // 7    mode (0 = custom, 1 = harbor, 2 = offshore, 4 = bird, 5 = weather)
-          uint32_t field8;                 // 8-11   1
+          uint8_t gain_auto                // 8
+          uint8_t field11[3];              // 9-11
           uint8_t gain;                    // 12
           uint8_t sea_auto;                // 13  0 = off, 1 = harbour, 2 = offshore
           uint8_t field14;                 // 14
@@ -194,30 +195,31 @@ class RadarReport02C4:
         self.range = unpacked_fields[2][0]
         self.field4 = unpacked_fields[3][0]
         self.mode = unpacked_fields[4][0]
-        self.field8 = unpacked_fields[5][0]
-        self.gain = unpacked_fields[6][0]
-        self.sea_state_auto = unpacked_fields[7][0]
-        self.field14 = unpacked_fields[8][0]
-        self.field15 = unpacked_fields[9][0]
-        self.sea_clutter = unpacked_fields[10][0]
-        self.field21 = unpacked_fields[11][0]
-        self.rain_clutter = unpacked_fields[12][0]
-        self.field23 = unpacked_fields[13][0]
-        self.field24 = unpacked_fields[14][0]
-        self.field28 = unpacked_fields[15][0]
-        self.field32 = unpacked_fields[16][0]
-        self.field33 = unpacked_fields[17][0]
-        self.interference_rejection = unpacked_fields[18][0]
-        self.field35 = unpacked_fields[19][0]
-        self.field36 = unpacked_fields[20][0]
-        self.field37 = unpacked_fields[21][0]
-        self.target_expansion = unpacked_fields[22][0]
-        self.field39 = unpacked_fields[23][0]
-        self.field40 = unpacked_fields[24][0]
-        self.field41 = unpacked_fields[25][0]
-        self.target_boost = unpacked_fields[26][0]
+        self.auto_gain = unpacked_fields[5][0]
+        self.field8 = unpacked_fields[6] #3value
+        self.gain = unpacked_fields[7][0]
+        self.auto_sea_state = unpacked_fields[8][0]
+        self.field14 = unpacked_fields[9][0]
+        self.field15 = unpacked_fields[10][0]
+        self.sea_clutter = unpacked_fields[11][0]
+        self.field21 = unpacked_fields[12][0]
+        self.rain_clutter = unpacked_fields[13][0]
+        self.field23 = unpacked_fields[14][0]
+        self.field24 = unpacked_fields[15][0]
+        self.field28 = unpacked_fields[16][0]
+        self.field32 = unpacked_fields[17][0]
+        self.field33 = unpacked_fields[18][0]
+        self.interference_rejection = unpacked_fields[19][0]
+        self.field35 = unpacked_fields[20][0]
+        self.field36 = unpacked_fields[21][0]
+        self.field37 = unpacked_fields[22][0]
+        self.target_expansion = unpacked_fields[23][0]
+        self.field39 = unpacked_fields[24][0]
+        self.field40 = unpacked_fields[25][0]
+        self.field41 = unpacked_fields[26][0]
+        self.target_boost = unpacked_fields[27][0]
 
-        self.field43 = unpacked_fields[27] # 56
+        self.field43 = unpacked_fields[28] # 56
 
 
 class RadarReport03C4:
