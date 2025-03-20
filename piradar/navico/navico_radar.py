@@ -27,7 +27,7 @@ import struct
 import socket
 import threading
 import queue
-from typing import Literal
+
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -175,9 +175,9 @@ class Reports:
 
 
 @dataclass
-class RadarParameters:
+class RadarSettings:
     # Base
-    range: int = None  #Literal[50, 75, 100, 250, 500, 750, 1e3, 1.5e3, 2e3, 4e3, 6e3, 8e3, 12e3, 15e3, 24e3]
+    _range: int = None  #Literal[50, 75, 100, 250, 500, 750, 1e3, 1.5e3, 2e3, 4e3, 6e3, 8e3, 12e3, 15e3, 24e3]
     bearing: float = None
     gain: float = None
     antenna_height: float = None
@@ -216,7 +216,7 @@ class NavicoRadar:
 
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
-            init_radar_parameters: RadarParameters,
+            init_radar_parameters: RadarSettings,
             output_dir: str,
             keep_alive_interval: int = 10,
     ):
@@ -249,7 +249,7 @@ class NavicoRadar:
 
         ### RADAR PARAMETER ###
         # Not clear how to update this at the moment. Or use it
-        self.radar_parameters = RadarParameters()
+        self.radar_parameters = RadarSettings()
 
         ### Reports Object ###
         self.raw_reports = RawReports()
@@ -575,10 +575,10 @@ class NavicoRadar:
         if cmd:
             self.send_pack_data(cmd)
 
-    def send_radar_parameters(self, radar_parameters: RadarParameters):
+    def send_radar_parameters(self, radar_parameters: RadarSettings):
         # Base
-        if radar_parameters.range:
-            self.commands("range", radar_parameters.range)
+        if radar_parameters._range:
+            self.commands("range", radar_parameters._range)
         if radar_parameters.bearing:
             self.commands("bearing", radar_parameters.bearing)
         if radar_parameters.gain:
@@ -633,39 +633,4 @@ class NavicoRadar:
     def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
         with open(self.raw_reports_path[report_id], "wb") as f:
             f.write(raw_report)
-
-
-if __name__ == "__main__":
-
-    # interface = "192.168.1.243"
-    interface = "192.168.1.228"
-
-    report_address = MulticastAddress(('236.6.7.9', 6679))
-    data_address = MulticastAddress(('236.6.7.8', 6678))
-    send_address = MulticastAddress(('236.6.7.10', 6680))
-
-    addrset = MulticastInterfaces(
-        report=report_address,
-        data=data_address,
-        send=send_address,
-        interface=interface
-    )
-
-    #addrset = rlocator.groupB
-    output_dir ="~/Desktop/raw_data/output_data"
-
-    radar_parameters = RadarParameters(
-        range=1e3,
-        bearing=0,
-        gain=255/2,
-        antenna_height=10,
-        scan_speed="low"
-    )
-
-    nr = NavicoRadar(
-        address_set=addrset,
-        init_radar_parameters=radar_parameters,
-        output_dir=output_dir,
-    )
-
 
