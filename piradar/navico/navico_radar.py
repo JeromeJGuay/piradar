@@ -27,8 +27,10 @@ import struct
 import socket
 import threading
 from typing import Literal
+from pathlib import Path
+from dataclasses import dataclass
 
-from piradar.network import create_udp_socket, get_local_addresses, create_udp_multicast_receiver_socket
+from piradar.network import create_udp_socket, create_udp_multicast_receiver_socket
 from piradar.navico.navico_structure import *
 from piradar.navico.navico_command import *
 
@@ -36,23 +38,24 @@ from piradar.navico.navico_command import *
 HOST = ''
 RCV_BUFF = 65535
 
-
-ENTRY_GROUP_ADDRESS = '236.6.7.5'
-ENTRY_GROUP_PORT = 6878
-
 RANGE_SCALE = 10 * 2 ** (-1/2)
+
+@dataclass
+class MulticastAddress:
+    address: str | int
+    port: int
+
+    def __post_init__(self):
+        if isinstance(self.address, int):
+            self.address = socket.inet_ntoa(struct.pack('!I', self.address))
 
 
 @dataclass
-class AddressSet:
-    data: IPAddress
-    send: IPAddress
-    report: IPAddress
+class MulticastInterfaces:
+    data: MulticastAddress
+    send: MulticastAddress
+    report: MulticastAddress
     interface: str
-
-
-    def __repr__(self):
-        return f'{self.interface}:\n data: {self.data.address}:{self.data.port},\n report: {self.report.address}:{self.report.port},\n send: {self.send.address}:{self.send.port}'
 
 
 @dataclass
@@ -149,7 +152,6 @@ class SerialNumberReport:
     serial_number: str = None
 
 
-
 @dataclass
 class Reports:
     spatial = SpatialReport()
@@ -202,16 +204,21 @@ class RadarParameters:
 
 
 class NavicoRadar:
-    stay_alive_interval = 10 #seconds
 
     def __init__(
-            self, address_set: AddressSet,
+            self, multicast_interfaces: MulticastInterfaces,
             init_radar_parameters: RadarParameters,
-            output_file, raw_output_file
+            output_dir: str,
+            stay_alive_interval: int = 10,
     ):
-        self.address_set = address_set
-        self.output_file = output_file
-        self.raw_output_file = raw_output_file # fixme Make a object to store these parameter
+        self.address_set = multicast_interfaces
+        self.output_dir = output_dir
+
+        self.data_path = Path(self.output_dir).joinpath("ppi_data.txt")
+        self.raw_data_path = Path(self.output_dir).joinpath("raw_ppi_data.raw")
+        self.raw_reports_path = {
+            key: Path(self.output_dir).joinpath("raw_ppi_data.raw") for key in ReportIds.__dict__.keys()
+        }
 
         # make object to store initatil parameter to pass to Radar
 
@@ -223,14 +230,16 @@ class NavicoRadar:
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
         self.stay_alive_thread: threading.Thread = None
+        self.writer_thread: threading.Thread = None
 
-        self.is_connected = False
+        self.radar_was_detected = False
         self.stop_flag = False
 
         ### RADAR PARAMETER ###
-        self.radar_parameters = RadarParameters()# Not clear how to update this at the moment. Or use it
+        # Not clear how to update this at the moment. Or use it
+        self.radar_parameters = RadarParameters()
 
-        ### Reports ###
+        ### Reports Object ###
         self.raw_reports = RawReports()
         self.reports = Reports()
 
@@ -241,12 +250,21 @@ class NavicoRadar:
         self.start_report_thread()
         self.start_data_thread()
         self.start_keep_alive_thread()
+        self.start_writer_thread()
 
-        while not self.is_connected:
+        while not self.radar_was_detected:
             time.sleep(1)
+            # FIXME add a timeout and raise an Error
 
         self.send_radar_parameters(init_radar_parameters)
 
+
+    def init_ouput_path(self):
+        self.data_path =
+
+        self.raw_report_paths = {
+            ""
+        }
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -279,14 +297,24 @@ class NavicoRadar:
         self.keep_alive_thread = threading.Thread(target=self.keep_alive, daemon=True)
         self.keep_alive_thread.start()
 
+    def start_writer_thread(self):
+        self.writer_thread = threading.Thread(target=self.writer, daemon=True)
+        self.writer_thread.start()
+
     def send_pack_data(self, packed_data):
         #print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
         self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
+        time.sleep(0.1)
 
     def close_all(self):
         self.stop_flag = True
         self.report_thread.join()
         self.data_thread.join()
+        self.keep_alive_thread.join()
+        self.writer_thread.join()
+
+        self.report_socket.close()
+        self.data_socket.close()
         self.send_socket.close()
 
     def report_listen(self):
@@ -296,7 +324,7 @@ class NavicoRadar:
             except socket.timeout:
                 continue
             if in_data and len(in_data) >= 2:
-                self.is_connected = True
+                self.radar_was_detected = True
                 self.process_report(in_data=in_data)
 
     def data_listen(self):
@@ -307,7 +335,7 @@ class NavicoRadar:
             except socket.timeout:
                 continue
             if in_data:
-                print("data:", in_data)
+                print("Data received")
                 self.process_data(in_data=in_data)
 
     def process_report(self, in_data):
@@ -399,43 +427,45 @@ class NavicoRadar:
         sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         sector_data.number_of_spokes = raw_sector.number_of_spokes
 
-        for spoke in raw_sector.spokes:
-            print(f"Spoke number: {spoke.spoke_number} [should be between 0-4096]") #fixme maybe
+        for raw_spoke in raw_sector.spokes:
+            print(f"Spoke number: {raw_spoke.spoke_number} [should be between 0-4096]") #fixme maybe
             # WILL DEPEND ON RADAR TYPE THIS IS JUST FOR HALO FIXME
 
-            print("angle", spoke.angle)
-            print("heading", spoke.heading)
-            print("small range", spoke.small_range)
-            print("large range", spoke.large_range)
-            print("angle", spoke.angle)
+            print(f"spoke number: {raw_spoke.spoke_number}, "
+                  f"angle: {raw_spoke.angle * 360 / 4096}, "
+                  f"heading: {raw_spoke.heading}")
+            print(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, "
+                  f"large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
 
             spoke_data = SpokeData()
-            spoke_data.spoke_number = spoke.spoke_number
+            spoke_data.spoke_number = raw_spoke.spoke_number
 
-
-            if spoke.status == 2: # Valid
-
+            if raw_spoke.status == 2: # Valid
                 #### This here could change depending on model
-                if spoke.large_range == 128: #why not smaller ? is this the min value for large_range ?
-                    if spoke.small_range == -1: # or 0xffff maybe
+                if raw_spoke.large_range == 128: #why not smaller ? is this the min value for large_range ?
+                    if raw_spoke.small_range == -1: # or 0xffff maybe
                         spoke_data._range = 0
                     else:
-                        spoke_data._range = spoke.small_range / 4
+                        spoke_data._range = raw_spoke.small_range / 4
                 else:
                     # I guess this is at normal resolutin using 4 bytes ? with not use a L
-                    spoke_data._range = spoke.large_range * spoke.small_range / 512
+                    spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
                 spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
 
-                spoke_data.angle = spoke.angle * 360 / 4096 # 0..4096 = 0..360
+                print(f"Acutal range {spoke_data}")
+
+                spoke_data.angle = raw_spoke.angle * 360 / 4096 # 0..4096 = 0..360
 
                 spoke_data.intensities = []
                 for bi in range(512):
-                    low = spoke.data[bi] & 0x0f # 0000 1111
-                    high = (spoke.data[bi] & 0xf0) >> 4 # 1111 0000
+                    low = raw_spoke.data[bi] & 0x0f # 0000 1111
+                    high = (raw_spoke.data[bi] & 0xf0) >> 4 # 1111 0000
                     # This should work since data has to be a byte size value.
                     # high = spoke.data[bi] >> 4  # 1111 0000
                     spoke_data.intensities += [low, high]
+            else:
+                print("Invalid Spoke")
 
             sector_data.spoke_data.append(spoke_data)
 
@@ -466,13 +496,12 @@ class NavicoRadar:
         self.send_pack_data(TxOffCmds.B)
 
     def commands(self, key, value):
-        auto = True # set as attributes
-        #have object to store radar states. With all the auto_...
+
         cmd = None
         # valid_cmd = [
         #     "range", "range_custom", "bearing", "gain", "sea_clutter", "rain_clutter",
         #     "side_lobe", "interference_rejection", "sea_state", "scan_speed",
-        #     "mode", "target_expansion", "target_sepration", "noise_rejection", "doppler"
+        #     "mode", "target_expansion", "target_separation", "noise_rejection", "doppler"
         # ]
 
         olmh_map = {"off": 0, "low": 1, "medium": 2, "high": 3}
@@ -591,98 +620,40 @@ class NavicoRadar:
             self.commands("light", radar_parameters.light)
 
     def write_sector_data(self, sector_data: SectorData):
-        with open(self.output_file, "a") as f:
+
+        with open(self.output_dir + "data.txt", "a") as f:
             f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
             for spoke_data in sector_data.spoke_data:
                 f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
-                f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ','') + "\n") #FIXME
+                f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n") #FIXME
                 #f.write(f"SD:{','.join(spoke_data.intensities)}\n")
 
     def write_raw_data_packet(self, raw_data: bytearray):
-        with open(self.raw_output_file, "wb") as f:
+        with open(self.output_dir + "/", "wb") as f:
             f.write(raw_data)
 
-
-class RadarLocator:
-    send_interval = 2
-    group_address = ENTRY_GROUP_ADDRESS
-    group_port = ENTRY_GROUP_PORT
-
-    def __init__(self, interface, timeout=30):
-        self.interface = interface
-        self.radar_located = False
-        self.groupA: AddressSet = None
-        self.group: AddressSet = None
-        self.timeout = timeout
-
-    def locate(self):
-        report_socket = create_udp_multicast_receiver_socket(
-            interface_address=self.interface,
-            group_address=self.group_address,
-            group_port=self.group_port
-        )
-
-        def _scan():
-            while not self.radar_located:
-                try:
-                    in_data, _addrs = report_socket.recvfrom(RCV_BUFF)
-                except socket.timeout:
-                    continue
-                if in_data:
-                    if len(in_data) >= 2: #more than 2 bytes
-                        id = struct.unpack("!H", in_data[:2])[0]
-                        match id:
-                            case ReportIds._01B2: #'#case b'\xb2\x01':
-                                report = RadarReport01B2(in_data)
-                                self.groupA = AddressSet(
-                                    interface=self.interface,
-                                    data=report.addrDataA,
-                                    report=report.addrReportA,
-                                    send=report.addrSendA,
-                                )
-                                self.groupB = AddressSet(
-                                    interface=self.interface,
-                                    data=report.addrDataB,
-                                    report=report.addrReportB,
-                                    send=report.addrSendB,
-                                )
-                                self.radar_located = True
-                                report_socket.close()
-
-        receive_thread = threading.Thread(target=_scan, daemon=True)
-
-        send_socket = create_udp_socket()
-        send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
-        cmd = struct.pack("!H", 0x01b1)
-        # not binding required
-
-        receive_thread.start()
-        while not self.radar_located:
-            print(cmd)
-            time.sleep(self.send_interval)
-            send_socket.sendto(cmd, (self.group_address, self.group_port))
-        send_socket.close()
 
 
 
 if __name__ == "__main__":
 
-    interface = "192.168.1.243"
-    # interface = "192.168.1.228"
+    # interface = "192.168.1.243"
+    interface = "192.168.1.228"
 
-    #rlocator = RadarLocator(interface=interface)
-    #rlocator.locate()
 
-    addrset = AddressSet(
-        data=IPAddress(('236.6.7.8', 6678)),
-        send=IPAddress(('236.6.7.10', 6680)),
-        report=IPAddress(('236.6.7.9', 6679)),
+    report_address = MulticastAddress(('236.6.7.9', 6679))
+    data_address = MulticastAddress(('236.6.7.8', 6678))
+    send_address = MulticastAddress(('236.6.7.10', 6680))
+
+    addrset = MulticastInterfaces(
+        report=report_address,
+        data=data_address,
+        send=send_address,
         interface=interface
     )
 
     #addrset = rlocator.groupB
-    output_file=""
-    raw_output_file=""
+    output_dir="~/Desktop/raw_data/output_data"
 
     radar_parameters = RadarParameters(
         range=1e3,
@@ -692,9 +663,10 @@ if __name__ == "__main__":
         scan_speed="low"
     )
 
-    # nr = NavicoRadar(address_set=addrset,
-    #                  init_radar_parameters=radar_parameters,
-    #                  output_file=output_file,
-    #                  raw_output_file=raw_output_file)
-    #
-    #
+    nr = NavicoRadar(
+        address_set=addrset,
+        init_radar_parameters=radar_parameters,
+        output_dir=output_dir,
+    )
+
+
