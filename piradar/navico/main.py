@@ -1,4 +1,4 @@
-from .navico_controller import MulticastInterfaces, MulticastAddress, RadarSettings, NavicoRadarController
+from piradar.navico.navico_controller import MulticastInterfaces, MulticastAddress, RadarSettings, NavicoRadarController
 
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
 # interface = "192.168.1.243"
@@ -27,10 +27,10 @@ scan_speed = "low"
 ##################################################
 
 
-addrset = MulticastInterfaces(
-    report=MulticastAddress(report_address),
-    data=MulticastAddress(data_address),
-    send=MulticastAddress(send_address),
+mcast_ifaces = MulticastInterfaces(
+    report=MulticastAddress(*report_address),
+    data=MulticastAddress(*data_address),
+    send=MulticastAddress(*send_address),
     interface=interface
 )
 
@@ -44,7 +44,7 @@ radar_parameters = RadarSettings(
 )
 
 navico_radar = NavicoRadarController(
-    address_set=addrset,
+    multicast_interfaces=mcast_ifaces,
     init_radar_parameters=radar_parameters,
     output_dir=output_dir,
 )
