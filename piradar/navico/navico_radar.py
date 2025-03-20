@@ -26,11 +26,12 @@ import datetime
 import struct
 import socket
 import threading
+import queue
 from typing import Literal
 from pathlib import Path
 from dataclasses import dataclass
 
-from piradar.network import create_udp_socket, create_udp_multicast_receiver_socket
+from piradar.network import create_udp_socket, create_udp_multicast_receiver_socket, ip_address_to_string
 from piradar.navico.navico_structure import *
 from piradar.navico.navico_command import *
 
@@ -47,7 +48,7 @@ class MulticastAddress:
 
     def __post_init__(self):
         if isinstance(self.address, int):
-            self.address = socket.inet_ntoa(struct.pack('!I', self.address))
+            self.address = ip_address_to_string(self.address)
 
 
 @dataclass
@@ -209,15 +210,17 @@ class NavicoRadar:
             self, multicast_interfaces: MulticastInterfaces,
             init_radar_parameters: RadarParameters,
             output_dir: str,
-            stay_alive_interval: int = 10,
+            keep_alive_interval: int = 10,
     ):
         self.address_set = multicast_interfaces
         self.output_dir = output_dir
+        self.keep_alive_interval = keep_alive_interval
 
         self.data_path = Path(self.output_dir).joinpath("ppi_data.txt")
         self.raw_data_path = Path(self.output_dir).joinpath("raw_ppi_data.raw")
         self.raw_reports_path = {
-            key: Path(self.output_dir).joinpath("raw_ppi_data.raw") for key in ReportIds.__dict__.keys()
+            report_id : Path(self.output_dir).joinpath(f"raw_report_{hex(report_id)}.raw")
+            for report_id in REPORTS_IDS
         }
 
         # make object to store initatil parameter to pass to Radar
@@ -231,6 +234,7 @@ class NavicoRadar:
         self.report_thread: threading.Thread = None
         self.stay_alive_thread: threading.Thread = None
         self.writer_thread: threading.Thread = None
+        self.writing_queue = queue.Queue()
 
         self.radar_was_detected = False
         self.stop_flag = False
@@ -258,13 +262,6 @@ class NavicoRadar:
 
         self.send_radar_parameters(init_radar_parameters)
 
-
-    def init_ouput_path(self):
-        self.data_path =
-
-        self.raw_report_paths = {
-            ""
-        }
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -320,37 +317,43 @@ class NavicoRadar:
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
             try:
-                in_data = self.report_socket.recv(RCV_BUFF)
+                raw_packet = self.report_socket.recv(RCV_BUFF)
             except socket.timeout:
                 continue
-            if in_data and len(in_data) >= 2:
+            if raw_packet and len(raw_packet) >= 2:
                 self.radar_was_detected = True
-                self.process_report(in_data=in_data)
+                self.process_report(raw_packet=raw_packet)
 
     def data_listen(self):
         while not self.stop_flag: # have thread specific flags as well
             try:
-                in_data = self.data_socket.recv(RCV_BUFF)
-                self.write_raw_data_packet(in_data)
+                raw_packet = self.data_socket.recv(RCV_BUFF)
             except socket.timeout:
                 continue
-            if in_data:
+
+            if raw_packet:
                 print("Data received")
-                self.process_data(in_data=in_data)
+                self.writing_queue.put((self.write_raw_data_packet, raw_packet))
+                self.process_data(in_data=raw_packet)
 
-    def process_report(self, in_data):
-        id = struct.unpack("!H", in_data[:2])[0]
-        olmh_map = {0: "off", 1: "low", 2: "medium", 3: "high"} # maybe set as class attributes
-        match id:
-            case ReportIds._01B2:  # '#case b'\xb2\x01':
-                self.raw_reports.r01b2 = RadarReport01B2(in_data)
+    def process_report(self, raw_packet):
+        olmh_map = {0: "off", 1: "low", 2: "medium", 3: "high"}  # maybe set as class attributes
 
-            case ReportIds._01C4: #STATUS
-                self.raw_reports.r01c4 = RadarReport01C418(in_data)
-                print(f"report {in_data[:2]} not decoded yet")
+        report_id = struct.unpack("!H", raw_packet[:2])[0]
 
-            case ReportIds._02C4: #SETTINGS
-                self.raw_reports.r02c4 = RadarReport02C499(in_data)
+        if report_id in REPORTS_IDS:
+            self.writing_queue.put((self.write_raw_report_packet, report_id, raw_packet))
+
+        match report_id:
+            case REPORTS_IDS._01B2:  # '#case b'\xb2\x01':
+                self.raw_reports.r01b2 = RadarReport01B2(raw_packet)
+
+            case REPORTS_IDS._01C4: #STATUS
+                self.raw_reports.r01c4 = RadarReport01C418(raw_packet)
+                print(f"report {raw_packet[:2]} not decoded yet")
+
+            case REPORTS_IDS._02C4: #SETTINGS
+                self.raw_reports.r02c4 = RadarReport02C499(raw_packet)
 
                 self.reports.setting._range = self.raw_reports.r02c4.range / 10 #unsure about the division
                 mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
@@ -371,15 +374,15 @@ class NavicoRadar:
                 if self.raw_reports.r02c4.target_boost:
                     self.reports.setting.target_boost = olmh_map[self.raw_reports.r02c4.target_boost] #missing in commands
 
-                print(f"report {in_data[:2]} not decoded yet")
+                print(f"report {raw_packet[:2]} not decoded yet")
 
-            case ReportIds._03C4: # SYSTEM
-                self.raw_reports.r03c4 = RadarReport03C4129(in_data)
+            case REPORTS_IDS._03C4: # SYSTEM
+                self.raw_reports.r03c4 = RadarReport03C4129(raw_packet)
                 # use to get model ?
-                print(f"report {in_data[:2]} not decoded yet")
+                print(f"report {raw_packet[:2]} not decoded yet")
 
-            case ReportIds._04C4: #SPATIAL
-                self.raw_reports.r04c4 = RadarReport04C466(in_data)
+            case REPORTS_IDS._04C4: #SPATIAL
+                self.raw_reports.r04c4 = RadarReport04C466(raw_packet)
 
                 self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
                 self.reports.spatial.antenna_height = self.raw_reports.r04c4.antenna_height / 1000
@@ -387,31 +390,31 @@ class NavicoRadar:
                     self.reports.spatial.light = olmh_map[self.raw_reports.r04c4.accent_light]
                 # accent light ??? s
 
-            case ReportIds._06C4: # BLANKING
-                match len(in_data):
+            case REPORTS_IDS._06C4: # BLANKING
+                match len(raw_packet):
                     case RadarReport06C468.size:
-                        self.raw_reports.r06c4 = RadarReport06C468(in_data)
+                        self.raw_reports.r06c4 = RadarReport06C468(raw_packet)
                     case RadarReport06C474.size:
-                        self.raw_reports.r06c4 = RadarReport06C474(in_data)
+                        self.raw_reports.r06c4 = RadarReport06C474(raw_packet)
                     # self.reports.blanking # Fixme
 
-            case ReportIds._08C4: #FILTERS
-                match len(in_data):
+            case REPORTS_IDS._08C4: #FILTERS
+                match len(raw_packet):
                     case RadarReport08C418.size: # Without Dooplers
-                        self.raw_reports.r08c4 = RadarReport08C418(in_data)
+                        self.raw_reports.r08c4 = RadarReport08C418(raw_packet)
 
                     case RadarReport08C421.size: #With Dooplers
-                        self.raw_reports.r08c4 = RadarReport08C421(in_data)
+                        self.raw_reports.r08c4 = RadarReport08C421(raw_packet)
                 # do som,ething like if dopper in raw_reports -> set values
-                print(f"report {in_data[:2]} not impletmented yet")
+                print(f"report {raw_packet[:2]} not impletmented yet")
 
-            case ReportIds._12C4: # SERIAL
-                report = RadarReport12C466(in_data)
+            case REPORTS_IDS._12C4: # SERIAL
+                report = RadarReport12C466(raw_packet)
                 self.raw_reports.r12c4 = report
-                print(f"report {in_data[:2]} not decoded yet")
+                print(f"report {raw_packet[:2]} not decoded yet")
 
             case _:
-                print(f"report {in_data[:2]} not impletmented yet")
+                print(f"report {raw_packet[:2]} not impletmented yet")
                 # report = RadarReport_c408()
 
     # do something with the report ?
@@ -470,13 +473,13 @@ class NavicoRadar:
             sector_data.spoke_data.append(spoke_data)
 
         self.write_sector_data(sector_data)
-
+        self.writing_queue.put((self.write_sector_data, sector_data))
 
     ### Belows are all the commands method ###
     def keep_alive(self):
         while self.stop_flag:
             self.send_pack_data(StayOnCmds.A0)
-            time.sleep(self.stay_alive_interval)
+            time.sleep(self.keep_alive_interval)
 
     def stay_alive_cmds(self, mode=0):
         self.send_pack_data(StayOnCmds.A0)# maybe just this will work
@@ -619,20 +622,25 @@ class NavicoRadar:
         if radar_parameters.light:
             self.commands("light", radar_parameters.light)
 
-    def write_sector_data(self, sector_data: SectorData):
+    def writer(self):
+        while not self.stop_flag:
+            _write_task, *args = self.writing_queue.get()
+            _write_task(*args)
 
-        with open(self.output_dir + "data.txt", "a") as f:
+    def write_sector_data(self, sector_data: SectorData):
+        with open(self.data_path, "a") as f:
             f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
             for spoke_data in sector_data.spoke_data:
                 f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
                 f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n") #FIXME
-                #f.write(f"SD:{','.join(spoke_data.intensities)}\n")
 
     def write_raw_data_packet(self, raw_data: bytearray):
-        with open(self.output_dir + "/", "wb") as f:
+        with open(self.raw_data_path, "wb") as f:
             f.write(raw_data)
 
-
+    def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
+        with open(self.raw_reports_path[report_id], "wb") as f:
+            f.write(raw_report)
 
 
 if __name__ == "__main__":

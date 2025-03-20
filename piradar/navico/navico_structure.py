@@ -1,11 +1,10 @@
 from itertools import accumulate
 import struct
-import socket
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, field
 
 __all__ = [
-    "ReportIds",
+    "REPORTS_IDS",
     "RadarReport01B2",
     "RadarReport01C418",
     "RadarReport02C499",
@@ -27,21 +26,25 @@ ENDIAN = "!"
 
 @dataclass
 class _ReportIds:
-    _01B2 = 0x01b2
-    _01C4 = 0x01c4
-    _02C4 = 0x02c4
-    _03C4 = 0x03c4
-    _04C4 = 0x04c4
+    _01B2: int = field(default=0x01b2)
+    _01C4: int = field(default=0x01c4)
+    _02C4: int = field(default=0x02c4)
+    _03C4: int = field(default=0x03c4)
+    _04C4: int = field(default=0x04c4)
     # _05C4 = 0x05c4 # Not use (maybe it doesnt not exist)
-    _06C4 = 0x06c4
+    _06C4: int = field(default=0x06c4)
     # _07C4 = 0x07c4 # Not use (maybe it doesnt not exist)
-    _08C4 = 0x08c4
+    _08C4: int = field(default=0x08c4)
     # _09C4 = 0x09c4 # Not use (maybe it doesnt not exist)
     # _10C4 = 0x10c4 # Not use (maybe it doesnt not exist)
     # _11C4 = 0x11c4 # Not use (maybe it doesnt not exist)
-    _12C4 = 0x12c4
+    _12C4: int = field(default=0x12c4)
 
-ReportIds = _ReportIds()
+    def __iter__(self):
+        for field in fields(self):
+            yield getattr(self, field.name)
+
+REPORTS_IDS = _ReportIds()
 
 @dataclass
 class IPAddressRaw:

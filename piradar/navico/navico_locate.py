@@ -6,7 +6,7 @@ import threading
 
 from ..network import create_udp_multicast_receiver_socket, create_udp_socket
 from .navico_radar import MulticastInterfaces
-from .navico_structure import RadarReport01B2, ReportIds
+from .navico_structure import RadarReport01B2, REPORTS_IDS
 
 HOST = ""
 RCV_BUFF = 65535
@@ -50,7 +50,7 @@ class RadarLocator:
                         id = struct.unpack("!H", in_data[:2])[0]
                         print(f'Report {hex(id)} received.')
                         match id:
-                            case ReportIds._01B2: #'#case b'\xb2\x01':
+                            case REPORTS_IDS._01B2: #'#case b'\xb2\x01':
                                 report = RadarReport01B2(in_data)
                                 self.groupA = MulticastInterfaces(
                                     interface=self.interface,
