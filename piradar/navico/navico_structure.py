@@ -73,39 +73,39 @@ class RadarReport01B2:
 
         self.id = unpacked_fields[0][0]
         self.serialno = unpacked_fields[1][0].decode("ascii")
-        self.addr0 = IPAddressRaw(unpacked_fields[2])
+        self.addr0 = IPAddressRaw(*unpacked_fields[2])
         self.u1 = unpacked_fields[3]
-        self.addr1 = IPAddressRaw(unpacked_fields[4])
+        self.addr1 = IPAddressRaw(*unpacked_fields[4])
         self.u2 = unpacked_fields[5]
-        self.addr2 = IPAddressRaw(unpacked_fields[6])
+        self.addr2 = IPAddressRaw(*unpacked_fields[6])
         self.u3 = unpacked_fields[7]
-        self.addr3 = IPAddressRaw(unpacked_fields[8])
+        self.addr3 = IPAddressRaw(*unpacked_fields[8])
         self.u4 = unpacked_fields[9]
-        self.addr4 = IPAddressRaw(unpacked_fields[10])
+        self.addr4 = IPAddressRaw(*unpacked_fields[10])
         self.u5 = unpacked_fields[11]
-        self.addrDataA = IPAddressRaw(unpacked_fields[12])
+        self.addrDataA = IPAddressRaw(*unpacked_fields[12])
         self.u6 = unpacked_fields[13]
-        self.addrSendA = IPAddressRaw(unpacked_fields[14])
+        self.addrSendA = IPAddressRaw(*unpacked_fields[14])
         self.u7 = unpacked_fields[15]
-        self.addrReportA = IPAddressRaw(unpacked_fields[16])
+        self.addrReportA = IPAddressRaw(*unpacked_fields[16])
         self.u8 = unpacked_fields[17]
-        self.addrDataB = IPAddressRaw(unpacked_fields[18])
+        self.addrDataB = IPAddressRaw(*unpacked_fields[18])
         self.u9 = unpacked_fields[19]
-        self.addrSendB = IPAddressRaw(unpacked_fields[20])
+        self.addrSendB = IPAddressRaw(*unpacked_fields[20])
         self.u10 = unpacked_fields[21]
-        self.addrReportB = IPAddressRaw(unpacked_fields[22])
+        self.addrReportB = IPAddressRaw(*unpacked_fields[22])
         self.u11 = unpacked_fields[23]
-        self.addr11 = IPAddressRaw(unpacked_fields[24])
+        self.addr11 = IPAddressRaw(*unpacked_fields[24])
         self.u12 = unpacked_fields[25]
-        self.addr12 = IPAddressRaw(unpacked_fields[26])
+        self.addr12 = IPAddressRaw(*unpacked_fields[26])
         self.u13 = unpacked_fields[27]
-        self.addr13 = IPAddressRaw(unpacked_fields[28])
+        self.addr13 = IPAddressRaw(*unpacked_fields[28])
         self.u14 = unpacked_fields[29]
-        self.addr14 = IPAddressRaw(unpacked_fields[30])
+        self.addr14 = IPAddressRaw(*unpacked_fields[30])
         self.u15 = unpacked_fields[31]
-        self.addr15 = IPAddressRaw(unpacked_fields[32])
+        self.addr15 = IPAddressRaw(*unpacked_fields[32])
         self.u16 = unpacked_fields[33]
-        self.addr16 = IPAddressRaw(unpacked_fields[34])
+        self.addr16 = IPAddressRaw(*unpacked_fields[34])
 
     def __repr__(self):
         _repr = f"{self.__class__.__name__}\n"
@@ -184,7 +184,7 @@ class RadarReport02C4:
           # NOTE THEIR MIGHT BE MORE FIELDS ?
         """
         if len(data) != self.expected_size: # size is 43 not 99. but it could be for halo ?? maybe idk.
-            data = data + (self.size - len(data)) * "\x00"
+            data = data + (self.size - len(data)) * b"\x00"
 
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
@@ -224,7 +224,7 @@ class RadarReport02C4:
 
 class RadarReport03C4:
     expected_size = 129
-    cformats = ["B", "B", "B", "31B", "L", "20B", "16H", "16H", "7B"]
+    cformats = ["B", "B", "B", "31B", "L", "20B", "32s", "32s", "7B"]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -368,7 +368,7 @@ class RadarReport08C4:
         """
         # Padding to 21 (report could be 18)
         if len(data) != self.expected_size:
-            data = data + (self.size - len(data)) * "\x00"
+            data = data + (self.size - len(data)) * b"\x00"
 
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
@@ -561,14 +561,3 @@ class RawSectorData:
             RawSpokeData(spokes_data[i * RawSpokeData.size: (i + 1) * RawSpokeData.size]) for i in
             range(self.number_of_spokes)
         ]
-
-
-if __name__ == "__main__":
-    #data=b"\x01\xb2\x31\x36\x31\x31\x34\x30\x31\x38\x38\x30\x00\x00\x00\x00\x00\x00\xc0\xa8\x01\xb9\x01\x01\x06\x00\xfd\xff\x20\x01\x02\x00\x10\x00\x00\x00\xc0\xa8\x01\xb9\x17\x60\x11\x00\x00\x00\xec\x06\x07\x16\x1a\x26\x1f\x00\x20\x01\x02\x00\x10\x00\x00\x00\xec\x06\x07\x17\x1a\x1c\x11\x00\x00\x00\xec\x06\x07\x18\x1a\x1d\x10\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x08\x1a\x16\x11\x00\x00\x00\xec\x06\x07\x0a\x1a\x18\x12\x00\x00\x00\xec\x06\x07\x09\x1a\x17\x10\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0d\x1a\x01\x11\x00\x00\x00\xec\x06\x07\x0e\x1a\x02\x12\x00\x00\x00\xec\x06\x07\x0f\x1a\x03\x12\x00\x20\x01\x03\x00\x10\x00\x00\x00\xec\x06\x07\x12\x1a\x20\x11\x00\x00\x00\xec\x06\x07\x14\x1a\x22\x12\x00\x00\x00\xec\x06\x07\x13\x1a\x21\x12\x00\x20\x02\x03\x00\x10\x00\x00\x00\xec\x06\x07\x0c\x1a\x04\x11\x00\x00\x00\xec\x06\x07\x0d\x1a\x05\x12\x00\x00\x00\xec\x06\x07\x0e\x1a\x06"
-    #r=RadarReport01B2(data)
-
-    #data = b"\x01\xb2"
-
-    print(RawSpokeData.size)
-    print(RawSectorData.size)
-    print(RawSectorData.size // RawSpokeData.size)

@@ -4,9 +4,9 @@ import struct
 import socket
 import threading
 
-from ..network import create_udp_multicast_receiver_socket, create_udp_socket
-from .navico_controller import MulticastInterfaces
-from .navico_structure import RadarReport01B2, REPORTS_IDS
+from piradar.network import create_udp_multicast_receiver_socket, create_udp_socket
+from piradar.navico.navico_controller import MulticastInterfaces
+from piradar.navico.navico_structure import RadarReport01B2, REPORTS_IDS
 
 HOST = ""
 RCV_BUFF = 65535
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('interface', required=True, help='Interface address to scan')
+    parser.add_argument('interface', help='Interface address to scan')
     parser.add_argument("-t", '--timeout', help="---", type=int, default=30)
     parser.add_argument("-p", '--ping-interval', help="---", type=int, default=2)
     args = parser.parse_args()
