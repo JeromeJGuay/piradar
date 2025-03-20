@@ -6,23 +6,21 @@ from dataclasses import dataclass, fields, field
 __all__ = [
     "REPORTS_IDS",
     "RadarReport01B2",
-    "RadarReport01C418",
-    "RadarReport02C499",
-    "RadarReport03C4129",
-    "RadarReport04C466",
-    "RadarReport06C468",
-    "RadarReport06C474",
-    "RadarReport08C418",
-    "RadarReport08C421",
-    "RadarReport12C466",
+    "RadarReport01C4",
+    "RadarReport02C4",
+    "RadarReport03C4",
+    "RadarReport04C4",
+    "RadarReport06C4",
+    "RadarReport08C4",
+    "RadarReport12C4",
     "RawSectorData",
     "RawSpokeData",
     # "HaloHeadingPacket",
     # "HaloMysteryPacket",
 ]
 
-
 ENDIAN = "!"
+
 
 @dataclass
 class _ReportIds:
@@ -44,7 +42,9 @@ class _ReportIds:
         for field in fields(self):
             yield getattr(self, field.name)
 
+
 REPORTS_IDS = _ReportIds()
+
 
 @dataclass
 class IPAddressRaw:
@@ -53,6 +53,7 @@ class IPAddressRaw:
 
 
 class RadarReport01B2:
+    expected_size = 222
     cformats = ['H', '16s', 'LH', '12B', 'LH', '4B',
                 'LH', '10B', 'LH', '4B', 'LH', '10B',
                 'LH', '4B', 'LH', '4B', 'LH', '10B',
@@ -71,7 +72,7 @@ class RadarReport01B2:
         ]
 
         self.id = unpacked_fields[0][0]
-        self.serialno = unpacked_fields[1] # decode as ascii to test fixme
+        self.serialno = unpacked_fields[1][0].decode("ascii")
         self.addr0 = IPAddressRaw(unpacked_fields[2])
         self.u1 = unpacked_fields[3]
         self.addr1 = IPAddressRaw(unpacked_fields[4])
@@ -113,7 +114,8 @@ class RadarReport01B2:
         return _repr
 
 
-class RadarReport01C418:
+class RadarReport01C4:
+    expected_size = 18
     cformats = ["B", "B", "B", "B", "B", "B", "H", "H", "H"]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
@@ -136,11 +138,12 @@ class RadarReport01C418:
         self.field10 = unpacked_fields[7][0]
 
 
-class RadarReport02C499:
+class RadarReport02C4:
+    expected_size = 99 # acutal size is 43 (99 from openCPN radar pi???
     cformats = ["B", "B", "L", "B", "B", "L", "B", "B", "B", "H", "L", "B", "B", "B", "L", "L",
                 "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B",
-                #"56B" Add if needed to have a size 99. at the moment size is 43
-                ] #TODO
+                "56B" # Add if needed to have a size 99. at the moment size is 43
+                ]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -148,7 +151,7 @@ class RadarReport02C499:
 
     def __init__(self, data):
         """
-          uint8_t register;                    // 0   0x02
+          uint8_t register;                // 0   0x02
           uint8_t command;                 // 1 0xC4
           uint32_t range;                  //  2-3   0x06 0x09
           uint8_t field4;                  // 6    0
@@ -176,8 +179,12 @@ class RadarReport02C499:
           uint8_t field41;                 // 41
           uint8_t target_boost;            // 42
 
+          uint8_t field43[56] Added by jérôme
           # NOTE THEIR MIGHT BE MORE FIELDS ?
         """
+        if len(data) != self.expected_size: # size is 43 not 99. but it could be for halo ?? maybe idk.
+            data = data + (self.size - len(data)) * "\x00"
+
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
@@ -185,35 +192,37 @@ class RadarReport02C499:
         self.register = unpacked_fields[0][0]
         self.command = unpacked_fields[1][0]
         self.range = unpacked_fields[2][0]
-        self.field4 = unpacked_fields[3]
+        self.field4 = unpacked_fields[3][0]
         self.mode = unpacked_fields[4][0]
         self.field8 = unpacked_fields[5][0]
         self.gain = unpacked_fields[6][0]
         self.sea_state_auto = unpacked_fields[7][0]
-        self.field14 = unpacked_fields[8]
-        self.field15 = unpacked_fields[9]
+        self.field14 = unpacked_fields[8][0]
+        self.field15 = unpacked_fields[9][0]
         self.sea_clutter = unpacked_fields[10][0]
-        self.field21 = unpacked_fields[11]
+        self.field21 = unpacked_fields[11][0]
         self.rain_clutter = unpacked_fields[12][0]
-        self.field23 = unpacked_fields[13]
-        self.field24 = unpacked_fields[14]
-        self.field28 = unpacked_fields[15]
-        self.field32 = unpacked_fields[16]
-        self.field33 = unpacked_fields[17]
+        self.field23 = unpacked_fields[13][0]
+        self.field24 = unpacked_fields[14][0]
+        self.field28 = unpacked_fields[15][0]
+        self.field32 = unpacked_fields[16][0]
+        self.field33 = unpacked_fields[17][0]
         self.interference_rejection = unpacked_fields[18][0]
-        self.field35 = unpacked_fields[19]
-        self.field36 = unpacked_fields[20]
-        self.field37 = unpacked_fields[21]
+        self.field35 = unpacked_fields[19][0]
+        self.field36 = unpacked_fields[20][0]
+        self.field37 = unpacked_fields[21][0]
         self.target_expansion = unpacked_fields[22][0]
-        self.field39 = unpacked_fields[23]
-        self.field40 = unpacked_fields[24]
-        self.field41 = unpacked_fields[25]
+        self.field39 = unpacked_fields[23][0]
+        self.field40 = unpacked_fields[24][0]
+        self.field41 = unpacked_fields[25][0]
         self.target_boost = unpacked_fields[26][0]
-        #self.field42 = unpacked_fields[27][0] ## if needed to have len 99
+
+        self.field43 = unpacked_fields[27] # 56
 
 
-class RadarReport03C4129:
-    cformats = [] #TODO
+class RadarReport03C4:
+    expected_size = 129
+    cformats = ["B", "B", "B", "31B", "L", "20B", "16H", "16H", "7B"]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -235,10 +244,19 @@ class RadarReport03C4129:
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
-        # TODO
+        self.register = unpacked_fields[0][0]
+        self.command = unpacked_fields[1][0]
+        self.radar_type = unpacked_fields[2][0]
+        self.u00 = unpacked_fields[3] # 31 values
+        self.hours = unpacked_fields[4][0]
+        self.u01 = unpacked_fields[5] # 20 values
+        self.firmware_data = unpacked_fields[6][0].decode("ascii")
+        self.firmware_time = unpacked_fields[7][0].decode("ascii")
+        self.u02 = unpacked_fields[8] # 7 values
 
 
-class RadarReport04C466:
+class RadarReport04C4:
+    expected_size = 66
     cformats = ["B", "B", "L", "H", "H", "H", "L", "3B", "B"]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
@@ -269,54 +287,21 @@ class RadarReport04C466:
         self.field8 = unpacked_fields[4][0]
         self.antenna_height = unpacked_fields[5][0]
         self.field12 = unpacked_fields[6][0]
-        self.field16 = unpacked_fields[7] # 3 values
+        self.field16 = unpacked_fields[7]  # 3 values
         self.accent_light = unpacked_fields[8][0]
 
 
 class SectorBlanking:
     cformat = "B2H"
+
     def __init__(self, data: tuple[int, int, int]):
         self.enable = data[0]
         self.start_angle = data[1]
         self.end_angle = data[2]
 
 
-class RadarReport06C468:
-    cformats = ["B", "B", "L", "6c", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
-
-    size = struct.calcsize(ENDIAN + "".join(cformats))
-    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
-    field_offsets = [0] + list(accumulate(field_sizes))[:-1]
-
-    def __init__(self, data):
-        """
-        uint8_t register;                      // 0   0x04
-        uint8_t command;                   // 1   0xC4
-        uint32_t field1;                   // 2-5
-        char name[6];                      // 6-11 "Halo;\0"
-        uint8_t field2[24];                // 12-35 unknown
-        SectorBlankingReport blanking[4];  // 36-55
-        uint8_t field3[12];                // 56-67
-        """
-        unpacked_fields = [
-            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
-            for ff, fo in zip(self.cformats, self.field_offsets)
-        ]
-        self.register = unpacked_fields[0][0]
-        self.command = unpacked_fields[1][0]
-        self.field1 = unpacked_fields[2][0]
-        self.name = unpacked_fields[3] #6 values #myabe use 6s and unpack as ascii ? Fixme
-        self.field2 = unpacked_fields[4] # 24 values
-        self.blanking = (
-            SectorBlanking(unpacked_fields[5]), # will be unpakced by SectorBlanking
-            SectorBlanking(unpacked_fields[6]),
-            SectorBlanking(unpacked_fields[7]),
-            SectorBlanking(unpacked_fields[8])
-        )
-        self.field3 = unpacked_fields[9]
-
-
-class RadarReport06C474:
+class RadarReport06C4:
+    expected_size = 74
     cformats = ["B", "B", "L", "6c", "30B"] + 4 * [SectorBlanking.cformat] + ["12B"]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
@@ -325,14 +310,28 @@ class RadarReport06C474:
 
     def __init__(self, data):
         """
-        uint8_t register;                      // 0   0x04
+        [Report ofsSize 74]
+        uint8_t register;                  // 0   0x04
         uint8_t command;                   // 1   0xC4
         uint32_t field1;                   // 2-5
         char name[6];                      // 6-11 "Halo;\0"
         uint8_t field2[30];                // 12-41 unknown
         SectorBlankingReport blanking[4];  // 42-61
         uint8_t field4[12];                // 62-73
+
+        [Report ofsSize 68]
+        uint8_t register;                  // 0   0x04
+        uint8_t command;                   // 1   0xC4
+        uint32_t field1;                   // 2-5
+        char name[6];                      // 6-11 "Halo;\0"
+        uint8_t field2[24];                // 12-35 unknown
+        SectorBlankingReport blanking[4];  // 36-55
+        uint8_t field3[12];                // 56-67
         """
+
+        if len(data) == 68:
+            self.cformats = ["B", "B", "L", "6c", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
+
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
@@ -340,54 +339,20 @@ class RadarReport06C474:
         self.register = unpacked_fields[0][0]
         self.command = unpacked_fields[1][0]
         self.field1 = unpacked_fields[2][0]
-        self.name = unpacked_fields[3] #6 values #myabe use 6s and unpack as ascii ? Fixme
-        self.field2 = unpacked_fields[4] # 30 values
+        self.name = unpacked_fields[3]  #6 values #myabe use 6s and unpack as ascii ? Fixme
+        self.field2 = unpacked_fields[4]  # 26 or 30 values depending on the report size (68 or 74)
         self.blanking = (
-            SectorBlanking(unpacked_fields[5]), # will be unpakced by SectorBlanking
+            SectorBlanking(unpacked_fields[5]),  # will be unpakced by SectorBlanking
             SectorBlanking(unpacked_fields[6]),
             SectorBlanking(unpacked_fields[7]),
             SectorBlanking(unpacked_fields[8])
         )
-        self.field3 = unpacked_fields[9] # 12 values
+        self.field3 = unpacked_fields[9]  # 12 values
 
 
-class RadarReport08C418:
-    cformats = [] #TODO
-
-    size = struct.calcsize(ENDIAN + "".join(cformats))
-    field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
-    field_offsets = [0] + list(accumulate(field_sizes))[:-1]
-
-    def __init__(self, data):
-        """
-        uint8_t register;                          // 0  0x08
-        uint8_t command;                       // 1  0xC4
-        uint8_t sea_state;                     // 2
-        uint8_t local_interference_rejection;  // 3
-        uint8_t scan_speed;                    // 4
-        uint8_t sls_auto;                      // 5 installation: sidelobe suppression auto
-        uint8_t field6;                        // 6
-        uint8_t field7;                        // 7
-        uint8_t field8;                        // 8
-        uint8_t side_lobe_suppression;         // 9 installation: sidelobe suppression
-        uint16_t field10;                      // 10-11
-        uint8_t noise_rejection;               // 12    noise rejection
-        uint8_t target_sep;                    // 13
-        uint8_t sea_clutter;                   // 14 sea clutter on Halo
-        int8_t auto_sea_clutter;               // 15 auto sea clutter on Halo
-        uint8_t field13;                       // 16
-        uint8_t field14;                       // 17
-        """
-        unpacked_fields = [
-            struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
-            for ff, fo in zip(self.cformats, self.field_offsets)
-        ]
-        # TODO
-
-
-class RadarReport08C421:
-
-    cformats = [] #TODO
+class RadarReport08C4:
+    expected_size = 21
+    cformats = 10 * ["B"] + ["H"] + 6 * ["B"] + ["B", "H"]  #TODO
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -399,14 +364,39 @@ class RadarReport08C421:
         uint8_t doppler_state;
         uint16_t doppler_speed;
         """
+        # Padding to 21 (report could be 18)
+        if len(data) != self.expected_size:
+            data = data + (self.size - len(data)) * "\x00"
+
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
-        # TODO
+        self.register = unpacked_fields[0][0]
+        self.command = unpacked_fields[1][0]
+        self.sea_state = unpacked_fields[2][0]
+        self.interference_rejection = unpacked_fields[3][0]
+        self.scan_speed = unpacked_fields[4][0]
+        self.auto_side_lobe_suppression = unpacked_fields[5][0]
+        self.field6 = unpacked_fields[6][0]
+        self.field7 = unpacked_fields[7][0]
+        self.field8 = unpacked_fields[8][0]
+        self.side_lobe_suppression = unpacked_fields[9][0]
+        self.field10 = unpacked_fields[10][0]
+        self.noise_rejection = unpacked_fields[11][0]
+        self.target_separation = unpacked_fields[12][0]
+        self.sea_clutter = unpacked_fields[13][0]
+        self.auto_sea_clutter_auto = unpacked_fields[14][0]
+        self.field13 = unpacked_fields[14][0]
+        self.field14 = unpacked_fields[15][0]
 
-class RadarReport12C466:
-    cformats = [] #TODO
+        self.doppler_mode = unpacked_fields[16][0]
+        self.doppler_speed = unpacked_fields[17][0]
+
+
+class RadarReport12C4:
+    expected_size = 66
+    cformats = ["B", "B", "12s"]  #TODO
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -423,11 +413,13 @@ class RadarReport12C466:
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
         ]
-        # TODO
+        self.register = unpacked_fields[0][0]
+        self.command = unpacked_fields[1][0]
+        self.serialno = unpacked_fields[2][0].decode("ascii")
 
 
 class HaloHeadingPacket:
-    cformats = [] #TODO
+    cformats = []  #TODO
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -452,11 +444,11 @@ class HaloHeadingPacket:
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
             for ff, fo in zip(self.cformats, self.field_offsets)
-        ] #TODO
+        ]  #TODO
 
 
 class HaloMysteryPacket:
-    cformats = [] #TODO
+    cformats = []  #TODO
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -534,8 +526,7 @@ class RawSectorData:
     8 + number_of_lines * 536
     """
     # The number of spoke of the data is computed in the __init__().
-    number_of_spokes = 32# 32. Maybe less ? make it so it can take more or less lines depending on the
-
+    number_of_spokes = 32  # 32. Maybe less ? make it so it can take more or less lines depending on the
     cformats = ["5B", "B", "H"] + number_of_spokes * ["".join(RawSpokeData.cformats)]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
@@ -552,9 +543,9 @@ class RawSectorData:
           RawScanline lines[120];  //  scan lines, or spokes
         """
         header_data = data[:self.header_size]
-        unpacked_header= [
+        unpacked_header = [
             struct.unpack_from(ENDIAN + ff, buffer=header_data, offset=fo)
-            for ff, fo in zip(self.cformatsp[:3], self.field_offsets) # this is bad pratice [:3] fixme
+            for ff, fo in zip(self.cformats[:self.header_size], self.field_offsets)
         ]
         self.stuff = unpacked_header[0][0]
         self.number_of_spokes = unpacked_header[1][0]
@@ -565,9 +556,9 @@ class RawSectorData:
         spokes_data = data[self.header_size:]
 
         self.spokes = [
-            RawSpokeData(spokes_data[i * RawSpokeData.size: (i + 1) * RawSpokeData.size]) for i in range(self.number_of_spokes)
+            RawSpokeData(spokes_data[i * RawSpokeData.size: (i + 1) * RawSpokeData.size]) for i in
+            range(self.number_of_spokes)
         ]
-
 
 
 if __name__ == "__main__":

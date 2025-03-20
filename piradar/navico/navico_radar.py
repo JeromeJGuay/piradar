@@ -41,6 +41,21 @@ RCV_BUFF = 65535
 
 RANGE_SCALE = 10 * 2 ** (-1/2)
 
+
+### This maybe overkill
+class Navico4G:
+    pass
+
+class Navico3G:
+    pass
+
+class NavicoBR24:
+    pass
+
+class NavicoHALO:
+    pass
+
+
 @dataclass
 class MulticastAddress:
     address: str | int
@@ -62,13 +77,13 @@ class MulticastInterfaces:
 @dataclass
 class RawReports:
     r01b2: RadarReport01B2 = None
-    r01c4: RadarReport01C418 = None
-    r02c4: RadarReport02C499 = None
-    r03c4: RadarReport03C4129 = None
-    r04c4: RadarReport04C466 = None
-    r06c4: RadarReport06C468 | RadarReport06C474 = None
-    r08C4: RadarReport08C418 | RadarReport08C421 = None
-    r12c4: RadarReport12C466 = None
+    r01c4: RadarReport01C4 = None
+    r02c4: RadarReport02C4 = None
+    r03c4: RadarReport03C4 = None
+    r04c4: RadarReport04C4 = None
+    r06c4: RadarReport06C4 = None
+    r08C4: RadarReport08C4 = None
+    r12c4: RadarReport12C4 = None
 
 
 @dataclass
@@ -135,15 +150,10 @@ class FilterReport:
     target_separation: str = None
     sea_clutter: int = None # on Halo
 
-    auto_side_lobe_suppresion: bool = None
+    auto_side_lobe_suppression: bool = None
     auto_sea_clutter: bool = None # on halo
 
-
-
-@dataclass
-class DopplerReport:
-    """Report 08C4"""
-    doppler_state: str = None
+    doppler_mode: str = None
     doppler_speed: int = None
 
 
@@ -160,7 +170,6 @@ class Reports:
     blanking = BlankingReport()
     setting = SettingReport()
     filters = FilterReport()
-    doppler = DopplerReport()
     serial = SerialNumberReport()
 
 
@@ -168,35 +177,34 @@ class Reports:
 @dataclass
 class RadarParameters:
     # Base
-    range: float = None # maybe define literal with pre_define ranges ?
+    range: int = None  #Literal[50, 75, 100, 250, 500, 750, 1e3, 1.5e3, 2e3, 4e3, 6e3, 8e3, 12e3, 15e3, 24e3]
     bearing: float = None
     gain: float = None
     antenna_height: float = None
-    scan_speed: Literal["low", "medium", "high"] = None  # Doubt # Default-0, increase-1 ? max-2 ???
+    scan_speed: str = None # ["low", "medium", "high"] = None  # Doubt # Default-0, increase-1 ? max-2 ???
 
     # filters
 
-    sea_state: Literal['off', 'harbour', 'offshore'] = None #automoatic mode ?? sea clutter maybe ?
+    sea_state: str = None # ['off', 'harbour', 'offshore'] = None #automoatic mode ?? sea clutter maybe ?
 
     sea_clutter: int = None
     rain_clutter: int = None
 
-    interference_rejection: Literal["off", "low", "medium", "high"] = None
+    interference_rejection: str = None # ["off", "low", "medium", "high"]
     side_lobe_suppression: int = None
 
-    mode: Literal["custom", "harbor", "offshore", "weather", "bird"] = None
+    mode: str = None # ["custom", "harbor", "offshore", "weather", "bird"]
 
     auto_sea_clutter_nudge: int = None
 
-    target_expansion: Literal["off", "low", "medium", "high"] = None
-    target_separation: Literal["off", "low", "medium", "high"] = None
-    noise_rejection: Literal["off", "low", "medium", "high"] = None
+    target_expansion: str = None # ["off", "low", "medium", "high"]
+    target_separation: str = None # ["off", "low", "medium", "high"]
+    noise_rejection: str = None # ["off", "low", "medium", "high"]
 
-    doppler_mode: Literal['off', 'normal', 'approaching_only'] = None
+    doppler_mode: str = None # ['off', 'normal', 'approaching_only']
     doppler_speed: float = None
 
-    light: Literal["off", "low", "medium", "high"] = None
-
+    light: str = None# ["off", "low", "medium", "high"]
     # auto
     auto_gain: bool = False
     auto_sea_clutter: bool = False
@@ -349,11 +357,10 @@ class NavicoRadar:
                 self.raw_reports.r01b2 = RadarReport01B2(raw_packet)
 
             case REPORTS_IDS._01C4: #STATUS
-                self.raw_reports.r01c4 = RadarReport01C418(raw_packet)
-                print(f"report {raw_packet[:2]} not decoded yet")
+                self.raw_reports.r01c4 = RadarReport01C4(raw_packet)
 
             case REPORTS_IDS._02C4: #SETTINGS
-                self.raw_reports.r02c4 = RadarReport02C499(raw_packet)
+                self.raw_reports.r02c4 = RadarReport02C4(raw_packet)
 
                 self.reports.setting._range = self.raw_reports.r02c4.range / 10 #unsure about the division
                 mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
@@ -374,15 +381,14 @@ class NavicoRadar:
                 if self.raw_reports.r02c4.target_boost:
                     self.reports.setting.target_boost = olmh_map[self.raw_reports.r02c4.target_boost] #missing in commands
 
-                print(f"report {raw_packet[:2]} not decoded yet")
-
             case REPORTS_IDS._03C4: # SYSTEM
-                self.raw_reports.r03c4 = RadarReport03C4129(raw_packet)
-                # use to get model ?
-                print(f"report {raw_packet[:2]} not decoded yet")
+                self.raw_reports.r03c4 = RadarReport03C4(raw_packet)
+                radar_type_map = {0x01: Navico4G, 0x08: Navico3G, 0x0F: NavicoBR24, 0x00: NavicoHALO}
+                self.reports.system.radar_type = radar_type_map[self.raw_reports.r03c4.radar_type]
+
 
             case REPORTS_IDS._04C4: #SPATIAL
-                self.raw_reports.r04c4 = RadarReport04C466(raw_packet)
+                self.raw_reports.r04c4 = RadarReport04C4(raw_packet)
 
                 self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
                 self.reports.spatial.antenna_height = self.raw_reports.r04c4.antenna_height / 1000
@@ -391,30 +397,16 @@ class NavicoRadar:
                 # accent light ??? s
 
             case REPORTS_IDS._06C4: # BLANKING
-                match len(raw_packet):
-                    case RadarReport06C468.size:
-                        self.raw_reports.r06c4 = RadarReport06C468(raw_packet)
-                    case RadarReport06C474.size:
-                        self.raw_reports.r06c4 = RadarReport06C474(raw_packet)
-                    # self.reports.blanking # Fixme
+                self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
 
             case REPORTS_IDS._08C4: #FILTERS
-                match len(raw_packet):
-                    case RadarReport08C418.size: # Without Dooplers
-                        self.raw_reports.r08c4 = RadarReport08C418(raw_packet)
-
-                    case RadarReport08C421.size: #With Dooplers
-                        self.raw_reports.r08c4 = RadarReport08C421(raw_packet)
-                # do som,ething like if dopper in raw_reports -> set values
-                print(f"report {raw_packet[:2]} not impletmented yet")
+                self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
 
             case REPORTS_IDS._12C4: # SERIAL
-                report = RadarReport12C466(raw_packet)
+                report = RadarReport12C4(raw_packet)
                 self.raw_reports.r12c4 = report
-                print(f"report {raw_packet[:2]} not decoded yet")
-
             case _:
-                print(f"report {raw_packet[:2]} not impletmented yet")
+                print(f"report {raw_packet[:2]} unknown")
                 # report = RadarReport_c408()
 
     # do something with the report ?
@@ -516,10 +508,10 @@ class NavicoRadar:
                                      8e3, 12e3, 15e3, 24e3]
                 value = int(pre_define_ranges[value] * 10)
                 cmd = RangeCmd.pack(value=value)
-            case "range_custom":
-                value = max(50, min(24e3, value))
-                value = int(value * 10)
-                cmd = RangeCmd.pack(value=value)
+            # case "range_custom":
+            #     value = max(50, min(24e3, value))
+            #     value = int(value * 10)
+            #     cmd = RangeCmd.pack(value=value)
             case "bearing":
                 value = int(value * 10)
                 cmd = BearingAlignmentCmd.pack(value=value)
@@ -648,7 +640,6 @@ if __name__ == "__main__":
     # interface = "192.168.1.243"
     interface = "192.168.1.228"
 
-
     report_address = MulticastAddress(('236.6.7.9', 6679))
     data_address = MulticastAddress(('236.6.7.8', 6678))
     send_address = MulticastAddress(('236.6.7.10', 6680))
@@ -661,7 +652,7 @@ if __name__ == "__main__":
     )
 
     #addrset = rlocator.groupB
-    output_dir="~/Desktop/raw_data/output_data"
+    output_dir ="~/Desktop/raw_data/output_data"
 
     radar_parameters = RadarParameters(
         range=1e3,
