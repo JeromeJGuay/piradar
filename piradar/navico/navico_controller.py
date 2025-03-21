@@ -72,8 +72,10 @@ MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird
 SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbour", 2: "offshore"}
 SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbour": 1, "offshore": 2}
 
+DOPPLER_MODE_VAL2STR_MAP = {0: "off", 1: "normal", 2: "approaching_only"}
 DOPPLER_MODE_STR2VAL_MAP = {"off": 0, "normal": 1, "approaching_only": 2}
 
+SCAN_MODE_STR2VAL_MAP = {0: "low", 1: "medium", 2: "high"}
 SCAN_SPEED_STR2VAL_MAP = {"low": 0, "medium": 1, "high": 2}
 
 @dataclass
@@ -267,7 +269,9 @@ class NavicoUserConfig:
 
 
 class NavicoRadarController:
-
+    # FIXME add Flags (signal) to hold thread until socket are open etc
+    # FIXME add try -except in case error occures when creating sockets.
+    # FIXME add WATCHDOG to kill everything in case of big error
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
             radar_user_config: NavicoUserConfig,
@@ -309,21 +313,21 @@ class NavicoRadarController:
         self.raw_reports = RawReports()
         self.reports = Reports()
 
-        self.init_send_socket()
         self.init_report_socket()
         self.init_data_socket()
 
         self.start_report_thread()
         self.start_data_thread()
-        self.start_keep_alive_thread()
         self.start_writer_thread()
 
         while not self.radar_was_detected:
             time.sleep(1)
             # FIXME add a timeout and raise an Error
 
+        self.init_send_socket()
+        self.start_keep_alive_thread()
+        time.sleep(0.5) # make use the send_socket was created
         self.send_user_config_parameters(radar_user_config)
-
 
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
@@ -401,6 +405,7 @@ class NavicoRadarController:
                 self.process_data(in_data=raw_packet)
 
     def process_report(self, raw_packet):
+        # TODO DECODE ALL MISSING
         report_id = struct.unpack("!H", raw_packet[:2])[0]
 
         if report_id in REPORTS_IDS:
@@ -488,13 +493,33 @@ class NavicoRadarController:
 
             case REPORTS_IDS.r_06C4: # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
-
+                # TODO
             case REPORTS_IDS.r_08C4: #FILTERS
+                # TODO THE REST
+                # self.reports.filters.sea_state
+                # self.reports.filters.interference_rejection
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
+                try:
+                    self.reports.filters.scan_speed = SCAN_MODE_STR2VAL_MAP[self.raw_reports.r08c4.scan_speed]
+                except KeyError:
+                    self.reports.filters.scan_speed = "unknown"
+                    print(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
+                # self.reports.filters.side_lobe_suppression
+                # self.reports.filters.noise_rejection
+                # self.reports.filters.target_separation
+                # self.reports.filters.sea_clutter
+                # self.reports.filters.auto_side_lobe_suppression
+                # self.reports.filters.auto_sea_clutter
+                try:
+                    self.reports.filters.doppler_mode = DOPPLER_MODE_VAL2STR_MAP[self.raw_reports.r08c4.doppler_mode]
+                except KeyError:
+                    self.reports.filters.doppler_mode = "unknown"
+                    print(f"Unknown doppler_mode value: {self.raw_reports.r08c4.doppler_mode}")
+                self.reports.filters.doppler_speed = self.raw_reports.r08c4.doppler_speed / 100
 
             case REPORTS_IDS.r_12C4: # SERIAL
-                report = RadarReport12C4(raw_packet)
-                self.raw_reports.r12c4 = report
+                self.raw_reports.r12c4 =  RadarReport12C4(raw_packet)
+                # TODO
             case _:
                 print(f"report {raw_packet[:2]} unknown")
                 # report = RadarReport_c408()
