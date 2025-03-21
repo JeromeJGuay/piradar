@@ -704,7 +704,7 @@ class NavicoRadarController:
                 cmd = AntennaHeightCmd.pack(value=int(value * 1000))
             case "scan_speed":
                 cmd = ScanSpeedCmd.pack(value=SCAN_SPEED_STR2VAL_MAP[value])
-            case "sea_state_auto":
+            case "sea_state":
                 cmd = SeaStateAutoCmd.pack(value=SEA_AUTO_STR2VAL_MAP[value])
             case "sea_clutter":
                 cmd = SeaClutterCmd.pack(auto=self.radar_user_config.auto_sea_clutter, value=min(int(value * 255 / 100), 255))
