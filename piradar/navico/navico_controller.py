@@ -652,10 +652,12 @@ class NavicoRadarController:
     def transmit(self):
         self.send_pack_data(TxOnCmds.A)
         self.send_pack_data(TxOnCmds.B)
+        logging.info("Transmit Started")
 
     def standby(self):
         self.send_pack_data(TxOffCmds.A)
         self.send_pack_data(TxOffCmds.B)
+        logging.info("Transmit Stopped")
 
     def set_sector_range(self):
         """ # TODO
@@ -729,7 +731,7 @@ class NavicoRadarController:
             case "light":
                 cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case _:
-                logging.error("invalid command")
+                logging.error(f"nvalid command {cmd}")
             # target boost seems to be missing FIXME
         if cmd:
             self.send_pack_data(cmd)
