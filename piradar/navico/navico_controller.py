@@ -39,6 +39,11 @@ from piradar.navico.navico_command import *
 HOST = ''
 RCV_BUFF = 65535
 
+
+ENTRY_GROUP_ADDRESS = '236.6.7.5'
+ENTRY_GROUP_PORT = 6878
+
+
 RANGE_SCALE = 10 * 2 ** (-1/2)
 
 
@@ -796,3 +801,14 @@ class NavicoRadarController:
         with open(self.raw_reports_path[report_id], "wb") as f:
             f.write(raw_report)
 
+
+def wake_up_navico_radar():
+    cmd = struct.pack("!H", 0x01b1)
+    send_socket = create_udp_socket()
+    send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+    _nbytes_sent = send_socket.sendto(cmd, (ENTRY_GROUP_ADDRESS, ENTRY_GROUP_PORT))
+    if _nbytes_sent != 2:
+        logging.warning("Failed to send WakeUp command")
+    else:
+        logging.debug("WakeUp command sent")
+    send_socket.close()

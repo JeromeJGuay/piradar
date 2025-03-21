@@ -53,6 +53,7 @@ class _RangeCmd:
     def pack(self, value: int):
         return struct.pack(ENDIAN + self.cformat, self.cmd, value)
 
+
 class _BearingAlignmentCmd:
     cformat = "HH"
     cmd = 0x05c1

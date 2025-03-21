@@ -5,7 +5,7 @@ import socket
 import threading
 
 from piradar.network import create_udp_multicast_receiver_socket, create_udp_socket
-from piradar.navico.navico_controller import MulticastInterfaces
+from piradar.navico.navico_controller import MulticastInterfaces, wake_up_navico_radar
 from piradar.navico.navico_structure import RadarReport01B2, REPORTS_IDS
 
 HOST = ""
@@ -94,12 +94,7 @@ class NavicoLocator:
 
         receive_thread.start()
         while not self.is_located:
-            print(f"[{self.interface}] Ping sent")
-            time.sleep(self.ping_interval)
-            _nbytes_sent = send_socket.sendto(cmd, (self.group_address, self.group_port))
-            if not _nbytes_sent != 2:
-                print(f"[{self.interface}] Ping not sent")
-
+            wake_up_navico_radar()
             if (time.time() - start_time) < self.timeout:
                 self.has_timed_out = True
                 break

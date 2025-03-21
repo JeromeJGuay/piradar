@@ -2,7 +2,8 @@ import logging
 
 from piradar.logger import init_logging
 
-from piradar.navico.navico_controller import MulticastInterfaces, MulticastAddress, NavicoUserConfig, NavicoRadarController
+from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoUserConfig,
+                                              NavicoRadarController, wake_up_navico_radar)
 
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
 # interface = "192.168.1.243"
@@ -53,6 +54,8 @@ radar_parameters = NavicoUserConfig(
     antenna_height=antenna_height,
     scan_speed=scan_speed
 )
+
+# wake_up_navico_radar()
 
 # navico_radar = NavicoRadarController(
 #     multicast_interfaces=mcast_ifaces,
