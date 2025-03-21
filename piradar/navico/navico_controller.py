@@ -42,21 +42,32 @@ RCV_BUFF = 65535
 RANGE_SCALE = 10 * 2 ** (-1/2)
 
 
-### This maybe overkill
-class Navico4G:
-    pass
+class NavicoRadarType:
+    navico4G = "4G"
+    navico3G = "3G"
+    navicoBR24 = "BR24"
+    navicoHALO = "HALO"
 
 
-class Navico3G:
-    pass
+RADAR_ID2TYPE_MAP = {
+    0x01: NavicoRadarType.navico4G,
+    0x08: NavicoRadarType.navico3G,
+    0x0F: NavicoRadarType.navicoBR24,
+    0x00: NavicoRadarType.navicoHALO
+}
 
 
-class NavicoBR24:
-    pass
+OLMH_VAL2STR_MAP = {0: "off", 1: "low", 2: "medium", 3: "high"}
+OLMH_STR2VAL_MAP = {}
 
+RADAR_STATUS_VAL2STR_MAP = {1: "standby", 2: "transmit", 5: "spinning-up"}
+RADAR_STATUS_STR2VAL_MAP = {}
 
-class NavicoHALO:
-    pass
+MODE_VAL2STR_MAP = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
+MODE_STR2VAL_MAP = {}
+
+SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbour", 2: "offshore"}
+SEA_AUTO_STR2VAL_MAP = {0: "off", 1: "harbour", 2: "offshore"}
 
 
 @dataclass
@@ -88,24 +99,6 @@ class RawReports:
     r08C4: RadarReport08C4 = None
     r12c4: RadarReport12C4 = None
 
-
-@dataclass
-class SpokeData:
-    spoke_number: int = None
-    heading: float = None
-    angle: float = None
-    _range: float = None
-    intensities: list[float] = None
-
-
-@dataclass
-class SectorData:
-    time: str = None
-    number_of_spokes: int = None
-    spoke_data: list[SpokeData] = None
-
-    def __post_init__(self):
-        self.spoke_data = []
 
 @dataclass
 class StatusReport:
@@ -185,7 +178,26 @@ class Reports:
 
 
 @dataclass
-class NavicoRadarSettings:
+class SpokeData:
+    spoke_number: int = None
+    heading: float = None
+    angle: float = None
+    _range: float = None
+    intensities: list[float] = None
+
+
+@dataclass
+class SectorData:
+    time: str = None
+    number_of_spokes: int = None
+    spoke_data: list[SpokeData] = None
+
+    def __post_init__(self):
+        self.spoke_data = []
+
+
+@dataclass
+class NavicoUserConfig:
     # Base
     _range: int = None  #Literal[50, 75, 100, 250, 500, 750, 1e3, 1.5e3, 2e3, 4e3, 6e3, 8e3, 12e3, 15e3, 24e3]
     bearing: float = None
@@ -221,12 +233,15 @@ class NavicoRadarSettings:
     auto_rain_clutter: bool = False
     auto_side_lobe_suppression: bool = False
 
+    def __post_init__(self):
+        pass
+
 
 class NavicoRadarController:
 
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
-            init_radar_parameters: NavicoRadarSettings,
+            radar_user_config: NavicoUserConfig,
             output_dir: str,
             keep_alive_interval: int = 10,
     ):
@@ -241,7 +256,7 @@ class NavicoRadarController:
             for report_id in REPORTS_IDS
         }
 
-        # make object to store initatil parameter to pass to Radar
+        # make object to store initial parameter to pass to Radar
 
         self.send_socket = None
 
@@ -259,7 +274,7 @@ class NavicoRadarController:
 
         ### RADAR PARAMETER ###
         # Not clear how to update this at the moment. Or use it
-        self.radar_parameters = NavicoRadarSettings()
+        self.radar_user_config = NavicoUserConfig()
 
         ### Reports Object ###
         self.raw_reports = RawReports()
@@ -278,7 +293,7 @@ class NavicoRadarController:
             time.sleep(1)
             # FIXME add a timeout and raise an Error
 
-        self.send_radar_parameters(init_radar_parameters)
+        self.send_user_config_parameters(radar_user_config)
 
 
     def init_send_socket(self):
@@ -357,81 +372,98 @@ class NavicoRadarController:
                 self.process_data(in_data=raw_packet)
 
     def process_report(self, raw_packet):
-
-        ### TODO FINISH THE REPORT PARSING ###
-
-        olmh_map = {0: "off", 1: "low", 2: "medium", 3: "high"}  # maybe set as class attributes
-
         report_id = struct.unpack("!H", raw_packet[:2])[0]
 
         if report_id in REPORTS_IDS:
             self.writing_queue.put((self.write_raw_report_packet, report_id, raw_packet))
 
         match report_id:
-            case REPORTS_IDS._01B2:  # '#case b'\xb2\x01':
+            case REPORTS_IDS.r_01B2:  # '#case b'\xb2\x01':
                 self.raw_reports.r01b2 = RadarReport01B2(raw_packet)
 
-            case REPORTS_IDS._01C4: #STATUS
+            case REPORTS_IDS.r_01C4: #STATUS
                 self.raw_reports.r01c4 = RadarReport01C4(raw_packet)
-                radar_status_map = {1: "standby", 2: "transmit", 5: "spinning-up"}
-                if self.raw_reports.r01c4.radar_status in radar_status_map:
-                    self.reports.status.status = self.raw_reports.r01c4.radar_status
-                else:
+                try:
+                    self.reports.status.status = RADAR_STATUS_VAL2STR_MAP[self.raw_reports.r01c4.radar_status]
+                except ValueError:
                     self.reports.status.status = "unknown"
+                    print(f"Unknown RadarReport01C4 status: {self.raw_reports.r01c4.radar_status}")
 
-            case REPORTS_IDS._02C4:  # SETTINGS
+            case REPORTS_IDS.r_02C4:  # SETTINGS
                 self.raw_reports.r02c4 = RadarReport02C4(raw_packet)
 
-                self.reports.setting._range = self.raw_reports.r02c4.range / 10 #unsure about the division
+                self.reports.setting._range = self.raw_reports.r02c4.range / 10 # Unsure about the division Fixme test
 
-                mode_map = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird"}
-                if self.raw_reports.r02c4.mode not in mode_map:  # returned 255,
-                    self.raw_reports.r02c4.mode = "unknown"
-                else:
-                    self.reports.setting.mode = mode_map[self.raw_reports.r02c4.mode]
+                try:
+                    self.reports.setting.mode = MODE_VAL2STR_MAP[self.raw_reports.r02c4.mode] #Raise or log warning for unknown type TODO
+                except KeyError:
+                    self.reports.setting.mode = "unknown"
+                    print(f"Unknown mode: {self.raw_reports.r02c4.mode}")
 
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
                 self.reports.setting.auto_gain = bool(self.raw_reports.r02c4.auto_gain)
 
-                sea_stato_auto_map = {0: "off", 1: "harbour", 2: "offshore"}
-                self.reports.setting.auto_sea_state = sea_stato_auto_map[self.raw_reports.r02c4.auto_sea_state]
+                try:
+                    self.reports.setting.auto_sea_state = SEA_AUTO_VAL2STR_MAP[self.raw_reports.r02c4.auto_sea_state]
+                except KeyError:
+                    self.reports.setting.auto_sea_state = "unknown"
+                    print(f"Unknown auto_sea_state value: {self.raw_reports.r02c4.auto_sea_state}")
 
                 self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter * (100 / 255)
 
                 self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter * (100 / 255)
 
-                if self.raw_reports.r02c4.interference_rejection: #maybe add `if`s elsewhere ???
-                    self.reports.setting.interference_rejection = olmh_map[self.raw_reports.r02c4.interference_rejection]
+                try:
+                    if self.raw_reports.r02c4.interference_rejection: #maybe add `if`s elsewhere ???
+                        self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.interference_rejection]
+                except KeyError:
+                    self.reports.setting.interference_rejection = "unknown"
+                    print(f"Unknown interference_rejection value: {self.raw_reports.r02c4.interference_rejection}")
 
-                if self.raw_reports.r02c4.target_expansion:
-                    self.reports.setting.target_expansion = olmh_map[self.raw_reports.r02c4.target_expansion]
+                try:
+                    if self.raw_reports.r02c4.target_expansion:
+                        self.reports.setting.target_expansion = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_expansion]
+                except KeyError:
+                    self.reports.setting.target_expansion = "unknown"
+                    print(f"Unknown target_expansion value: {self.raw_reports.r02c4.target_expansion}")
 
-                if self.raw_reports.r02c4.target_boost:
-                    self.reports.setting.target_boost = olmh_map[self.raw_reports.r02c4.target_boost] #missing in commands
+                try:
+                    if self.raw_reports.r02c4.target_boost:
+                        self.reports.setting.target_boost = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_boost] #missing in commands
+                except KeyError:
+                    self.reports.setting.target_boost = "unknown"
+                    print(f"Unknown target_boost value: {self.raw_reports.r02c4.target_boost}")
 
-            case REPORTS_IDS._03C4:  # SYSTEM
+            case REPORTS_IDS.r_03C4:  # SYSTEM
                 self.raw_reports.r03c4 = RadarReport03C4(raw_packet)
-                radar_type_map = {0x01: Navico4G, 0x08: Navico3G, 0x0F: NavicoBR24, 0x00: NavicoHALO}
-                self.reports.system.radar_type = radar_type_map[self.raw_reports.r03c4.radar_type]
-                if self.reports.system.radar_type is NavicoBR24:
+                try:
+                    self.reports.system.radar_type = RADAR_ID2TYPE_MAP[self.raw_reports.r03c4.radar_type]
+                except KeyError:
+                    self.reports.system.radar_type = "unknown"
+                    print(f"Unknown radar_type: {self.raw_reports.r03c4.radar_type}")
+
+                if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
                     raise ValueError("NavicoBR24 radar type not supported (yet)")
 
-            case REPORTS_IDS._04C4:  # SPATIAL
+            case REPORTS_IDS.r_04C4:  # SPATIAL
                 self.raw_reports.r04c4 = RadarReport04C4(raw_packet)
 
                 self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
                 self.reports.spatial.antenna_height = self.raw_reports.r04c4.antenna_height / 1000
                 if self.raw_reports.r04c4.accent_light:
-                    self.reports.spatial.light = olmh_map[self.raw_reports.r04c4.accent_light]
-                # accent light ??? s
+                    try:
+                        self.reports.spatial.light = OLMH_VAL2STR_MAP[self.raw_reports.r04c4.accent_light]
+                    except KeyError:
+                        self.reports.spatial.light = "unknown"
+                        print(f"Unknown accent_light value {self.raw_reports.r04c4.accent_light}")
 
-            case REPORTS_IDS._06C4: # BLANKING
+            case REPORTS_IDS.r_06C4: # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
 
-            case REPORTS_IDS._08C4: #FILTERS
+            case REPORTS_IDS.r_08C4: #FILTERS
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
 
-            case REPORTS_IDS._12C4: # SERIAL
+            case REPORTS_IDS.r_12C4: # SERIAL
                 report = RadarReport12C4(raw_packet)
                 self.raw_reports.r12c4 = report
             case _:
@@ -458,17 +490,22 @@ class NavicoRadarController:
 
             spoke_data = SpokeData()
             spoke_data.spoke_number = raw_spoke.spoke_number
-            # CPP heading_raw = (line->common.heading[1] << 8) | line->common.heading[0];
+            """ FIXME
+            CPP heading_raw = (line->common.heading[1] << 8) | line->common.heading[0];
+            maybe this has to do with the way in packs and unpack. maybe cpp code unpacked it wrong.
+            Bite order seems to be messed up
+            """
             spoke_data.heading = (raw_spoke.heading & 0x00ff) << 8 | (raw_spoke.heading & 0xff00)
 
             if raw_spoke.status == 2: # Valid # and not 0x12 #according to NavicoReceive
-                if self.reports.system.radar_type == NavicoBR24:
+                if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
                     print("ERROR: Navico BR24 is not implemented")
+                    print("will require a new structure since the range is a single values not (small and large)")
                     # range_raw = ((line->br24.range[2] & 0xff) << 16 | (line->br24.range[1] & 0xff) << 8 | (line->br24.range[0] & 0xff));
                     # angle_raw = (line->br24.angle[1] << 8) | line->br24.angle[0];
                     # range_meters = (int)((double)range_raw * 10.0 / sqrt(2.0));
 
-                elif self.reports.system.radar_type in [Navico4G, Navico3G]:
+                elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
                     """ FIXME
                     ## looks like it goes for SMALL endian 2Bytes int instead of BIG endian
                     uint16_t large_range = (line->br4g.largerange[1] << 8) | line->br4g.largerange[0];
@@ -486,7 +523,7 @@ class NavicoRadarController:
                     else:
                         spoke_data._range = raw_spoke.large_range * 64
 
-                elif self.reports.system.radar_type == NavicoHALO:
+                elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
                     """ FIXME
                     ## looks like it goes for SMALL endian 2Bytes int instead of BIG endian
                     uint16_t large_range = (line->br4g.largerange[1] << 8) | line->br4g.largerange[0];
@@ -508,13 +545,15 @@ class NavicoRadarController:
                     print(f"Acutal range {spoke_data}")
 
 
+                ### Separating bytes to 4bit grayscale values. ###
+                ### TODO this should not be done when recording raw data. ###
+                ### TODO make different writter and add flags ###
                 spoke_data.intensities = []
-                for bi in range(512):
-                    low = raw_spoke.data[bi] & 0x0f # 0000 1111
-                    high = (raw_spoke.data[bi] & 0xf0) >> 4 # 1111 0000
-                    # This should work since data has to be a byte size value.
-                    # high = spoke.data[bi] >> 4  # 1111 0000
-                    spoke_data.intensities += [low, high]
+                for _bytes in raw_spoke.data:
+                    low_nibble = _bytes & 0x0F
+                    high_nibble = (_bytes >> 4) & 0x0F
+
+                    spoke_data.intensities.extend([low_nibble, high_nibble]) # FIXME CHECK if the order is right.
                 else:
                     raise ValueError(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
             else:
@@ -576,7 +615,7 @@ class NavicoRadarController:
             case "gain":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = GainCmd.pack(auto=self.radar_parameters.auto_gain, value=value)
+                cmd = GainCmd.pack(auto=self.radar_user_config.auto_gain, value=value)
             case "antenna_height":
                 value = value * 1000
                 value = int(value)
@@ -590,18 +629,18 @@ class NavicoRadarController:
             case "sea_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SeaClutterCmd.pack(auto=self.radar_parameters.auto_sea_clutter, value=value)
+                cmd = SeaClutterCmd.pack(auto=self.radar_user_config.auto_sea_clutter, value=value)
             case "rain_clutter":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = RainClutterCmd.pack(auto=self.radar_parameters.auto_rain_clutter, value=value)
+                cmd = RainClutterCmd.pack(auto=self.radar_user_config.auto_rain_clutter, value=value)
             case "interference_rejection":
                 value = olmh_map[value]
                 cmd = InterferenceRejectionCmd.pack(value=value)
             case "side_lobe_suppression":
                 value = int(value * 255 / 100)
                 value = min(int(value), 255)
-                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_parameters.auto_side_lobe_suppression, value=value)
+                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.auto_side_lobe_suppression, value=value)
             case "mode":
                 value = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
                 cmd = ModeCmd.pack(value=value)
@@ -633,7 +672,7 @@ class NavicoRadarController:
         if cmd:
             self.send_pack_data(cmd)
 
-    def send_radar_parameters(self, radar_parameters: NavicoRadarSettings):
+    def send_user_config_parameters(self, radar_parameters: NavicoUserConfig):
         # Base
         if radar_parameters._range:
             self.commands("range", radar_parameters._range)

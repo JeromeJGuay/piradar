@@ -49,7 +49,7 @@ class NavicoLocator:
                         id = struct.unpack("!H", in_data[:2])[0]
                         print(f'[{self.interface}] Report {hex(id)} received.')
                         match id:
-                            case REPORTS_IDS._01B2: #'#case b'\xb2\x01':
+                            case REPORTS_IDS.r_01B2: #'#case b'\xb2\x01':
                                 report = RadarReport01B2(in_data)
                                 self.groupA = MulticastInterfaces(
                                     interface=self.interface,

@@ -22,27 +22,28 @@ __all__ = [
 ENDIAN = "!"
 
 
-@dataclass
+@dataclass(frozen=True)
 class _ReportIds:
-    _01B2: int = field(default=0x01b2)
-    _01C4: int = field(default=0x01c4)
-    _02C4: int = field(default=0x02c4)
-    _03C4: int = field(default=0x03c4)
-    _04C4: int = field(default=0x04c4)
+    r_01B2: int = field(default=0x01b2)
+    r_01C4: int = field(default=0x01c4)
+    r_02C4: int = field(default=0x02c4)
+    r_03C4: int = field(default=0x03c4)
+    r_04C4: int = field(default=0x04c4)
     # _05C4 = 0x05c4 # Not use (maybe it doesnt not exist)
-    _06C4: int = field(default=0x06c4)
+    r_06C4: int = field(default=0x06c4)
     # _07C4 = 0x07c4 # Not use (maybe it doesnt not exist)
-    _08C4: int = field(default=0x08c4)
+    r_08C4: int = field(default=0x08c4)
     # _09C4 = 0x09c4 # Not use (maybe it doesnt not exist)
     # _10C4 = 0x10c4 # Not use (maybe it doesnt not exist)
     # _11C4 = 0x11c4 # Not use (maybe it doesnt not exist)
-    _12C4: int = field(default=0x12c4)
+    r_12C4: int = field(default=0x12c4)
 
     def __iter__(self):
         for field in fields(self):
             yield getattr(self, field.name)
 
 
+# This here is done so that I can also iterate over the field of the _ReportIds class
 REPORTS_IDS = _ReportIds()
 
 

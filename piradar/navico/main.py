@@ -1,4 +1,4 @@
-from piradar.navico.navico_controller import MulticastInterfaces, MulticastAddress, NavicoRadarSettings, NavicoRadarController
+from piradar.navico.navico_controller import MulticastInterfaces, MulticastAddress, NavicoUserConfig, NavicoRadarController
 
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
 # interface = "192.168.1.243"
@@ -35,7 +35,7 @@ mcast_ifaces = MulticastInterfaces(
 )
 
 
-radar_parameters = NavicoRadarSettings(
+radar_parameters = NavicoUserConfig(
     _range=_range,
     bearing=bearing,
     gain=gain,
@@ -45,7 +45,7 @@ radar_parameters = NavicoRadarSettings(
 
 navico_radar = NavicoRadarController(
     multicast_interfaces=mcast_ifaces,
-    init_radar_parameters=radar_parameters,
+    radar_user_config=radar_parameters,
     output_dir=output_dir,
 )
 
