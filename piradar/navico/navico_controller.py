@@ -318,7 +318,9 @@ class NavicoRadarController:
 
     def send_pack_data(self, packed_data):
         #print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
-        self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
+        _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
+        if _nbytes_sent != len(packed_data):
+            print(f"Failed to send command {packed_data}.")
         time.sleep(0.1)
 
     def close_all(self):
@@ -504,7 +506,6 @@ class NavicoRadarController:
                     spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
 
                     print(f"Acutal range {spoke_data}")
-
 
 
                 spoke_data.intensities = []

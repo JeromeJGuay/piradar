@@ -17,7 +17,7 @@ output_dir = "~/Desktop/raw_data/output_data"
 ### Radar Settings ###
 
 
-_range = 10 # add a check in NavicoCOntroller or RadarSetting
+_range = 10 # add a check in NavicoController or RadarSetting
 bearing = 0
 gain = 255 / 2
 antenna_height = 10

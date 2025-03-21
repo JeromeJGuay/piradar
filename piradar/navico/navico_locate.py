@@ -15,7 +15,7 @@ ENTRY_GROUP_ADDRESS = '236.6.7.5'
 ENTRY_GROUP_PORT = 6878
 
 
-class RadarLocator:
+class NavicoLocator:
     group_address = ENTRY_GROUP_ADDRESS
     group_port = ENTRY_GROUP_PORT
 
@@ -24,13 +24,12 @@ class RadarLocator:
         self.timeout = timeout
         self.ping_interval = ping_interval
         self.groupA: MulticastInterfaces = None
-        self.group: MulticastInterfaces = None
+        self.groupB: MulticastInterfaces = None
 
-
-        self.radar_is_located = False
+        self.is_located = False
         self.has_timed_out = False
 
-    def locate(self):
+    def get_report_01b2(self):
         report_socket = create_udp_multicast_receiver_socket(
             interface_address=self.interface,
             group_address=self.group_address,
@@ -39,16 +38,16 @@ class RadarLocator:
         start_time = time.time()
 
         def _scan():
-            while not self.radar_is_located and not self.has_timed_out:
+            while not (self.is_located or self.has_timed_out):
                 try:
                     in_data, _addrs = report_socket.recvfrom(RCV_BUFF)
                 except socket.timeout:
                     continue
                 if in_data:
                     if len(in_data) >= 2: #more than 2 bytes
-                        print("Data received")
+                        print(f"[{self.interface}] Data received on interface.")
                         id = struct.unpack("!H", in_data[:2])[0]
-                        print(f'Report {hex(id)} received.')
+                        print(f'[{self.interface}] Report {hex(id)} received.')
                         match id:
                             case REPORTS_IDS._01B2: #'#case b'\xb2\x01':
                                 report = RadarReport01B2(in_data)
@@ -82,7 +81,7 @@ class RadarLocator:
                                         report.addrSendB[1]
                                     ),
                                 )
-                                self.radar_is_located = True
+                                self.is_located = True
                                 break
             report_socket.close()
 
@@ -94,10 +93,12 @@ class RadarLocator:
         # not binding required
 
         receive_thread.start()
-        while not self.radar_is_located:
-            print("Ping send")
+        while not self.is_located:
+            print(f"[{self.interface}] Ping sent")
             time.sleep(self.ping_interval)
-            send_socket.sendto(cmd, (self.group_address, self.group_port))
+            _nbytes_sent = send_socket.sendto(cmd, (self.group_address, self.group_port))
+            if not _nbytes_sent != 2:
+                print(f"[{self.interface}] Ping not sent")
 
             if (time.time() - start_time) < self.timeout:
                 self.has_timed_out = True
@@ -106,10 +107,17 @@ class RadarLocator:
         send_socket.close()
         receive_thread.join()
 
-        if self.radar_is_located:
-            print(f"Radar located on interface: {self.interface}")
-        else:
-            print("Radar not located on interface: {self.interface}")
+        print(f"[{self.interface}] Report 01B2 {'not ' if not self.is_located else ''}received on interface: {self.interface}")
+
+
+def main(interface: str, timeout: float, ping_interval: float):
+    navico_locator = NavicoLocator(interface=interface, timeout=timeout, ping_interval=ping_interval)
+    navico_locator.get_report_01b2()
+
+    if navico_locator.is_located:
+        return navico_locator.groupA, navico_locator.groupB
+    else:
+        return None, None
 
 
 if __name__ == '__main__':
@@ -121,8 +129,6 @@ if __name__ == '__main__':
     parser.add_argument("-p", '--ping-interval', help="---", type=int, default=2)
     args = parser.parse_args()
 
-    radar = RadarLocator(interface=args.interface, timeout=args.timeout, ping_interval=args.ping_interval)
-
-    radar.locate()
+    main(interface=args.interface, timeout=args.timeout, ping_interval=args.ping_interval)
 
 
