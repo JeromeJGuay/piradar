@@ -559,7 +559,7 @@ class NavicoRadarController:
         for raw_spoke in raw_sector.spokes:
             logging.debug(f"spoke number: {raw_spoke.spoke_number}, angle: {raw_spoke.angle * 360 / 4096}, heading: {raw_spoke.heading}")
             logging.debug(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
-            logging.debug(f"rotation_angle: {raw_spoke.rotation_angle}")
+            logging.debug(f"rotation_angle: {raw_spoke.rotation_range}")
             spoke_data = SpokeData()
             # Change endian
             spoke_data.spoke_number = (raw_spoke.spoke_number & 0x00ff) << 8 | (raw_spoke.spoke_number & 0xff00)
@@ -581,7 +581,7 @@ class NavicoRadarController:
                     uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
                     angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
                     """
-                    _spoke_angle = (spoke_data.angle & 0x00ff) << 8 | (spoke_data.angle & 0xff00)
+                    _spoke_angle = (raw_spoke.angle & 0x00ff) << 8 | (raw_spoke.angle & 0xff00)
                     spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
 
                     if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
@@ -599,6 +599,9 @@ class NavicoRadarController:
                     uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
                     angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
                     """
+                    # TO TEST
+                    #_spoke_angle = (raw_spoke.angle & 0x00ff) << 8 | (raw_spoke.angle & 0xff00)
+                    # spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
                     spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
 
                     if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
@@ -609,10 +612,12 @@ class NavicoRadarController:
                     else:
                         spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
-                    logging.debug(f"Acutal range {spoke_data}")
-
                 else:
                     logging.error(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
+
+                logging.debug(f"Actual spoke number: {spoke_data.spoke_number}")
+                logging.debug(f"Actual range {spoke_data._range}")
+                logging.debug(f"Actual angle: {spoke_data.angle}")
 
                 ### Separating bytes to 4bit grayscale values. ###
                 ### TODO this should not be done when recording raw data. ###
