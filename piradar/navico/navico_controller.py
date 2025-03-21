@@ -56,19 +56,25 @@ RADAR_ID2TYPE_MAP = {
     0x00: NavicoRadarType.navicoHALO
 }
 
+RANGES_VALS_LIST = [50, 75, 100, 250, 500, 750, 1000,
+                    1500, 2000, 4000, 6000, 8000,
+                    12000, 15000, 24000]
 
 OLMH_VAL2STR_MAP = {0: "off", 1: "low", 2: "medium", 3: "high"}
-OLMH_STR2VAL_MAP = {}
+OLMH_STR2VAL_MAP = {"off": 0, "low": 1, "medium": 2, "high": 3}
 
 RADAR_STATUS_VAL2STR_MAP = {1: "standby", 2: "transmit", 5: "spinning-up"}
 RADAR_STATUS_STR2VAL_MAP = {}
 
 MODE_VAL2STR_MAP = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
-MODE_STR2VAL_MAP = {}
+MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}
 
 SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbour", 2: "offshore"}
-SEA_AUTO_STR2VAL_MAP = {0: "off", 1: "harbour", 2: "offshore"}
+SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbour": 1, "offshore": 2}
 
+DOPPLER_MODE_STR2VAL_MAP = {"off": 0, "normal": 1, "approaching_only": 2}
+
+SCAN_SPEED_STR2VAL_MAP = {"low": 0, "medium": 1, "high": 2}
 
 @dataclass
 class MulticastAddress:
@@ -234,7 +240,30 @@ class NavicoUserConfig:
     auto_side_lobe_suppression: bool = False
 
     def __post_init__(self):
-        pass
+        if self._range:
+            if self._range not in [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]:
+                raise ValueError(f'Range must be a vlue between 0, and  14.')
+
+        if self.bearing:
+            if self.bearing > 360 or self.bearing < 0:
+                raise ValueError(f'Bearing must be between 0 and 360.')
+
+        if self.scan_speed:
+            if self.scan_speed not in ['low', 'medium', 'high']:
+                raise ValueError(f'Scan_speed must be one of low, medium, high.')
+
+        # FIXME TODO add the rest
+
+        if not isinstance(self.auto_gain, bool):
+            raise ValueError(f'auto_gain must be a boolean.')
+        if not isinstance(self.auto_sea_clutter, bool):
+            raise ValueError(f'auto_sea_clutter must be a boolean.')
+        if not isinstance(self.auto_rain_clutter, bool):
+            raise ValueError(f'auto_rain_clutter must be a boolean.')
+        if not isinstance(self.auto_side_lobe_suppression, bool):
+            raise ValueError(f'auto_side_lobe_suppression must be a boolean.')
+
+
 
 
 class NavicoRadarController:
@@ -580,10 +609,54 @@ class NavicoRadarController:
             self.send_pack_data(StayOnCmds.E)
 
     def transmit(self):
+        """   ### FIXME YOU CAN ADD DEGREE START AND END
+        uint8_t sector = (controlType - CT_NO_TRANSMIT_START_1);
+        uint8_t enable = (state >= RCS_MANUAL) ? 1 : 0;
+        int valueEnd = m_ri->m_no_transmit_end[sector].GetValue();
+        value = MOD_DEGREES(value);
+        valueEnd = MOD_DEGREES(valueEnd);
+        uint16_t start_raw = SCALE_DEGREES_TO_DECIDEGREES(value);
+        uint16_t end_raw = SCALE_DEGREES_TO_DECIDEGREES(valueEnd);
+        uint8_t enable_cmd[] = {0x0d, 0xc1, sector, 0, 0, 0, enable};
+        uint8_t angle_cmd[] = {
+                  0xc0,
+                  0xc1,
+                  sector,
+                  0,
+                  0,
+                  0,
+                  enable,
+                  (uint8_t)start_raw,
+                  (uint8_t)(start_raw >> 8),
+                  (uint8_t)end_raw,
+                  (uint8_t)(end_raw >> 8),
+              };
+        """
         self.send_pack_data(TxOnCmds.A)
         self.send_pack_data(TxOnCmds.B)
 
     def standby(self):
+        """
+        uint8_t sector = (controlType - CT_NO_TRANSMIT_END_1);
+        uint8_t enable = (state >= RCS_MANUAL) ? 1 : 0;
+        int valueStart = m_ri->m_no_transmit_start[sector].GetValue();
+        uint16_t start_raw = SCALE_DEGREES_TO_DECIDEGREES(MOD_DEGREES(valueStart));
+        uint16_t end_raw = SCALE_DEGREES_TO_DECIDEGREES(MOD_DEGREES(value));
+        uint8_t enable_cmd[] = {0x0d, 0xc1, sector, 0, 0, 0, enable};
+        uint8_t angle_cmd[] = {
+          0xc0,
+          0xc1,
+          sector,
+          0,
+          0,
+          0,
+          enable,
+          (uint8_t)start_raw,
+          (uint8_t)(start_raw >> 8),
+          (uint8_t)end_raw,
+          (uint8_t)(end_raw >> 8),
+        };
+        """
         self.send_pack_data(TxOffCmds.A)
         self.send_pack_data(TxOffCmds.B)
 
@@ -596,79 +669,46 @@ class NavicoRadarController:
         #     "mode", "target_expansion", "target_separation", "noise_rejection", "doppler"
         # ]
 
-        olmh_map = {"off": 0, "low": 1, "medium": 2, "high": 3}
-
         match key:
             case "range":
-                pre_define_ranges = [50, 75, 100, 250, 500, 750,
-                                     1e3, 1.5e3, 2e3, 4e3, 6e3,
-                                     8e3, 12e3, 15e3, 24e3]
-                value = int(pre_define_ranges[value] * 10)
-                cmd = RangeCmd.pack(value=value)
-            # case "range_custom":
-            #     value = max(50, min(24e3, value))
-            #     value = int(value * 10)
-            #     cmd = RangeCmd.pack(value=value)
+                cmd = RangeCmd.pack(value=int(RANGES_VALS_LIST[value] * 10))
             case "bearing":
-                value = int(value * 10)
-                cmd = BearingAlignmentCmd.pack(value=value)
+                cmd = BearingAlignmentCmd.pack(value=int(value * 10))
             case "gain":
-                value = int(value * 255 / 100)
-                value = min(int(value), 255)
-                cmd = GainCmd.pack(auto=self.radar_user_config.auto_gain, value=value)
+                cmd = GainCmd.pack(auto=self.radar_user_config.auto_gain, value=min(int(value * 255 / 100), 255))
             case "antenna_height":
-                value = value * 1000
-                value = int(value)
-                cmd = AntennaHeightCmd.pack(value=value)
+                cmd = AntennaHeightCmd.pack(value=int(value * 1000))
             case "scan_speed":
-                value = {"low": 0, "medium": 1, "high": 2}[value]
-                cmd = ScanSpeedCmd.pack(value=value)
+                cmd = ScanSpeedCmd.pack(value=SCAN_SPEED_STR2VAL_MAP[value])
             case "sea_state_auto":
-                value = {"off": 0, "harbour": 1, "offshore": 2}[value]
-                cmd = SeaStateAutoCmd.pack(value=value)
+                cmd = SeaStateAutoCmd.pack(value=SEA_AUTO_STR2VAL_MAP[value])
             case "sea_clutter":
-                value = int(value * 255 / 100)
-                value = min(int(value), 255)
-                cmd = SeaClutterCmd.pack(auto=self.radar_user_config.auto_sea_clutter, value=value)
+                cmd = SeaClutterCmd.pack(auto=self.radar_user_config.auto_sea_clutter, value=min(int(value * 255 / 100), 255))
             case "rain_clutter":
-                value = int(value * 255 / 100)
-                value = min(int(value), 255)
-                cmd = RainClutterCmd.pack(auto=self.radar_user_config.auto_rain_clutter, value=value)
+                cmd = RainClutterCmd.pack(auto=self.radar_user_config.auto_rain_clutter, value=min(int(value * 255 / 100), 255))
             case "interference_rejection":
-                value = olmh_map[value]
-                cmd = InterferenceRejectionCmd.pack(value=value)
+                cmd = InterferenceRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case "side_lobe_suppression":
-                value = int(value * 255 / 100)
-                value = min(int(value), 255)
-                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.auto_side_lobe_suppression, value=value)
+                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.auto_side_lobe_suppression, value=min(int(value * 255 / 100), 255))
             case "mode":
-                value = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}[value]
-                cmd = ModeCmd.pack(value=value)
-            case "auto_sea_clutter_nudge":
-                value = int(value)
-                cmd = AutoSeaClutterNudgeCmd.pack(value)
+                cmd = ModeCmd.pack(value=MODE_STR2VAL_MAP[value])
+            case "auto_sea_clutter_nudge": # unsure about this FIXME. ANd Int is dubious.
+                cmd = AutoSeaClutterNudgeCmd.pack(int(value))
             case "target_expansion":
-                value = olmh_map[value]
-                cmd = TargetExpansionCmd.pack(value=value)
+                cmd = TargetExpansionCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case "target_separation":
-                value = olmh_map[value]
-                cmd = TargetSeparationCmd.pack(value=value)
-            # target boost seems to be missing FIXME
+                cmd = TargetSeparationCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case "noise_rejection":
-                value = olmh_map[value]
-                cmd = NoiseRejectionCmd.pack(value=value)
+                cmd = NoiseRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case "doppler_mode":
-                value = {"off": 0, "normal": 1, "approaching_only": 2}[value]
-                cmd = DopplerModeCmd.pack(value=value)
+                cmd = DopplerModeCmd.pack(value=DOPPLER_MODE_STR2VAL_MAP[value])
             case "doppler_speed":
-                value = value * 100
-                value = int(value)
-                cmd = DopplerSpeedCmd.pack(value=value)
+                cmd = DopplerSpeedCmd.pack(value=int(value * 100))
             case "light":
-                value = olmh_map[value]
-                cmd = LightCmd.pack(value=value)
+                cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case _:
                 print("invalid command")
+            # target boost seems to be missing FIXME
         if cmd:
             self.send_pack_data(cmd)
 
