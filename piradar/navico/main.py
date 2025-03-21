@@ -1,3 +1,7 @@
+import logging
+
+from piradar.logger import init_logging
+
 from piradar.navico.navico_controller import MulticastInterfaces, MulticastAddress, NavicoUserConfig, NavicoRadarController
 
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
@@ -24,8 +28,15 @@ antenna_height = 10
 scan_speed = "low"
 ##... more to add ###
 
+### APP ###
+
+debug_level = "DEBUG"
+write_log = False
 ##################################################
 
+
+init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
+#logging.error(traceback.format_exc(), exc_info=True) ## for critical error
 
 mcast_ifaces = MulticastInterfaces(
     report=MulticastAddress(*report_address),
@@ -43,19 +54,19 @@ radar_parameters = NavicoUserConfig(
     scan_speed=scan_speed
 )
 
-navico_radar = NavicoRadarController(
-    multicast_interfaces=mcast_ifaces,
-    radar_user_config=radar_parameters,
-    output_dir=output_dir,
-)
+# navico_radar = NavicoRadarController(
+#     multicast_interfaces=mcast_ifaces,
+#     radar_user_config=radar_parameters,
+#     output_dir=output_dir,
+# )
 
-if __name__ == '__main__':
-    import time
-
-    navico_radar.transmit()
-    time.sleep(5) # acquire for X seconds
-    navico_radar.standby()
-    navico_radar.close_all()
+# if __name__ == '__main__':
+#     import time
+#
+#     navico_radar.transmit()
+#     time.sleep(5) # acquire for X seconds
+#     navico_radar.standby()
+#     navico_radar.close_all()
 
 
 

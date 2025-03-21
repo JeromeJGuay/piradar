@@ -20,7 +20,7 @@ Decoded from B201
 236.6.7.14 6662
 
 """
-
+import logging
 import time
 import datetime
 import struct
@@ -320,9 +320,11 @@ class NavicoRadarController:
         self.start_data_thread()
         self.start_writer_thread()
 
+        logging.info("Waiting for radar ...")
         while not self.radar_was_detected:
             time.sleep(1)
             # FIXME add a timeout and raise an Error
+        logging.info("Connected detected on network")
 
         self.init_send_socket()
         self.start_keep_alive_thread()
@@ -332,6 +334,7 @@ class NavicoRadarController:
     def init_send_socket(self):
         self.send_socket = create_udp_socket()
         self.send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+        logging.debug("Send socket initialized")
         # not binding required
 
     def init_report_socket(self):
@@ -340,6 +343,7 @@ class NavicoRadarController:
             group_address=self.address_set.report.address,
             group_port=self.address_set.report.port
         )
+        logging.debug("Report socket initialized")
 
     def init_data_socket(self):
         self.data_socket = create_udp_multicast_receiver_socket(
@@ -347,40 +351,48 @@ class NavicoRadarController:
             group_address=self.address_set.data.address,
             group_port=self.address_set.data.port
         )
+        logging.debug("Data socket initialized")
 
     def start_report_thread(self):
         self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
         self.report_thread.start()
+        logging.debug("Report thread started")
 
     def start_data_thread(self):
         self.data_thread = threading.Thread(target=self.data_listen, daemon=True)
         self.data_thread.start()
+        logging.debug("Data thread started")
 
     def start_keep_alive_thread(self):
         self.keep_alive_thread = threading.Thread(target=self.keep_alive, daemon=True)
         self.keep_alive_thread.start()
+        logging.debug("Keep alive thread started")
 
     def start_writer_thread(self):
         self.writer_thread = threading.Thread(target=self.writer, daemon=True)
         self.writer_thread.start()
+        logging.debug("Writer thread started")
 
     def send_pack_data(self, packed_data):
-        #print(f"sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
+        logging.debug(f"Sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
         _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
         if _nbytes_sent != len(packed_data):
-            print(f"Failed to send command {packed_data}.")
+            logging.error(f"Failed to send command {packed_data}.")
         time.sleep(0.1)
 
     def close_all(self):
+        logging.info("Closing all called.")
         self.stop_flag = True
         self.report_thread.join()
         self.data_thread.join()
         self.keep_alive_thread.join()
         self.writer_thread.join()
+        logging.info("All threads closed")
 
         self.report_socket.close()
         self.data_socket.close()
         self.send_socket.close()
+        logging.info("All sockets closed")
 
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
@@ -400,7 +412,7 @@ class NavicoRadarController:
                 continue
 
             if raw_packet:
-                print("Data received")
+                logging.debug("Data received")
                 self.writing_queue.put((self.write_raw_data_packet, raw_packet))
                 self.process_data(in_data=raw_packet)
 
@@ -421,7 +433,7 @@ class NavicoRadarController:
                     self.reports.status.status = RADAR_STATUS_VAL2STR_MAP[self.raw_reports.r01c4.radar_status]
                 except ValueError:
                     self.reports.status.status = "unknown"
-                    print(f"Unknown RadarReport01C4 status: {self.raw_reports.r01c4.radar_status}")
+                    logging.warning(f"Unknown RadarReport01C4 status: {self.raw_reports.r01c4.radar_status}")
 
             case REPORTS_IDS.r_02C4:  # SETTINGS
                 self.raw_reports.r02c4 = RadarReport02C4(raw_packet)
@@ -432,7 +444,7 @@ class NavicoRadarController:
                     self.reports.setting.mode = MODE_VAL2STR_MAP[self.raw_reports.r02c4.mode] #Raise or log warning for unknown type TODO
                 except KeyError:
                     self.reports.setting.mode = "unknown"
-                    print(f"Unknown mode: {self.raw_reports.r02c4.mode}")
+                    logging.warning(f"Unknown mode: {self.raw_reports.r02c4.mode}")
 
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
                 self.reports.setting.auto_gain = bool(self.raw_reports.r02c4.auto_gain)
@@ -441,7 +453,7 @@ class NavicoRadarController:
                     self.reports.setting.auto_sea_state = SEA_AUTO_VAL2STR_MAP[self.raw_reports.r02c4.auto_sea_state]
                 except KeyError:
                     self.reports.setting.auto_sea_state = "unknown"
-                    print(f"Unknown auto_sea_state value: {self.raw_reports.r02c4.auto_sea_state}")
+                    logging.warning(f"Unknown auto_sea_state value: {self.raw_reports.r02c4.auto_sea_state}")
 
                 self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter * (100 / 255)
 
@@ -452,21 +464,21 @@ class NavicoRadarController:
                         self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.interference_rejection]
                 except KeyError:
                     self.reports.setting.interference_rejection = "unknown"
-                    print(f"Unknown interference_rejection value: {self.raw_reports.r02c4.interference_rejection}")
+                    logging.warning(f"Unknown interference_rejection value: {self.raw_reports.r02c4.interference_rejection}")
 
                 try:
                     if self.raw_reports.r02c4.target_expansion:
                         self.reports.setting.target_expansion = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_expansion]
                 except KeyError:
                     self.reports.setting.target_expansion = "unknown"
-                    print(f"Unknown target_expansion value: {self.raw_reports.r02c4.target_expansion}")
+                    logging.warning(f"Unknown target_expansion value: {self.raw_reports.r02c4.target_expansion}")
 
                 try:
                     if self.raw_reports.r02c4.target_boost:
                         self.reports.setting.target_boost = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_boost] #missing in commands
                 except KeyError:
                     self.reports.setting.target_boost = "unknown"
-                    print(f"Unknown target_boost value: {self.raw_reports.r02c4.target_boost}")
+                    logging.warning(f"Unknown target_boost value: {self.raw_reports.r02c4.target_boost}")
 
             case REPORTS_IDS.r_03C4:  # SYSTEM
                 self.raw_reports.r03c4 = RadarReport03C4(raw_packet)
@@ -474,7 +486,7 @@ class NavicoRadarController:
                     self.reports.system.radar_type = RADAR_ID2TYPE_MAP[self.raw_reports.r03c4.radar_type]
                 except KeyError:
                     self.reports.system.radar_type = "unknown"
-                    print(f"Unknown radar_type: {self.raw_reports.r03c4.radar_type}")
+                    logging.warning(f"Unknown radar_type: {self.raw_reports.r03c4.radar_type}")
 
                 if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
                     raise ValueError("NavicoBR24 radar type not supported (yet)")
@@ -489,7 +501,7 @@ class NavicoRadarController:
                         self.reports.spatial.light = OLMH_VAL2STR_MAP[self.raw_reports.r04c4.accent_light]
                     except KeyError:
                         self.reports.spatial.light = "unknown"
-                        print(f"Unknown accent_light value {self.raw_reports.r04c4.accent_light}")
+                        logging.warning(f"Unknown accent_light value {self.raw_reports.r04c4.accent_light}")
 
             case REPORTS_IDS.r_06C4: # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
@@ -503,7 +515,7 @@ class NavicoRadarController:
                     self.reports.filters.scan_speed = SCAN_MODE_STR2VAL_MAP[self.raw_reports.r08c4.scan_speed]
                 except KeyError:
                     self.reports.filters.scan_speed = "unknown"
-                    print(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
+                    logging.warning(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
                 # self.reports.filters.side_lobe_suppression
                 # self.reports.filters.noise_rejection
                 # self.reports.filters.target_separation
@@ -514,14 +526,14 @@ class NavicoRadarController:
                     self.reports.filters.doppler_mode = DOPPLER_MODE_VAL2STR_MAP[self.raw_reports.r08c4.doppler_mode]
                 except KeyError:
                     self.reports.filters.doppler_mode = "unknown"
-                    print(f"Unknown doppler_mode value: {self.raw_reports.r08c4.doppler_mode}")
+                    logging.warning(f"Unknown doppler_mode value: {self.raw_reports.r08c4.doppler_mode}")
                 self.reports.filters.doppler_speed = self.raw_reports.r08c4.doppler_speed / 100
 
             case REPORTS_IDS.r_12C4: # SERIAL
                 self.raw_reports.r12c4 =  RadarReport12C4(raw_packet)
                 # TODO
             case _:
-                print(f"report {raw_packet[:2]} unknown")
+                logging.warning(f"report {raw_packet[:2]} unknown")
                 # report = RadarReport_c408()
 
     # do something with the report ?
@@ -532,15 +544,15 @@ class NavicoRadarController:
         # Any processing could be done in a new thread using Queue (maybe).
         raw_sector = RawSectorData(in_data)
 
-        print(f"Number of spokes in sector: {raw_sector.number_of_spokes}")
+        logging.debug(f"Number of spokes in sector: {raw_sector.number_of_spokes}")
         sector_data = SectorData()
         sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         sector_data.number_of_spokes = raw_sector.number_of_spokes
 
         for raw_spoke in raw_sector.spokes:
-            print(f"Spoke number: {raw_spoke.spoke_number} [should be between 0-4096]") #fixme maybe
-            print(f"spoke number: {raw_spoke.spoke_number}, angle: {raw_spoke.angle * 360 / 4096}, heading: {raw_spoke.heading}")
-            print(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
+            logging.debug(f"Spoke number: {raw_spoke.spoke_number} [should be between 0-4096]") #fixme maybe
+            logging.debug(f"spoke number: {raw_spoke.spoke_number}, angle: {raw_spoke.angle * 360 / 4096}, heading: {raw_spoke.heading}")
+            logging.debug(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
 
             spoke_data = SpokeData()
             spoke_data.spoke_number = raw_spoke.spoke_number
@@ -553,8 +565,8 @@ class NavicoRadarController:
 
             if raw_spoke.status == 2: # Valid # and not 0x12 #according to NavicoReceive
                 if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
-                    print("ERROR: Navico BR24 is not implemented")
-                    print("will require a new structure since the range is a single values not (small and large)")
+                    logging.warning("ERROR: Navico BR24 is not implemented")
+                    logging.warning("Will require a new structure since the range is a single values not (small and large)")
                     # range_raw = ((line->br24.range[2] & 0xff) << 16 | (line->br24.range[1] & 0xff) << 8 | (line->br24.range[0] & 0xff));
                     # angle_raw = (line->br24.angle[1] << 8) | line->br24.angle[0];
                     # range_meters = (int)((double)range_raw * 10.0 / sqrt(2.0));
@@ -596,7 +608,7 @@ class NavicoRadarController:
 
                     spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
 
-                    print(f"Acutal range {spoke_data}")
+                    logging.debug(f"Acutal range {spoke_data}")
 
 
                 ### Separating bytes to 4bit grayscale values. ###
@@ -611,7 +623,7 @@ class NavicoRadarController:
                 else:
                     raise ValueError(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
             else:
-                print("Invalid Spoke")
+                logging.warning("Invalid Spoke")
 
             sector_data.spoke_data.append(spoke_data)
 
@@ -715,23 +727,28 @@ class NavicoRadarController:
             case "light":
                 cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case _:
-                print("invalid command")
+                logging.error("invalid command")
             # target boost seems to be missing FIXME
         if cmd:
             self.send_pack_data(cmd)
 
     def send_user_config_parameters(self, radar_parameters: NavicoUserConfig):
-        # Base
+        # FIXME do all loggings
         if radar_parameters._range:
             self.commands("range", radar_parameters._range)
+            logging.info(f"range set: {radar_parameters._range}")
         if radar_parameters.bearing:
             self.commands("bearing", radar_parameters.bearing)
+            logging.info(f"bearing set: {radar_parameters.bearing}")
         if radar_parameters.gain:
             self.commands("gain", radar_parameters.gain)
+            logging.info(f"gain set: {radar_parameters.gain}")
         if radar_parameters.antenna_height:
             self.commands("antenna_height", radar_parameters.antenna_height)
+            logging.info(f"antenna_height set: {radar_parameters.antenna_height}")
         if radar_parameters.scan_speed:
             self.commands("scan_speed", radar_parameters.scan_speed)
+            logging.info(f"scan_speed set: {radar_parameters.scan_speed}")
         if radar_parameters.sea_state:
             self.commands("sea_state", radar_parameters.sea_state)
         if radar_parameters.sea_clutter:
