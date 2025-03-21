@@ -324,9 +324,15 @@ class NavicoRadarController:
         self.start_report_thread()
         self.start_data_thread()
         self.start_writer_thread()
+        self.start_data_thread()
+
+        time.sleep(0.5)  # FIXME replace the sleeps with lock event to insure that the sockets are ready.
+        self.standby()
+        time.sleep(2)
 
         logging.info("Waiting for radar ...")
-        while not self.radar_was_detected:
+        while not self.radar_was_detected: # this is unlocked in the listen report thread
+            wake_up_navico_radar()
             time.sleep(1)
             # FIXME add a timeout and raise an Error
         logging.info("Connected detected on network")
@@ -424,7 +430,7 @@ class NavicoRadarController:
     def process_report(self, raw_packet):
         # TODO DECODE ALL MISSING
         report_id = struct.unpack("!H", raw_packet[:2])[0]
-
+        logging.debug(f"report received: {raw_packet[:2]}")
         if report_id in REPORTS_IDS:
             self.writing_queue.put((self.write_raw_report_packet, report_id, raw_packet))
 
@@ -615,6 +621,8 @@ class NavicoRadarController:
 
                     logging.debug(f"Acutal range {spoke_data}")
 
+                else:
+                    logging.error(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
 
                 ### Separating bytes to 4bit grayscale values. ###
                 ### TODO this should not be done when recording raw data. ###
@@ -625,8 +633,7 @@ class NavicoRadarController:
                     high_nibble = (_bytes >> 4) & 0x0F
 
                     spoke_data.intensities.extend([low_nibble, high_nibble]) # FIXME CHECK if the order is right.
-                else:
-                    raise ValueError(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
+
             else:
                 logging.warning("Invalid Spoke")
 

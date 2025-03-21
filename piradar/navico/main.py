@@ -16,8 +16,10 @@ data_address = ('236.6.7.8', 6678)
 send_address = ('236.6.7.10', 6680)
 
 ### Write data ###
-output_dir = "~/Desktop/raw_data/output_data"
-
+output_dir = "/home/capteur/Desktop/raw_data/output_data"
+# put somewhere else:
+from pathlib import Path
+Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 ### Radar Settings ###
 
@@ -27,6 +29,8 @@ bearing = 0
 gain = 255 / 2
 antenna_height = 10
 scan_speed = "low"
+mode = "harbor"
+sea_state = "harbour"
 ##... more to add ###
 
 ### APP ###
@@ -52,7 +56,9 @@ radar_parameters = NavicoUserConfig(
     bearing=bearing,
     gain=gain,
     antenna_height=antenna_height,
-    scan_speed=scan_speed
+    scan_speed=scan_speed,
+    mode=mode,
+    sea_state=sea_state,
 )
 
 # wake_up_navico_radar()

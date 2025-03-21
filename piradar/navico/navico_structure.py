@@ -530,7 +530,8 @@ class RawSectorData:
     """
     # The number of spoke of the data is computed in the __init__().
     number_of_spokes = 32  # 32. Maybe less ? make it so it can take more or less lines depending on the
-    cformats = ["5B", "B", "H"] + number_of_spokes * ["".join(RawSpokeData.cformats)]
+    header_cformats = ["5B", "B", "H"]
+    cformats = header_cformats + number_of_spokes * ["".join(RawSpokeData.cformats)]
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     header_size = int(size - number_of_spokes * RawSpokeData.size)
@@ -548,7 +549,7 @@ class RawSectorData:
         header_data = data[:self.header_size]
         unpacked_header = [
             struct.unpack_from(ENDIAN + ff, buffer=header_data, offset=fo)
-            for ff, fo in zip(self.cformats[:self.header_size], self.field_offsets)
+            for ff, fo in zip(self.cformats[:len(self.header_cformats)], self.field_offsets)
         ]
         self.stuff = unpacked_header[0][0]
         self.number_of_spokes = unpacked_header[1][0]

@@ -5,7 +5,7 @@ import socket
 import threading
 
 from piradar.network import create_udp_multicast_receiver_socket, create_udp_socket
-from piradar.navico.navico_controller import MulticastInterfaces, wake_up_navico_radar
+from piradar.navico.navico_controller import MulticastInterfaces, MulticastAddress, wake_up_navico_radar
 from piradar.navico.navico_structure import RadarReport01B2, REPORTS_IDS
 
 HOST = ""
@@ -53,32 +53,32 @@ class NavicoLocator:
                                 report = RadarReport01B2(in_data)
                                 self.groupA = MulticastInterfaces(
                                     interface=self.interface,
-                                    data=MulticastInterfaces(
-                                        report.addrDataA[0],
-                                        report.addrDataA[1]
+                                    data=MulticastAddress(
+                                        report.addrDataA.address,
+                                        report.addrDataA.port
                                     ),
-                                    report=MulticastInterfaces(
-                                        report.addrReportA[0],
-                                        report.addrReportA[1]
+                                    report=MulticastAddress(
+                                        report.addrReportA.address,
+                                        report.addrReportA.port
                                     ),
-                                    send=MulticastInterfaces(
-                                        report.addrSendA[0],
-                                        report.addrSendA[1]
+                                    send=MulticastAddress(
+                                        report.addrSendA.address,
+                                        report.addrSendA.port
                                     ),
                                 )
                                 self.groupB = MulticastInterfaces(
                                     interface=self.interface,
-                                    data=MulticastInterfaces(
-                                        report.addrDataB[0],
-                                        report.addrDataB[1]
+                                    data=MulticastAddress(
+                                        report.addrDataB.address,
+                                        report.addrDataB.port
                                     ),
-                                    report=MulticastInterfaces(
-                                        report.addrReportB[0],
-                                        report.addrReportB[1]
+                                    report=MulticastAddress(
+                                        report.addrReportB.address,
+                                        report.addrReportB.port
                                     ),
-                                    send=MulticastInterfaces(
-                                        report.addrSendB[0],
-                                        report.addrSendB[1]
+                                    send=MulticastAddress(
+                                        report.addrSendB.address,
+                                        report.addrSendB.port
                                     ),
                                 )
                                 self.is_located = True
@@ -95,7 +95,7 @@ class NavicoLocator:
         receive_thread.start()
         while not self.is_located:
             wake_up_navico_radar()
-            if (time.time() - start_time) < self.timeout:
+            if (time.time() - start_time) > self.timeout:
                 self.has_timed_out = True
                 break
 
@@ -110,6 +110,17 @@ def main(interface: str, timeout: float, ping_interval: float):
     navico_locator.get_report_01b2()
 
     if navico_locator.is_located:
+
+        print("[Group A]")
+        print(f" report: {navico_locator.groupA.report}")
+        print(f" data:   {navico_locator.groupA.data}")
+        print(f" send:   {navico_locator.groupA.send}")
+        print("[Group B]")
+        print(f" report: {navico_locator.groupB.report}")
+        print(f" data:   {navico_locator.groupB.data}")
+        print(f" send:   {navico_locator.groupB.send}")
+
+
         return navico_locator.groupA, navico_locator.groupB
     else:
         return None, None

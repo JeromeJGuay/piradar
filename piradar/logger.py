@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 
 
+logging.getLogger('asyncio').setLevel(logging.WARNING)
+
 LOG_FILES_PATH = Path("~/navico_radar/logs") #FIXME to be set by user I guess. OR put somwhere else
 
 MAX_COUNT_LOG_FILES = 20
