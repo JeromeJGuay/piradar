@@ -175,7 +175,7 @@ class SerialNumberReport:
 
 @dataclass
 class Reports:
-    status = StatusReport
+    status = StatusReport()
     spatial = SpatialReport()
     system = SystemReport()
     blanking = BlankingReport()
@@ -620,13 +620,15 @@ class NavicoRadarController:
 
     ### Belows are all the commands method ###
     def keep_alive(self):
+        """FIXME MAYBE ADD MORE FLAG FOR KEEP_ALIVE ?"""
         while self.stop_flag:
-            self.send_pack_data(StayOnCmds.A0)
+            self.stay_on_cmds()
             time.sleep(self.keep_alive_interval)
 
-    def stay_alive_cmds(self, mode=0):
-        self.send_pack_data(StayOnCmds.A0)# maybe just this will work
-        if mode == 1:
+    def stay_on_cmds(self):
+        if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
+            self.send_pack_data(StayOnCmds.A0)# maybe just this will work
+        else:
             self.send_pack_data(StayOnCmds.A)
             self.send_pack_data(StayOnCmds.B)
             self.send_pack_data(StayOnCmds.C)
@@ -634,56 +636,37 @@ class NavicoRadarController:
             self.send_pack_data(StayOnCmds.E)
 
     def transmit(self):
-        """   ### FIXME YOU CAN ADD DEGREE START AND END
-        uint8_t sector = (controlType - CT_NO_TRANSMIT_START_1);
-        uint8_t enable = (state >= RCS_MANUAL) ? 1 : 0;
-        int valueEnd = m_ri->m_no_transmit_end[sector].GetValue();
-        value = MOD_DEGREES(value);
-        valueEnd = MOD_DEGREES(valueEnd);
-        uint16_t start_raw = SCALE_DEGREES_TO_DECIDEGREES(value);
-        uint16_t end_raw = SCALE_DEGREES_TO_DECIDEGREES(valueEnd);
-        uint8_t enable_cmd[] = {0x0d, 0xc1, sector, 0, 0, 0, enable};
-        uint8_t angle_cmd[] = {
-                  0xc0,
-                  0xc1,
-                  sector,
-                  0,
-                  0,
-                  0,
-                  enable,
-                  (uint8_t)start_raw,
-                  (uint8_t)(start_raw >> 8),
-                  (uint8_t)end_raw,
-                  (uint8_t)(end_raw >> 8),
-              };
-        """
         self.send_pack_data(TxOnCmds.A)
         self.send_pack_data(TxOnCmds.B)
 
     def standby(self):
-        """
-        uint8_t sector = (controlType - CT_NO_TRANSMIT_END_1);
-        uint8_t enable = (state >= RCS_MANUAL) ? 1 : 0;
-        int valueStart = m_ri->m_no_transmit_start[sector].GetValue();
-        uint16_t start_raw = SCALE_DEGREES_TO_DECIDEGREES(MOD_DEGREES(valueStart));
-        uint16_t end_raw = SCALE_DEGREES_TO_DECIDEGREES(MOD_DEGREES(value));
-        uint8_t enable_cmd[] = {0x0d, 0xc1, sector, 0, 0, 0, enable};
-        uint8_t angle_cmd[] = {
-          0xc0,
-          0xc1,
-          sector,
-          0,
-          0,
-          0,
-          enable,
-          (uint8_t)start_raw,
-          (uint8_t)(start_raw >> 8),
-          (uint8_t)end_raw,
-          (uint8_t)(end_raw >> 8),
-        };
-        """
         self.send_pack_data(TxOffCmds.A)
         self.send_pack_data(TxOffCmds.B)
+
+    def set_sector_range(self):
+        """ # TODO
+        ### DEDUCTION ###
+
+        This command sets no transmit sectors
+        You can set up to 4 sectors, which are the blanking sectors
+
+        First the ENABLE COMMAND
+        [
+            register = 0x0d
+            command  = 0xc1
+            sector = (0x00 to 0x03) maybe or maybe 1-4 dont know yet.
+            3 bytes 0x00 padding
+            enable = [0x00 or 0x01] I would guess
+        ]
+        Then the Angle command
+        [
+            register = 0xc0
+            command 0xc1
+            sector = (0x00 to 0x03) maybe or maybe 1-4 dont know yet.
+            3 bytes 0x00 padding
+            start_angle = 2bytes (degree to decidegrees)
+            end_angle = 2bytes (degree to decidegrees)
+        """
 
     def commands(self, key, value):
 
