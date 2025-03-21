@@ -731,7 +731,7 @@ class NavicoRadarController:
             case "light":
                 cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case _:
-                logging.error(f"nvalid command {cmd}")
+                logging.error(f"Invalid command {key}:{value}")
             # target boost seems to be missing FIXME
         if cmd:
             self.send_pack_data(cmd)
