@@ -1,4 +1,5 @@
 import logging
+import time
 
 from piradar.logger import init_logging
 
@@ -61,21 +62,18 @@ radar_parameters = NavicoUserConfig(
     sea_state=sea_state,
 )
 
-# wake_up_navico_radar()
+wake_up_navico_radar()
 
-# navico_radar = NavicoRadarController(
-#     multicast_interfaces=mcast_ifaces,
-#     radar_user_config=radar_parameters,
-#     output_dir=output_dir,
-# )
+navico_radar = NavicoRadarController(
+    multicast_interfaces=mcast_ifaces,
+    radar_user_config=radar_parameters,
+    output_dir=output_dir,
+)
 
-# if __name__ == '__main__':
-#     import time
-#
-#     navico_radar.transmit()
-#     time.sleep(5) # acquire for X seconds
-#     navico_radar.standby()
-#     navico_radar.close_all()
+navico_radar.transmit()
+time.sleep(5) # acquire for X seconds
+navico_radar.standby()
+navico_radar.close_all()
 
 
 

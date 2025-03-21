@@ -274,6 +274,7 @@ class NavicoUserConfig:
 
 
 class NavicoRadarController:
+    # RADAR NEED TO BE RESTARTED TO RECEIVE REPORTS FIXME
     # FIXME add Flags (signal) to hold thread until socket are open etc
     # FIXME add try -except in case error occures when creating sockets.
     # FIXME add WATCHDOG to kill everything in case of big error
@@ -326,10 +327,6 @@ class NavicoRadarController:
         self.start_writer_thread()
         self.start_data_thread()
 
-        time.sleep(0.5)  # FIXME replace the sleeps with lock event to insure that the sockets are ready.
-        self.standby()
-        time.sleep(2)
-
         logging.info("Waiting for radar ...")
         while not self.radar_was_detected: # this is unlocked in the listen report thread
             wake_up_navico_radar()
@@ -339,7 +336,6 @@ class NavicoRadarController:
 
         self.init_send_socket()
         self.start_keep_alive_thread()
-        time.sleep(0.5) # make use the send_socket was created
         self.send_user_config_parameters(radar_user_config)
 
     def init_send_socket(self):
@@ -561,17 +557,12 @@ class NavicoRadarController:
         sector_data.number_of_spokes = raw_sector.number_of_spokes
 
         for raw_spoke in raw_sector.spokes:
-            logging.debug(f"Spoke number: {raw_spoke.spoke_number} [should be between 0-4096]") #fixme maybe
             logging.debug(f"spoke number: {raw_spoke.spoke_number}, angle: {raw_spoke.angle * 360 / 4096}, heading: {raw_spoke.heading}")
             logging.debug(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
-
+            logging.debug(f"rotation_angle: {raw_spoke.rotation_angle}")
             spoke_data = SpokeData()
-            spoke_data.spoke_number = raw_spoke.spoke_number
-            """ FIXME
-            CPP heading_raw = (line->common.heading[1] << 8) | line->common.heading[0];
-            maybe this has to do with the way in packs and unpack. maybe cpp code unpacked it wrong.
-            Bite order seems to be messed up
-            """
+            # Change endian
+            spoke_data.spoke_number = (raw_spoke.spoke_number & 0x00ff) << 8 | (raw_spoke.spoke_number & 0xff00)
             spoke_data.heading = (raw_spoke.heading & 0x00ff) << 8 | (raw_spoke.heading & 0xff00)
 
             if raw_spoke.status == 2: # Valid # and not 0x12 #according to NavicoReceive
@@ -581,6 +572,7 @@ class NavicoRadarController:
                     # range_raw = ((line->br24.range[2] & 0xff) << 16 | (line->br24.range[1] & 0xff) << 8 | (line->br24.range[0] & 0xff));
                     # angle_raw = (line->br24.angle[1] << 8) | line->br24.angle[0];
                     # range_meters = (int)((double)range_raw * 10.0 / sqrt(2.0));
+                    # spoke_data._range *= RANGE_SCALE  # 10 / sqrt(2)
 
                 elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
                     """ FIXME
@@ -589,8 +581,8 @@ class NavicoRadarController:
                     uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
                     angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
                     """
-
-                    spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
+                    _spoke_angle = (spoke_data.angle & 0x00ff) << 8 | (spoke_data.angle & 0xff00)
+                    spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
 
                     if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
                         if raw_spoke.small_range == 0xffff:
@@ -616,8 +608,6 @@ class NavicoRadarController:
                             spoke_data._range = raw_spoke.small_range / 4
                     else:
                         spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
-
-                    spoke_data._range *= RANGE_SCALE # 10 / sqrt(2)
 
                     logging.debug(f"Acutal range {spoke_data}")
 
@@ -795,7 +785,7 @@ class NavicoRadarController:
 
     def write_sector_data(self, sector_data: SectorData):
         with open(self.data_path, "a") as f:
-            f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}")
+            f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}\n")
             for spoke_data in sector_data.spoke_data:
                 f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
                 f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n") #FIXME
