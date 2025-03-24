@@ -4,6 +4,7 @@ __all__ = [
     'TxOnCmds',
     'TxOffCmds',
     'StayOnCmd',
+    'ReportCmds',
     'RangeCmd',
     'BearingAlignmentCmd',
     'GainCmd',

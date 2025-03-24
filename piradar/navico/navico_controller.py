@@ -657,6 +657,11 @@ class NavicoRadarController:
     def stay_on_cmd(self):
         self.send_pack_data(StayOnCmd.A)# maybe just this will work
 
+    def get_reports(self):
+        # gets report 2,3,4,8
+        # settings, system, spatail, filter
+        self.send_pack_data(ReportCmds.R284)
+        self.send_pack_data(ReportCmds.R3)
 
     def transmit(self):
         self.send_pack_data(TxOnCmds.A)
