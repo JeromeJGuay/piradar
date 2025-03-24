@@ -68,6 +68,9 @@ RANGES_VALS_LIST = [50, 75, 100, 250, 500, 750, 1000,
 OLMH_VAL2STR_MAP = {0: "off", 1: "low", 2: "medium", 3: "high"}
 OLMH_STR2VAL_MAP = {"off": 0, "low": 1, "medium": 2, "high": 3}
 
+OLH_VAL2STR_MAP = {0: "off", 1: "low", 2: "high"}
+OLH_STR2VAL_MAP = {"off": 0, "low": 1, "high": 2}
+
 RADAR_STATUS_VAL2STR_MAP = {1: "standby", 2: "transmit", 5: "spinning-up"}
 RADAR_STATUS_STR2VAL_MAP = {}
 
@@ -226,6 +229,7 @@ class NavicoUserConfig:
     rain_clutter: int = None
 
     interference_rejection: str = None # ["off", "low", "medium", "high"]
+    local_inteference_filer: str = None # ["off", "low", "medium", "high"]
     side_lobe_suppression: int = None
 
     mode: str = None # ["custom", "harbor", "offshore", "weather", "bird"]
@@ -234,6 +238,7 @@ class NavicoUserConfig:
 
     target_expansion: str = None # ["off", "low", "medium", "high"]
     target_separation: str = None # ["off", "low", "medium", "high"]
+    target_boost: str = None # ["off", "low", "high]
     noise_rejection: str = None # ["off", "low", "medium", "high"]
 
     doppler_mode: str = None # ['off', 'normal', 'approaching_only']
@@ -646,18 +651,12 @@ class NavicoRadarController:
     def keep_alive(self):
         """FIXME MAYBE ADD MORE FLAG FOR KEEP_ALIVE ?"""
         while self.stop_flag:
-            self.stay_on_cmds()
+            self.stay_on_cmd()
             time.sleep(self.keep_alive_interval)
 
-    def stay_on_cmds(self):
-        if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
-            self.send_pack_data(StayOnCmds.A0)# maybe just this will work
-        else:
-            self.send_pack_data(StayOnCmds.A)
-            self.send_pack_data(StayOnCmds.B)
-            self.send_pack_data(StayOnCmds.C)
-            self.send_pack_data(StayOnCmds.D)
-            self.send_pack_data(StayOnCmds.E)
+    def stay_on_cmd(self):
+        self.send_pack_data(StayOnCmd.A)# maybe just this will work
+
 
     def transmit(self):
         self.send_pack_data(TxOnCmds.A)
@@ -722,6 +721,8 @@ class NavicoRadarController:
                 cmd = RainClutterCmd.pack(auto=self.radar_user_config.auto_rain_clutter, value=min(int(value * 255 / 100), 255))
             case "interference_rejection":
                 cmd = InterferenceRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
+            case "local_interference_filer":
+                cmd = LocalInterferenceFilterCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case "side_lobe_suppression":
                 cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.auto_side_lobe_suppression, value=min(int(value * 255 / 100), 255))
             case "mode":
@@ -740,6 +741,8 @@ class NavicoRadarController:
                 cmd = DopplerSpeedCmd.pack(value=int(value * 100))
             case "light":
                 cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
+            case "target_boost":
+                cmd = TargetBoostCmd.pack(value=OLH_STR2VAL_MAP[value])
             case _:
                 logging.error(f"Invalid command {key}:{value}")
             # target boost seems to be missing FIXME
@@ -771,6 +774,8 @@ class NavicoRadarController:
             self.commands("rain_clutter", radar_parameters.rain_clutter)
         if radar_parameters.interference_rejection:
             self.commands("interference_rejection", radar_parameters.interference_rejection)
+        if radar_parameters.local_inteference_filer:
+            self.commands("local_interference_filer", radar_parameters.local_inteference_filer)
         if radar_parameters.side_lobe_suppression:
             self.commands('side_lobe_suppression', radar_parameters.side_lobe_suppression)
         if radar_parameters.mode:
@@ -781,6 +786,8 @@ class NavicoRadarController:
             self.commands("target_expansion", radar_parameters.target_expansion)
         if radar_parameters.target_separation:
             self.commands("target_separation", radar_parameters.target_separation)
+        if radar_parameters.target_boost:
+            self.commands("target_boost", radar_parameters.target_boost)
         if radar_parameters.noise_rejection:
             self.commands("noise_rejection", radar_parameters.noise_rejection)
         if radar_parameters.doppler_mode:
@@ -812,7 +819,7 @@ class NavicoRadarController:
 
 
 def wake_up_navico_radar():
-    cmd = struct.pack("!H", 0x01b1)
+    cmd = struct.pack("2B", 0x01,0xb1)
     send_socket = create_udp_socket()
     send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
     _nbytes_sent = send_socket.sendto(cmd, (ENTRY_GROUP_ADDRESS, ENTRY_GROUP_PORT))

@@ -89,7 +89,7 @@ class NavicoLocator:
 
         send_socket = create_udp_socket()
         send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
-        cmd = struct.pack("!H", 0x01b1)
+        cmd = struct.pack("BB", 0x01, 0xb1)
         # not binding required
 
         receive_thread.start()
