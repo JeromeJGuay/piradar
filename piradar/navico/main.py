@@ -25,9 +25,9 @@ Path(output_dir).mkdir(parents=True, exist_ok=True)
 ### Radar Settings ###
 
 
-_range = 5 # add a check in NavicoController or RadarSetting
+_range = 2 # add a check in NavicoController or RadarSetting
 bearing = 0
-gain = 255 / 2
+gain = 100
 antenna_height = 10
 scan_speed = "low"
 ##... more to add ###
@@ -79,6 +79,7 @@ logging.info(f"Radar type received: {navico_radar.reports.system.radar_type}")
 navico_radar.close_all()
 
 print("Settings")
+print("_range", _range, navico_radar.reports.setting._range)
 print("gain", gain, navico_radar.reports.setting.gain)
 
 print("Spatial")

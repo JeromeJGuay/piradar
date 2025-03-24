@@ -77,8 +77,8 @@ RADAR_STATUS_STR2VAL_MAP = {}
 MODE_VAL2STR_MAP = {0: "custom", 1: "harbour", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
 MODE_STR2VAL_MAP = {"custom": 0, "harbour": 1, "offshore": 2, "weather": 4, "bird": 5}
 
-SEA_STATE_VAL2STR_MAP = {0: "calm", 1: "moderate", 3: "rough"}
-SEA_STATE_STR2VAL_MAP = {"calm": 0, "moderate": 1, "rough": 1}
+SEA_STATE_VAL2STR_MAP = {0: "calm", 1: "moderate", 2: "rough"}
+SEA_STATE_STR2VAL_MAP = {"calm": 0, "moderate": 1, "rough": 2}
 # I dont get the difference between SEA_STATE and SEA_AUTO FIXME
 SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbour", 2: "offshore"}
 SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbour": 1, "offshore": 2}
@@ -223,7 +223,7 @@ class NavicoUserConfig:
 
     # filters
 
-    sea_state: str = None # ['off', 'harbour', 'offshore'] = None #automoatic mode ?? sea clutter maybe ?
+    sea_state: str = None # ['calm', 'moderate', 'rough'] = None #automoatic mode ?? sea clutter maybe ?
 
     sea_clutter: int = None
     rain_clutter: int = None
@@ -724,7 +724,7 @@ class NavicoRadarController:
             case "scan_speed":
                 cmd = ScanSpeedCmd.pack(value=SCAN_SPEED_STR2VAL_MAP[value])
             case "sea_state":
-                cmd = SeaStateAutoCmd.pack(value=SEA_AUTO_STR2VAL_MAP[value])
+                cmd = SeaStateAutoCmd.pack(value=SEA_STATE_STR2VAL_MAP[value])
             case "sea_clutter":
                 cmd = SeaClutterCmd.pack(auto=self.radar_user_config.auto_sea_clutter, value=min(int(value * 255 / 100), 255))
             case "rain_clutter":
