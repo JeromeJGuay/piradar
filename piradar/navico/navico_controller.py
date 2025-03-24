@@ -337,7 +337,7 @@ class NavicoRadarController:
             wake_up_navico_radar()
             time.sleep(1)
             # FIXME add a timeout and raise an Error
-        logging.info("Connected detected on network")
+        logging.info("Radar detected on network")
 
         self.init_send_socket()
         self.start_keep_alive_thread()
@@ -761,50 +761,50 @@ class NavicoRadarController:
 
     def send_user_config_parameters(self, radar_parameters: NavicoUserConfig):
         # FIXME do all loggings
-        if radar_parameters._range:
+        if radar_parameters._range is not None:
             self.commands("range", radar_parameters._range)
             logging.info(f"range set: {radar_parameters._range}")
-        if radar_parameters.bearing:
+        if radar_parameters.bearing is not None:
             self.commands("bearing", radar_parameters.bearing)
             logging.info(f"bearing set: {radar_parameters.bearing}")
-        if radar_parameters.gain:
+        if radar_parameters.gain is not None:
             self.commands("gain", radar_parameters.gain)
             logging.info(f"gain set: {radar_parameters.gain}")
-        if radar_parameters.antenna_height:
+        if radar_parameters.antenna_height is not None:
             self.commands("antenna_height", radar_parameters.antenna_height)
             logging.info(f"antenna_height set: {radar_parameters.antenna_height}")
-        if radar_parameters.scan_speed:
+        if radar_parameters.scan_speed is not None:
             self.commands("scan_speed", radar_parameters.scan_speed)
             logging.info(f"scan_speed set: {radar_parameters.scan_speed}")
-        if radar_parameters.sea_state:
+        if radar_parameters.sea_state is not None:
             self.commands("sea_state", radar_parameters.sea_state)
-        if radar_parameters.sea_clutter:
+        if radar_parameters.sea_clutter is not None:
             self.commands("sea_clutter", radar_parameters.sea_clutter)
-        if radar_parameters.rain_clutter:
+        if radar_parameters.rain_clutter is not None:
             self.commands("rain_clutter", radar_parameters.rain_clutter)
-        if radar_parameters.interference_rejection:
+        if radar_parameters.interference_rejection is not None:
             self.commands("interference_rejection", radar_parameters.interference_rejection)
-        if radar_parameters.local_inteference_filer:
+        if radar_parameters.local_inteference_filer is not None:
             self.commands("local_interference_filer", radar_parameters.local_inteference_filer)
-        if radar_parameters.side_lobe_suppression:
+        if radar_parameters.side_lobe_suppression is not None:
             self.commands('side_lobe_suppression', radar_parameters.side_lobe_suppression)
-        if radar_parameters.mode:
+        if radar_parameters.mode is not None:
             self.commands("mode", radar_parameters.mode)
-        if radar_parameters.auto_sea_clutter_nudge:
+        if radar_parameters.auto_sea_clutter_nudge is not None:
             self.commands('auto_sea_clutter_nudge', radar_parameters.auto_sea_clutter_nudge)
-        if radar_parameters.target_expansion:
+        if radar_parameters.target_expansion is not None:
             self.commands("target_expansion", radar_parameters.target_expansion)
-        if radar_parameters.target_separation:
+        if radar_parameters.target_separation is not None:
             self.commands("target_separation", radar_parameters.target_separation)
-        if radar_parameters.target_boost:
+        if radar_parameters.target_boost is not None:
             self.commands("target_boost", radar_parameters.target_boost)
-        if radar_parameters.noise_rejection:
+        if radar_parameters.noise_rejection is not None:
             self.commands("noise_rejection", radar_parameters.noise_rejection)
-        if radar_parameters.doppler_mode:
+        if radar_parameters.doppler_mode is not None:
             self.commands("doppler_mode", radar_parameters.doppler_mode)
-        if radar_parameters.doppler_speed:
+        if radar_parameters.doppler_speed is not None:
             self.commands("doppler_speed", radar_parameters.doppler_speed)
-        if radar_parameters.light:
+        if radar_parameters.light is not None:
             self.commands("light", radar_parameters.light)
 
     def writer(self):
