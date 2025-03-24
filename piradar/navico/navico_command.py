@@ -27,7 +27,7 @@ __all__ = [
     'LocalInterferenceFilterCmd'
 ]
 
-ENDIAN = ">"
+ENDIAN = "<"
 
 
 class TxOnCmds:
@@ -79,60 +79,69 @@ class _BearingAlignmentCmd:
 
 class _GainCmd:
     """
-    0   1  2  [        3] [        4]
-    06 C1 00  00 00 00 01 00 00 00 A1
+     CMD    |      fill |  1 |     fill  | 255
+     0  1  2|   3  4  5 |  6 |  7  8  9 |  10
+    06 C1 00|  00 00 00 | 01 | 00 00 00 |  ff
     """
 
-    cformat = "BBBII"
+    cformat = "BBB BBB B BBB B"
     register = 0x06
     cmd = 0xc1
     sub_cmd = 0x00
 
     def pack(self, auto: bool, value: int):
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, auto, value)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd,
+                           0,0,0, auto,
+                           0,0,0, value)
 
 
 class _SeaClutterCmd:
     """
-    0   1  2  [        3] [        4]
-    06 C1 02  00 00 00 01 00 00 00 A1
+     CMD    |      fill |  1 |     fill  | 255
+     0  1  2|   3  4  5 |  6 |  7  8  9 |  10
+    06 C1 02|  00 00 00 | 01 | 00 00 00 |  ff
     """
-    cformat = "BBBII"
+    cformat = "BBB BBB B BBB B"
     register = 0x06
     cmd = 0xc1
     sub_cmd = 0x02
 
     def pack(self, auto: bool, value: int):
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, auto, value)
-
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd,
+                           0,0,0, auto,
+                           0,0,0, value)
 
 class _RainClutterCmd:
     """
-    0   1  2  [        3] [        4]
-    06 C1 04  00 00 00 01 00 00 00 A1
+     CMD    |      fill |  1 |     fill  | 255
+     0  1  2|   3  4  5 |  6 |  7  8  9 |  10
+    06 C1 04|  00 00 00 | 01 | 00 00 00 |  ff
     """
-    cformat = "BBBII"
+    cformat = "BBB BBB B BBB B"
     register = 0x06
     cmd = 0xc1
     sub_cmd = 0x04
 
     def pack(self, auto: bool, value: int):
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, auto, value)
-
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd,
+                           0,0,0, auto,
+                           0,0,0, value)
 
 class _SidelobeSuppressionCmd:
     """
-    0   1  2  [        3] [        4]
-    06 C1 05  00 00 00 01 00 00 00 A1
+     CMD    |      fill |  1 |     fill  | 255
+     0  1  2|   3  4  5 |  6 |  7  8  9 |  10
+    06 C1 05|  00 00 00 | 01 | 00 00 00 |  ff
     """
-    cformat = "BBBII"
+    cformat = "BBB BBB B BBB B"
     register = 0x06
     cmd = 0xc1
     sub_cmd = 0x05
 
     def pack(self, auto: bool, value: int):
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, auto, value)
-
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd,
+                           0,0,0, auto,
+                           0,0,0, value)
 
 class _AutoSeaClutterNudgeCmd: # unsure of the cformat #TEST ME  FIXME with reports
     cformat = "BBBbbB"
@@ -166,13 +175,20 @@ class _DopplerSpeedCmd: # unsure of the cformat #TEST ME  FIXME with reports
 
 
 class _AntennaHeightCmd: # Unsure of cformat. to test FIXME with reports
-    cformat = "BBBI"
+    """
+     CMD    |      fill |       1000
+     0  1  2|   3  4  5 |  6  7  8  9
+    30 C1 01|  00 00 00 | E8 03 00 A1
+    """
+    cformat = "BBB BBB I"
     register = 0x30
     cmd = 0xc1
     sub_cmd = 0x01
 
     def pack(self, value):
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, value)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd,
+                           0, 0, 0,
+                           value)
 
 
 class _InterferenceRejection:

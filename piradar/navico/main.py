@@ -30,8 +30,6 @@ bearing = 0
 gain = 255 / 2
 antenna_height = 10
 scan_speed = "low"
-mode = "harbour"
-sea_state = "harbour"
 ##... more to add ###
 
 ### APP ###
@@ -58,8 +56,6 @@ radar_parameters = NavicoUserConfig(
     gain=gain,
     antenna_height=antenna_height,
     scan_speed=scan_speed,
-    mode=mode,
-    sea_state=sea_state,
 )
 
 wake_up_navico_radar()
@@ -84,7 +80,6 @@ navico_radar.close_all()
 
 print("Settings")
 print("gain", gain, navico_radar.reports.setting.gain)
-print("mode", mode, navico_radar.reports.settings.mode)
 
 print("Spatial")
 print("bearing", bearing, navico_radar.reports.spatial.bearing)
@@ -92,7 +87,6 @@ print('antenna_height', antenna_height, navico_radar.reports.spatial,antenna_hei
 
 print("Filters")
 print("scan_speed", scan_speed, navico_radar.reports.filters.scan_speed)
-print("sea_state", sea_state, navico_radar.reports.filters.sea_state)
 
 
 

@@ -132,7 +132,7 @@ class SettingReport:
     mode: str = None
     gain: float = None
     auto_gain: bool = None
-    auto_sea_state: str = None
+    auto_sea_state: str = None # WTF between this and filterReport.seastate
     sea_clutter: float = None
     rain_clutter: float = None
     interference_rejection: str = None
@@ -655,7 +655,7 @@ class NavicoRadarController:
     ### Belows are all the commands method ###
     def keep_alive(self):
         """FIXME MAYBE ADD MORE FLAG FOR KEEP_ALIVE ?"""
-        while self.stop_flag:
+        while not self.stop_flag:
             self.stay_on_cmd()
             time.sleep(self.keep_alive_interval)
 
