@@ -19,7 +19,7 @@ __all__ = [
     # "HaloMysteryPacket",
 ]
 
-ENDIAN = "!"
+ENDIAN = ">"
 
 
 @dataclass(frozen=True)

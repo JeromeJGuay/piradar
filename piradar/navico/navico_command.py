@@ -24,17 +24,19 @@ __all__ = [
     'LightCmd'
 ]
 
-ENDIAN = "!"
+ENDIAN = ">"
 
 
 class TxOnCmds:
-    A = struct.pack(ENDIAN+"HB", 0x00c1, 0x01)
-    B = struct.pack(ENDIAN+"HB", 0x01c1, 0x01)
+    #                        register, cmd, value
+    A = struct.pack(ENDIAN+"3B", 0x00, 0xc1, 0x01)
+    B = struct.pack(ENDIAN+"3B", 0x01, 0xc1, 0x01)
 
 
 class TxOffCmds:
-    A = struct.pack(ENDIAN+"HB", 0x00c1, 0x01)
-    B = struct.pack(ENDIAN+"HB", 0x01c1, 0x00)
+    #                        register, cmd, value
+    A = struct.pack(ENDIAN+"3B", 0x00, 0xc1, 0x01)
+    B = struct.pack(ENDIAN+"3B", 0x01, 0xc1, 0x00)
 
 
 class StayOnCmds:

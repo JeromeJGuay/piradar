@@ -562,8 +562,11 @@ class NavicoRadarController:
             logging.debug(f"rotation_angle: {raw_spoke.rotation_range}")
             spoke_data = SpokeData()
             # Change endian
-            spoke_data.spoke_number = (raw_spoke.spoke_number & 0x00ff) << 8 | (raw_spoke.spoke_number & 0xff00)
-            spoke_data.heading = (raw_spoke.heading & 0x00ff) << 8 | (raw_spoke.heading & 0xff00)
+            #spoke_data.spoke_number = (raw_spoke.spoke_number & 0x00ff) << 8 | (raw_spoke.spoke_number & 0xff00)
+            #spoke_data.heading = (raw_spoke.heading & 0x00ff) << 8 | (raw_spoke.heading & 0xff00)
+
+            spoke_data.spoke_number = raw_spoke.spoke_number
+            spoke_data.heading = raw_spoke.heading
 
             if raw_spoke.status == 2: # Valid # and not 0x12 #according to NavicoReceive
                 if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
@@ -581,8 +584,9 @@ class NavicoRadarController:
                     uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
                     angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
                     """
-                    _spoke_angle = (raw_spoke.angle & 0x00ff) << 8 | (raw_spoke.angle & 0xff00)
-                    spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
+                    #_spoke_angle = (raw_spoke.angle & 0x00ff) << 8 | (raw_spoke.angle & 0xff00)
+                    # spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
+                    spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
 
                     if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
                         if raw_spoke.small_range == 0xffff:
@@ -622,6 +626,7 @@ class NavicoRadarController:
                 ### Separating bytes to 4bit grayscale values. ###
                 ### TODO this should not be done when recording raw data. ###
                 ### TODO make different writter and add flags ###
+                ### This coud vary depending of the doppler settings.
                 spoke_data.intensities = []
                 for _bytes in raw_spoke.data:
                     low_nibble = _bytes & 0x0F
