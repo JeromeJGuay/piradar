@@ -25,7 +25,7 @@ Path(output_dir).mkdir(parents=True, exist_ok=True)
 ### Radar Settings ###
 
 
-_range = 10 # add a check in NavicoController or RadarSetting
+_range = 5 # add a check in NavicoController or RadarSetting
 bearing = 0
 gain = 255 / 2
 antenna_height = 10
@@ -69,6 +69,13 @@ navico_radar = NavicoRadarController(
     radar_user_config=radar_parameters,
     output_dir=output_dir,
 )
+
+time.sleep(1)
+navico_radar.get_reports()
+while navico_radar.reports.system.radar_type is None:
+    time.sleep(.5)
+
+logging.info(f"Radar type received: {navico_radar.reports.system.radar_type}")
 
 navico_radar.transmit()
 time.sleep(5) # acquire for X seconds

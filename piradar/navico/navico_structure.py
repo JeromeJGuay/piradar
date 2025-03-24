@@ -378,7 +378,7 @@ class RadarReport08C4:
         self.register = unpacked_fields[0][0]
         self.command = unpacked_fields[1][0]
         self.sea_state = unpacked_fields[2][0]
-        self.interference_rejection = unpacked_fields[3][0]
+        self.local_interference_filter = unpacked_fields[3][0]
         self.scan_speed = unpacked_fields[4][0]
         self.auto_side_lobe_suppression = unpacked_fields[5][0]
         self.field6 = unpacked_fields[6][0]
@@ -389,7 +389,7 @@ class RadarReport08C4:
         self.noise_rejection = unpacked_fields[11][0]
         self.target_separation = unpacked_fields[12][0]
         self.sea_clutter = unpacked_fields[13][0]
-        self.auto_sea_clutter_auto = unpacked_fields[14][0]
+        self.auto_sea_clutter_nudge = unpacked_fields[14][0] #unsure fixme
         self.field13 = unpacked_fields[14][0]
         self.field14 = unpacked_fields[15][0]
 

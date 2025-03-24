@@ -77,6 +77,9 @@ RADAR_STATUS_STR2VAL_MAP = {}
 MODE_VAL2STR_MAP = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
 MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}
 
+SEA_STATE_VAL2STR_MAP = {0: "calm", 1: "moderate", 3: "rough"}
+SEA_STATE_STR2VAL_MAP = {"calm": 0, "moderate": 1, "rough": 1}
+# I dont get the difference between SEA_STATE and SEA_AUTO FIXME
 SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbour", 2: "offshore"}
 SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbour": 1, "offshore": 2}
 
@@ -160,17 +163,14 @@ class BlankingReport:
 class FilterReport:
     """Report 08C4"""
     sea_state: str = None
-    interference_rejection: str = None
+    local_interference_filter: str = None
     scan_speed: str = None # why is scanspeed here not in the 04C4 reports....
-
+    auto_side_lobe_suppression: bool = None
     side_lobe_suppression: int = None
     noise_rejection: str = None
     target_separation: str = None
     sea_clutter: int = None # on Halo
-
-    auto_side_lobe_suppression: bool = None
-    auto_sea_clutter: bool = None # on halo
-
+    auto_sea_clutter_nudge: int = None # to test FIXME
     doppler_mode: str = None
     doppler_speed: int = None
 
@@ -472,7 +472,7 @@ class NavicoRadarController:
                 self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter * (100 / 255)
 
                 try:
-                    if self.raw_reports.r02c4.interference_rejection: #maybe add `if`s elsewhere ???
+                    if self.raw_reports.r02c4.interference_rejection:  # maybe add `if`s elsewhere ???
                         self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.interference_rejection]
                 except KeyError:
                     self.reports.setting.interference_rejection = "unknown"
@@ -520,20 +520,28 @@ class NavicoRadarController:
                 # TODO
             case REPORTS_IDS.r_08C4: #FILTERS
                 # TODO THE REST
-                # self.reports.filters.sea_state
-                # self.reports.filters.interference_rejection
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
+
+                if self.raw_reports.r08c4.sea_state:
+                    try:
+                        self.reports.filters.sea_state = SEA_STATE_VAL2STR_MAP[self.raw_reports.r08c4.sea_state]
+                    except KeyError:
+                        self.reports.filters.sea_state = "unknown"
                 try:
                     self.reports.filters.scan_speed = SCAN_MODE_STR2VAL_MAP[self.raw_reports.r08c4.scan_speed]
                 except KeyError:
                     self.reports.filters.scan_speed = "unknown"
                     logging.warning(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
-                # self.reports.filters.side_lobe_suppression
-                # self.reports.filters.noise_rejection
-                # self.reports.filters.target_separation
-                # self.reports.filters.sea_clutter
-                # self.reports.filters.auto_side_lobe_suppression
-                # self.reports.filters.auto_sea_clutter
+
+                #self.reports.filters.local_interference_filter = self.raw_reports.r08c4.local_interference_filter
+                #self.reports.filters.side_lobe_suppression = self.raw_reports.r08c4.side_lobe_suppression
+                #self.reports.filters.noise_rejection = self.raw_reports.r08c4.noise_rejection
+                #self.reports.filters.target_separation = self.raw_reports.r08c4.target_separation
+                #self.reports.filters.sea_clutter = self.raw_reports.r08c4.sea_clutter
+
+                #self.reports.filters.auto_side_lobe_suppression = self.raw_reports.r08c4.auto_side_lobe_suppression
+                self.reports.filters.auto_sea_clutter_nudge = self.raw_reports.r08c4.auto_sea_clutter_nudge
+
                 try:
                     self.reports.filters.doppler_mode = DOPPLER_MODE_VAL2STR_MAP[self.raw_reports.r08c4.doppler_mode]
                 except KeyError:
@@ -542,13 +550,10 @@ class NavicoRadarController:
                 self.reports.filters.doppler_speed = self.raw_reports.r08c4.doppler_speed / 100
 
             case REPORTS_IDS.r_12C4: # SERIAL
-                self.raw_reports.r12c4 =  RadarReport12C4(raw_packet)
+                self.raw_reports.r12c4 = RadarReport12C4(raw_packet)
                 # TODO
             case _:
                 logging.warning(f"report {raw_packet[:2]} unknown")
-                # report = RadarReport_c408()
-
-    # do something with the report ?
 
     def process_data(self, in_data):
 
