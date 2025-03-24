@@ -17,7 +17,7 @@ data_address = ('236.6.7.8', 6678)
 send_address = ('236.6.7.10', 6680)
 
 ### Write data ###
-output_dir = "/home/capteur/Desktop/raw_data/output_data"
+output_dir = "/home/capteur/Desktop/output_data"
 # put somewhere else:
 from pathlib import Path
 Path(output_dir).mkdir(parents=True, exist_ok=True)
