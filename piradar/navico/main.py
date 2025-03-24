@@ -29,7 +29,7 @@ _range = 2 # add a check in NavicoController or RadarSetting
 bearing = 0
 gain = 100
 antenna_height = 10
-scan_speed = "low"
+#scan_speed = "low"
 ##... more to add ###
 
 ### APP ###
@@ -55,7 +55,7 @@ radar_parameters = NavicoUserConfig(
     bearing=bearing,
     gain=gain,
     antenna_height=antenna_height,
-    scan_speed=scan_speed,
+   # scan_speed=scan_speed,
 )
 
 wake_up_navico_radar()
@@ -86,10 +86,10 @@ print("Spatial")
 print("bearing", bearing, navico_radar.reports.spatial.bearing)
 print('antenna_height', antenna_height, navico_radar.reports.spatial,antenna_height)
 
-print("Filters")
-print("scan_speed", scan_speed, navico_radar.reports.filters.scan_speed)
-
-
+# print("Filters")
+# print("scan_speed", scan_speed, navico_radar.reports.filters.scan_speed)
+#
+#
 
 
 
