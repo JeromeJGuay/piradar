@@ -30,7 +30,7 @@ bearing = 0
 gain = 255 / 2
 antenna_height = 10
 scan_speed = "low"
-mode = "harbor"
+mode = "harbour"
 sea_state = "harbour"
 ##... more to add ###
 
@@ -77,10 +77,25 @@ while navico_radar.reports.system.radar_type is None:
 
 logging.info(f"Radar type received: {navico_radar.reports.system.radar_type}")
 
-navico_radar.transmit()
-time.sleep(5) # acquire for X seconds
-navico_radar.standby()
+#navico_radar.transmit()
+#time.sleep(5) # acquire for X seconds
+#navico_radar.standby()
 navico_radar.close_all()
+
+print("Settings")
+print("gain", gain, navico_radar.reports.setting.gain)
+print("mode", mode, navico_radar.reports.settings.mode)
+
+print("Spatial")
+print("bearing", bearing, navico_radar.reports.spatial.bearing)
+print('antenna_height', antenna_height, navico_radar.reports.spatial,antenna_height)
+
+print("Filters")
+print("scan_speed", scan_speed, navico_radar.reports.filters.scan_speed)
+print("sea_state", sea_state, navico_radar.reports.filters.sea_state)
+
+
+
 
 
 

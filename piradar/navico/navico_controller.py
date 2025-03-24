@@ -74,8 +74,8 @@ OLH_STR2VAL_MAP = {"off": 0, "low": 1, "high": 2}
 RADAR_STATUS_VAL2STR_MAP = {1: "standby", 2: "transmit", 5: "spinning-up"}
 RADAR_STATUS_STR2VAL_MAP = {}
 
-MODE_VAL2STR_MAP = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
-MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}
+MODE_VAL2STR_MAP = {0: "custom", 1: "harbour", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
+MODE_STR2VAL_MAP = {"custom": 0, "harbour": 1, "offshore": 2, "weather": 4, "bird": 5}
 
 SEA_STATE_VAL2STR_MAP = {0: "calm", 1: "moderate", 3: "rough"}
 SEA_STATE_STR2VAL_MAP = {"calm": 0, "moderate": 1, "rough": 1}
@@ -232,7 +232,7 @@ class NavicoUserConfig:
     local_inteference_filer: str = None # ["off", "low", "medium", "high"]
     side_lobe_suppression: int = None
 
-    mode: str = None # ["custom", "harbor", "offshore", "weather", "bird"]
+    mode: str = None # ["custom", "harbour", "offshore", "weather", "bird"]
 
     auto_sea_clutter_nudge: int = None
 
