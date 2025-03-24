@@ -19,12 +19,17 @@ class MyWidget(pg.GraphicsLayoutWidget):
         self.mainLayout = QtWidgets.QVBoxLayout()
         self.setLayout(self.mainLayout)
 
+
         self.timer = QtCore.QTimer(self)
         self.timer.setInterval(100) # in milliseconds
         self.timer.start()
         self.timer.timeout.connect(self.onNewData)
 
         self.plotItem = self.addPlot(title="Lidar points")
+
+        self.plotItem.setXRange(-1, 1)
+        self.plotItem.setYRange(-1, 1)
+        self.plotItem.vb.setLimits(xMin=-1, xMax=1, yMin=1, yMax=1)
 
         self.plotDataItem = self.plotItem.plot([], pen=None,
             symbolBrush=(255,0,0), symbolSize=5, symbolPen=None)
@@ -35,10 +40,15 @@ class MyWidget(pg.GraphicsLayoutWidget):
 
 
     def onNewData(self):
-        numPoints = 1000
-        dataq.get()
-        x = np.random.normal(size=numPoints)
-        y = np.random.normal(size=numPoints)
+        numPoints = 100
+        #dataq.get()
+        #x = np.random.normal(size=numPoints)
+        #y = np.random.normal(size=numPoints)
+        angle = np.random.uniform(0, 2*np.pi,  numPoints)
+        distances = np.linspace(0, 1, numPoints)
+        x = distances * np.cos(angle)
+        y = distances * np.sin(angle)
+
         self.setData(x, y)
 
 
@@ -54,11 +64,12 @@ def main():
     app.exec_()
 
 if __name__ == "__main__":
+    pass
     #
-    import threading
+    #import threading
 
-    thread = threading.Thread(target=main, daemon=True)
-    thread.start()
+    #thread = threading.Thread(target=main, daemon=True)
+    #thread.start()
 
 
 
