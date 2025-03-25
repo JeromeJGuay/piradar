@@ -1,6 +1,4 @@
-Navico radar seems to be on -> 236.6.7.10:6680
-
-Or from cpp: 236.6.7.5:6878
-
-
-
++ TODO
++ 4Bit Unpacking for doppler
++ BLANKING
++ report 02c4 sea_clutter is to big (4 bytes)

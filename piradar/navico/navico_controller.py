@@ -128,8 +128,8 @@ class SettingReport:
     _range: float = None
     mode: str = None
     gain: float = None
-    auto_gain: bool = None
-    auto_sea_state: str = None # if sea_state is in auto mode ?
+    gain_auto: bool = None
+    sea_state_auto: str = None # if sea_state is in auto mode ?auto_sea and auto_rain
     sea_clutter: float = None
     rain_clutter: float = None
     interference_rejection: str = None
@@ -162,11 +162,11 @@ class FilterReport:
     sea_state: str = None
     local_interference_filter: str = None
     scan_speed: str = None # why is scanspeed here not in the 04C4 reports....
-    auto_side_lobe_suppression: bool = None
+    side_lobe_suppression_auto: bool = None
     side_lobe_suppression: int = None
     noise_rejection: str = None
     target_separation: str = None
-    sea_clutter: int = None
+    sea_clutter_08c4: int = None
     sea_clutter_nudge: int = None
     doppler_mode: str = None
     doppler_speed: int = None
@@ -185,7 +185,7 @@ class Reports:
     system = SystemReport()
     blanking = BlankingReport()
     setting = SettingReport()
-    filters = FilterReport()
+    filter = FilterReport()
     serial = SerialNumberReport()
 
 
@@ -226,7 +226,7 @@ class NavicoUserConfig:
     rain_clutter: int = None
 
     interference_rejection: str = None # ["off", "low", "medium", "high"]
-    local_inteference_filer: str = None # ["off", "low", "medium", "high"]
+    local_interference_filter: str = None # ["off", "low", "medium", "high"]
     side_lobe_suppression: int = None
 
     mode: str = None # ["custom", "harbor", "offshore", "weather", "bird"]
@@ -241,10 +241,11 @@ class NavicoUserConfig:
 
     light: str = None# ["off", "low", "medium", "high"]
     # auto
-    auto_gain: bool = False
-    auto_sea_clutter: bool = False
-    auto_rain_clutter: bool = False
-    auto_side_lobe_suppression: bool = False
+    gain_auto: bool = False
+    # this should probably be auto-clutter ? FIXME
+    sea_clutter_auto: bool = False
+    rain_clutter_auto: bool = False
+    side_lobe_suppression_auto: bool = False
 
     def __post_init__(self):
         if self._range:
@@ -261,13 +262,13 @@ class NavicoUserConfig:
 
         # FIXME TODO add the rest
 
-        if not isinstance(self.auto_gain, bool):
+        if not isinstance(self.gain_auto, bool):
             raise ValueError(f'auto_gain must be a boolean.')
-        if not isinstance(self.auto_sea_clutter, bool):
+        if not isinstance(self.sea_clutter_auto, bool):
             raise ValueError(f'auto_sea_clutter must be a boolean.')
-        if not isinstance(self.auto_rain_clutter, bool):
+        if not isinstance(self.rain_clutter_auto, bool):
             raise ValueError(f'auto_rain_clutter must be a boolean.')
-        if not isinstance(self.auto_side_lobe_suppression, bool):
+        if not isinstance(self.side_lobe_suppression_auto, bool):
             raise ValueError(f'auto_side_lobe_suppression must be a boolean.')
 
 
@@ -445,7 +446,7 @@ class NavicoRadarController:
             case REPORTS_IDS.r_02C4:  # SETTINGS
                 self.raw_reports.r02c4 = RadarReport02C4(raw_packet)
 
-                self.reports.setting._range = self.raw_reports.r02c4.range / 10 # Unsure about the division Fixme test
+                self.reports.setting._range = self.raw_reports.r02c4.range / 10
 
                 try:
                     self.reports.setting.mode = MODE_VAL2STR_MAP[self.raw_reports.r02c4.mode] #Raise or log warning for unknown type TODO
@@ -454,12 +455,12 @@ class NavicoRadarController:
                     logging.warning(f"Unknown mode: {self.raw_reports.r02c4.mode}")
 
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
-                self.reports.setting.auto_gain = bool(self.raw_reports.r02c4.auto_gain)
+                self.reports.setting.gain_auto = bool(self.raw_reports.r02c4.auto_gain)
 
                 try:
-                    self.reports.setting.auto_sea_state = SEA_AUTO_VAL2STR_MAP[self.raw_reports.r02c4.auto_sea_state]
+                    self.reports.setting.sea_state_auto = SEA_AUTO_VAL2STR_MAP[self.raw_reports.r02c4.auto_sea_state]
                 except KeyError:
-                    self.reports.setting.auto_sea_state = "unknown"
+                    self.reports.setting.sea_state_auto = "unknown"
                     logging.warning(f"Unknown auto_sea_state value: {self.raw_reports.r02c4.auto_sea_state}")
 
                 self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter * (100 / 255)
@@ -511,48 +512,48 @@ class NavicoRadarController:
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
 
                 try:
-                    self.reports.filters.sea_state = SEA_STATE_VAL2STR_MAP[self.raw_reports.r08c4.sea_state]
+                    self.reports.filter.sea_state = SEA_STATE_VAL2STR_MAP[self.raw_reports.r08c4.sea_state]
                 except KeyError:
-                    self.reports.filters.sea_state = "unknown"
+                    self.reports.filter.sea_state = "unknown"
 
                 try:
-                    self.reports.filters.local_interference_filter = OLH_VAL2STR_MAP[self.raw_reports.r08c4.local_interference_filter]
+                    self.reports.filter.local_interference_filter = OLH_VAL2STR_MAP[self.raw_reports.r08c4.local_interference_filter]
                 except KeyError:
-                    self.reports.filters.local_interference_filter = "unknown"
+                    self.reports.filter.local_interference_filter = "unknown"
                     logging.warning(f"Unknown local_interference_filter value: {self.raw_reports.r08c4.local_interference_filter}")
 
                 try:
-                    self.reports.filters.scan_speed = SCAN_SPEED_VAL2STR_MAP[self.raw_reports.r08c4.scan_speed]
+                    self.reports.filter.scan_speed = SCAN_SPEED_VAL2STR_MAP[self.raw_reports.r08c4.scan_speed]
                 except KeyError:
-                    self.reports.filters.scan_speed = "unknown"
+                    self.reports.filter.scan_speed = "unknown"
                     logging.warning(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
 
-                self.reports.filters.auto_side_lobe_suppression = self.raw_reports.r08c4.auto_side_lobe_suppression
+                self.reports.filter.side_lobe_suppression_auto = self.raw_reports.r08c4.auto_side_lobe_suppression
 
-                self.reports.filters.side_lobe_suppression = self.raw_reports.r08c4.side_lobe_suppression
+                self.reports.filter.side_lobe_suppression = self.raw_reports.r08c4.side_lobe_suppression
 
                 try:
-                    self.reports.filters.noise_rejection = OLH_VAL2STR_MAP[self.raw_reports.r08c4.noise_rejection]
+                    self.reports.filter.noise_rejection = OLH_VAL2STR_MAP[self.raw_reports.r08c4.noise_rejection]
                 except KeyError:
-                    self.reports.filters.noise_rejection = "unknown"
+                    self.reports.filter.noise_rejection = "unknown"
                     logging.warning(f'Unknown noise_rejection value: {self.raw_reports.r08c4.noise_rejection}')
 
                 try:
-                    self.reports.filters.target_separation = OLH_VAL2STR_MAP[self.raw_reports.r08c4.target_separation]
+                    self.reports.filter.target_separation = OLH_VAL2STR_MAP[self.raw_reports.r08c4.target_separation]
                 except KeyError:
-                    self.reports.filters.target_separation = "unknown"
+                    self.reports.filter.target_separation = "unknown"
                     logging.warning(f"Unknown target_separation value: {self.raw_reports.r08c4.target_separation}")
 
                 # FIXME TEST THESE
-                self.reports.filters.sea_clutter = self.raw_reports.r08c4.sea_clutter
-                self.reports.filters.auto_sea_clutter_nudge = self.raw_reports.r08c4.auto_sea_clutter
+                self.reports.filter.sea_clutter_08c4 = self.raw_reports.r08c4.sea_clutter
+                self.reports.filter.auto_sea_clutter_nudge = self.raw_reports.r08c4.auto_sea_clutter
 
                 try:
-                    self.reports.filters.doppler_mode = DOPPLER_MODE_VAL2STR_MAP[self.raw_reports.r08c4.doppler_mode]
+                    self.reports.filter.doppler_mode = DOPPLER_MODE_VAL2STR_MAP[self.raw_reports.r08c4.doppler_mode]
                 except KeyError:
-                    self.reports.filters.doppler_mode = "unknown"
+                    self.reports.filter.doppler_mode = "unknown"
                     logging.warning(f"Unknown doppler_mode value: {self.raw_reports.r08c4.doppler_mode}")
-                self.reports.filters.doppler_speed = self.raw_reports.r08c4.doppler_speed / 100
+                self.reports.filter.doppler_speed = self.raw_reports.r08c4.doppler_speed / 100
 
             case REPORTS_IDS.r_12C4: # SERIAL
                 self.raw_reports.r12c4 = RadarReport12C4(raw_packet)
@@ -655,7 +656,7 @@ class NavicoRadarController:
 
     def sea_clutter_nudge(self, value):
         value = int(max(-128, min(127, value)))
-        self.send_pack_data(SeaClutterNudgeCmd(self.radar_user_config.auto_sea_clutter, value))
+        self.send_pack_data(SeaClutterNudgeCmd(self.radar_user_config.sea_clutter_auto, value))
 
     def set_sector_blanking(self):
         """ # TODO
@@ -699,7 +700,7 @@ class NavicoRadarController:
                 cmd = BearingAlignmentCmd.pack(value=int(value * 10))
 
             case "gain":
-                cmd = GainCmd.pack(auto=self.radar_user_config.auto_gain, value=min(int(value * 255 / 100), 255))
+                cmd = GainCmd.pack(auto=self.radar_user_config.gain_auto, value=min(int(value * 255 / 100), 255))
 
             case "antenna_height":
                 cmd = AntennaHeightCmd.pack(value=int(value * 1000))
@@ -711,10 +712,10 @@ class NavicoRadarController:
                 cmd = SeaStateAutoCmd.pack(value=SEA_STATE_STR2VAL_MAP[value])
 
             case "sea_clutter":
-                cmd = SeaClutterCmd.pack(auto=self.radar_user_config.auto_sea_clutter, value=min(int(value * 255 / 100), 255))
+                cmd = SeaClutterCmd.pack(auto=self.radar_user_config.sea_clutter_auto, value=min(int(value * 255 / 100), 255))
 
             case "rain_clutter":
-                cmd = RainClutterCmd.pack(auto=self.radar_user_config.auto_rain_clutter, value=min(int(value * 255 / 100), 255))
+                cmd = RainClutterCmd.pack(auto=self.radar_user_config.rain_clutter_auto, value=min(int(value * 255 / 100), 255))
 
             case "interference_rejection":
                 cmd = InterferenceRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
@@ -723,7 +724,7 @@ class NavicoRadarController:
                 cmd = LocalInterferenceFilterCmd.pack(value=OLMH_STR2VAL_MAP[value])
 
             case "side_lobe_suppression":
-                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.auto_side_lobe_suppression, value=min(int(value * 255 / 100), 255))
+                cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.side_lobe_suppression_auto, value=min(int(value * 255 / 100), 255))
 
             case "mode":
                 cmd = ModeCmd.pack(value=MODE_STR2VAL_MAP[value])
@@ -788,8 +789,8 @@ class NavicoRadarController:
         if radar_parameters.interference_rejection is not None:
             self.commands("interference_rejection", radar_parameters.interference_rejection)
 
-        if radar_parameters.local_inteference_filer is not None:
-            self.commands("local_interference_filer", radar_parameters.local_inteference_filer)
+        if radar_parameters.local_interference_filter is not None:
+            self.commands("local_interference_filer", radar_parameters.local_interference_filter)
 
         if radar_parameters.side_lobe_suppression is not None:
             self.commands('side_lobe_suppression', radar_parameters.side_lobe_suppression)
