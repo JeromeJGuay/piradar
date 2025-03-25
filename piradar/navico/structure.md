@@ -57,13 +57,13 @@ Value is and unsigned integer
 
 Auto and Value are unsigned integers
 
-|                        |  Registry |  Command |  Sub Command |      Fill |  Auto |      Fill |  Value |
-|:-----------------------|----------:|---------:|-------------:|----------:|------:|----------:|-------:|
-| *byte length*          |         1 |        1 |            1 |         3 |     1 |         3 |      1 |
-| Gain                   |        06 |       01 |           00 |  00 00 00 |    XX |  00 00 00 |     XX |
-| Sea Clutter            |        06 |       01 |           02 |  00 00 00 |    XX |  00 00 00 |     XX |
-| Rain Clutter           |        06 |       01 |           04 |  00 00 00 |    XX |  00 00 00 |     XX |
-| Side Lobe Suppression  |        06 |       01 |           05 |  00 00 00 |    XX |  00 00 00 |     XX |
+|                        |  Registry |  Command | Selector |      Fill |  Auto |      Fill |  Value |
+|:-----------------------|----------:|---------:|---------:|----------:|------:|----------:|-------:|
+| *byte length*          |         1 |        1 |        1 |         3 |     1 |         3 |      1 |
+| Gain                   |        06 |       01 |       00 |  00 00 00 |    XX |  00 00 00 |     XX |
+| Sea Clutter            |        06 |       01 |       02 |  00 00 00 |    XX |  00 00 00 |     XX |
+| Rain Clutter           |        06 |       01 |       04 |  00 00 00 |    XX |  00 00 00 |     XX |
+| Side Lobe Suppression  |        06 |       01 |       05 |  00 00 00 |    XX |  00 00 00 |     XX |
 
 + Auto: 00 or 01
 + Value: 00 to ff
@@ -103,6 +103,49 @@ Value mapping
 | Light                              |    off |      low |           medium | high    | -    |
 
 ### Auto Sea Clutter Nudge (unsure)
+
+|                | Registry | Command | Manual / Auto | Value 1 | Value 2 | Selector |
+|:---------------|---------:|--------:|--------------:|--------:|--------:|---------:|
+| *byte length*  |        1 |       1 |             1 |       1 |       1 |        1 |
+| Auto  Settings |       11 |      01 |            01 |      XX |      XX |       04 |
+| Manual Settngs |       11 |      01 |            00 |      XX |      XX |       02 |
+| Switch On/Off  |       11 |      01 |            XX |      00 |      00 |       01 |
+
+Changing the Manual / Auto field value might always change the mode, thus using using the selector -> 01 might be a way to change mode
+without changing the auto or manual settings.
+
++ Manual / Auto
+  + 00: Set to Manual
+  + 01: Set to Automatic
+
++ Value 1
+  + 00: Negative increment
+  + Value 2: Positive increment
+
++ Value 2:
+  + 00 .. ff: Signed integer.
+
+
++ Selector
+  + 01: No setting change.
+  + 02: Manual Settings.
+  + 04: Auto Settings.
+
+Examples
+
+|               | Registry | Command | Manual/Auto | Value 1 | Value 2 | Value 3 |
+|:--------------|---------:|--------:|------------:|--------:|--------:|--------:|
+| *byte length* |        1 |       1 |           1 |       1 |       1 |       1 |
+| Auto          |       11 |      01 |          01 |      00 |      00 |      04 |
+| Auto - 1      |       11 |      01 |          01 |      00 |      ff |      04 |
+| Auto -50      |       11 |      01 |          01 |      00 |      ce |      04 |
+| Auto + 50     |       11 |      01 |          01 |      32 |      32 |      04 |
+| 100           |       11 |      01 |          00 |      64 |      64 |      02 |
+| 0             |       11 |      01 |          00 |      00 |      00 |      02 |
+| To Manual     |       11 |      01 |          00 |      00 |      00 |      01 |
+| To Auto       |       11 |      01 |          01 |      00 |      00 |      01 |
+
+
 
 
 ### Doppler Speed 24
