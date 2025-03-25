@@ -45,7 +45,7 @@ class TxOffCmds:
 
 
 class StayOnCmd:
-    register = 0x0a
+    register = 0xa0
     cmd = 0xc1
     value = 0x02
     A = struct.pack(ENDIAN+"3B", register, cmd, value)
@@ -60,6 +60,11 @@ class ReportCmds:
 
 
 class _RangeCmd:
+    """
+     CMD  |         255 |
+     0  1 |  3  4  5  6 |
+    03 C1 | ff 00 00 00 |
+    """
     cformat = "BBI"
     register = 0x03
     cmd = 0xc1
@@ -143,6 +148,72 @@ class _SidelobeSuppressionCmd:
                            0,0,0, auto,
                            0,0,0, value)
 
+class _InterferenceRejection:
+    cformat = "BBB"
+    register = 0x08
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 to 3 off, low, medium, high"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+class _TargetBoostCmd: # maybe just for BR24 ?
+    cformat = "BBB"
+    register = 0x0a
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 to 2 off, low, high"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+
+class _SeaStateAutoCmd:
+    cformat = "BBB"
+    register = 0x0b
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 1 or 2, (0-calm) moderate, rough"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+
+class _LocalInterferenceFilterCmd:
+    cformat = "BBB"
+    register = 0x0e
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 to 3 off, low, medium, high"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+
+class _ScanSpeedCmd:
+    cformat = "BBB"
+    register = 0x0f
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 1 or 3, (0-low) medium, high
+        Maybe its 0 to reset and 1 to increase ?
+        """
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+class _ModeCmd:
+    cformat = "BBB"
+    register = 0x10
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 1 ,2, 3, 5 (0-default), harbor, offshore, weather, bird"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+
 class _AutoSeaClutterNudgeCmd: # unsure of the cformat #TEST ME  FIXME with reports
     """
     case CT_SEA: {
@@ -197,6 +268,36 @@ class _AutoSeaClutterNudgeCmd: # unsure of the cformat #TEST ME  FIXME with repo
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, value, value, self.tail)
 
 
+class _TargetExpansionCmd:
+    cformat = "BBB"
+    register = 0x12 # could be 0x09 for BR24, G4 and G3
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 to 3 off, low, medium, high"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+class _NoiseRejectionCmd:
+    cformat = "BBB"
+    register = 0x21
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 to 3 off, low, medium, high"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+class _TargetSeparationCmd:
+    cformat = "BBB"
+    register=0x22
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 to 3 off, low, medium, high"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
 class _DopplerModeCmd:
     cformat = "BBB"
     register = 0x23
@@ -233,101 +334,9 @@ class _AntennaHeightCmd: # Unsure of cformat. to test FIXME with reports
                            value)
 
 
-class _InterferenceRejection:
-    cformat = "BBB"
-    register = 0x08
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 0 to 3 off, low, medium, high"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _SeaStateAutoCmd:
-    cformat = "BBB"
-    register = 0x0b
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 1 or 2, (0-calm) moderate, rough"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _ScanSpeedCmd:
-    cformat = "BBB"
-    register = 0x0f
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 1 or 3, (0-low) medium, high
-        Maybe its 0 to reset and 1 to increase ?
-        """
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _ModeCmd:
-    cformat = "BBB"
-    register = 0x10
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 1 ,2, 3, 5 (0-default), harbor, offshore, weather, bird"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _NoiseRejectionCmd:
-    cformat = "BBB"
-    register = 0x21
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 0 to 3 off, low, medium, high"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _TargetExpansionCmd:
-    cformat = "BBB"
-    register = 0x12 # could be 0x09 for BR24, G4 and G3
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 0 to 3 off, low, medium, high"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _TargetSeparationCmd:
-    cformat = "BBB"
-    register=0x22
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 0 to 3 off, low, medium, high"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
 class _LightCmd:
     cformat = "BBB"
     register = 0x31
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 0 to 3 off, low, medium, high"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _TargetBoostCmd: # maybe just for BR24 ?
-    cformat = "BBB"
-    register = 0x0A
-    cmd = 0xc1
-
-    def pack(self, value: int):
-        """Values of 0 to 2 off, low, high"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
-
-class _LocalInterferenceFilterCmd:
-    cformat = "BBB"
-    register = 0x0E
     cmd = 0xc1
 
     def pack(self, value: int):
