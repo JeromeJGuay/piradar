@@ -321,7 +321,7 @@ class _AntennaHeightCmd: # Unsure of cformat. to test FIXME with reports
     """
      CMD    |      fill |       1000
      0  1  2|   3  4  5 |  6  7  8  9
-    30 C1 01|  00 00 00 | E8 03 00 A1
+    30 C1 01|  00 00 00 | E8 03 00 00
     """
     cformat = "BBB BBB I"
     register = 0x30

@@ -41,7 +41,7 @@ Value are unsigned integer
 |:--------------|---------:|--------:|------------:|
 | *byte length* |        1 |       1 |           4 |
 |               |       03 |      C1 | XX XX XX XX |
-
++ range value in decimeters
 
 ### Bearing | Registry 05
 Value is and unsigned integer
@@ -51,6 +51,7 @@ Value is and unsigned integer
 | *byte length* |        1 |       1 |                  2 |
 |               |       05 |      C1 |              XX XX |
 
++ value (0-3600) (degree * 10)
 
 ### Registry 06 (auto on/off and values)
 
@@ -64,7 +65,8 @@ Auto and Value are unsigned integers
 | Rain Clutter           |        06 |       01 |           04 |  00 00 00 |    XX |  00 00 00 |     XX |
 | Side Lobe Suppression  |        06 |       01 |           05 |  00 00 00 |    XX |  00 00 00 |     XX |
 
-
++ Auto: 00 or 01
++ Value: 00 to ff
 ### 1 Byte commands:
 For automatic settings.
 
@@ -81,6 +83,7 @@ For automatic settings.
 | Noise Rejection           |       21 |      C1 |    XX |
 | Target Separation         |       22 |      C1 |    XX |
 | Doppler Mode              |       23 |      C1 |    XX |
+| Light                     |       31 |      C1 |    XX |
 
 Value mapping
 
@@ -97,14 +100,26 @@ Value mapping
 | Noise Rejection                    |    off |      low |           medium | high    | -    |
 | Target Separation                  |    off |      low |           medium | high    | -    |
 | Doppler Mode                       |    off |   normal | approaching_only | -       | -    |
+| Light                              |    off |      low |           medium | high    | -    |
 
 ### Auto Sea Clutter Nudge (unsure)
 
 
 ### Doppler Speed 24
+|               | Registry | Command | Value |        
+|:--------------|---------:|--------:|------:|
+| *byte length* |        1 |       1 |     2 |           
+|               |       24 |      C1 | XX XX |
++ 255 -> ff 00
++ centimeters per secondes 
 
 
 ### Antenna Height 30
 
+|               | Registry | Command | Selector |     Fill |        Auto |     
+|:--------------|---------:|--------:|---------:|---------:|------------:|
+| *byte length* |        1 |       1 |        1 |        3 |           4 |        
+|               |       30 |      C1 |       01 | 00 00 00 | XX XX XX XX |
 
-### Light 31
++ heigh value in millimeters
++ 1000 -> E3 03 00 00
