@@ -11,7 +11,7 @@ __all__ = [
     'SeaClutterCmd',
     'RainClutterCmd',
     'SidelobeSuppressionCmd',
-    'AutoSeaClutterNudgeCmd',
+    'SeaClutterNudgeCmd',
     'DopplerModeCmd',
     'DopplerSpeedCmd',
     'AntennaHeightCmd',
@@ -213,59 +213,33 @@ class _ModeCmd:
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
 
 
-
-class _AutoSeaClutterNudgeCmd: # unsure of the cformat #TEST ME  FIXME with reports
+class _SeaClutterNudgeCmd:
     """
-    case CT_SEA: {
-      if (m_ri->m_radar_type >= RT_HaloA) {
-        // Capture data:
-        // Data: 11c101000004 = Auto
-        // Data: 11c10100ff04 = Auto-1
-        // Data: 11c10100ce04 = Auto-50
-        // Data: 11c101323204 = Auto+50
-        // Data: 11c100646402 = 100
-        // Data: 11c100000002 = 0
-        // Data: 11c100000001 = Mode manual
-        // Data: 11c101000001 = Mode auto
-
-        uint8_t cmd[] = {0x11, 0xc1, 0, 0, 0, 1};
-
-        if (state == RCS_MANUAL) {
-          cmd[2] = 0x00;
-          r = TransmitCmd(cmd, sizeof(cmd));
-          cmd[5] = 0x02;
-        } else {
-          cmd[2] = 0x01;
-          r = TransmitCmd(cmd, sizeof(cmd));
-          cmd[5] = 0x04;
-        }
-        if (value > 0) {
-          cmd[3] = (uint8_t)value;
-        }
-        cmd[4] = (uint8_t)value;
-        LOG_VERBOSE(wxT("%s Halo Sea: %d auto %d"), m_name.c_str(), value, autoValue);
-        r = TransmitCmd(cmd, sizeof(cmd));
-      } else {
-        int v = (value + 1) * 255 / 100;
-        if (v > 255) {
-          v = 255;
-        }
-        uint8_t cmd[] = {0x06, 0xc1, 0x02, 0, 0, 0, (uint8_t)autoValue, 0, 0, 0, (uint8_t)v};
-
-        LOG_VERBOSE(wxT("%s Sea: %d auto %d"), m_name.c_str(), value, autoValue);
-        r = TransmitCmd(cmd, sizeof(cmd));
-      }
-      break;
+    |                | Registry | Command | Manual / Auto | Value 1 | Value 2 | Selector |
+    |:---------------|---------:|--------:|--------------:|--------:|--------:|---------:|
+    | *byte length*  |        1 |       1 |             1 |       1 |       1 |        1 |
+    | Auto  Settings |       11 |      01 |            01 |      XX |      XX |       04 |
+    | Manual Settngs |       11 |      01 |            00 |      XX |      XX |       02 |
+    | Switch On/Off  |       11 |      01 |            XX |      00 |      00 |       01 |
     """
     cformat = "BBBbbB"
-    register = 0x11 # FIXME
+    register = 0x11
     cmd = 0xc1
-    sub_cmd = 0x01
-    tail = 0x04
 
-    def pack(self, value: int):
+    def pack(self, auto: bool, value: int):
 
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd, value, value, self.tail)
+        if auto is True:
+            selector = 0x04
+        else:
+            selector = 0x02
+
+        if value < 0:
+            increment_sign = 0x00
+        else:
+            increment_sign = value
+
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd,
+                           auto, increment_sign, value, selector)
 
 
 class _TargetExpansionCmd:
@@ -353,7 +327,7 @@ GainCmd = _GainCmd()
 SeaClutterCmd = _SeaClutterCmd()
 RainClutterCmd = _RainClutterCmd()
 SidelobeSuppressionCmd = _SidelobeSuppressionCmd()
-AutoSeaClutterNudgeCmd = _AutoSeaClutterNudgeCmd()
+SeaClutterNudgeCmd = _SeaClutterNudgeCmd()
 DopplerModeCmd = _DopplerModeCmd()
 DopplerSpeedCmd = _DopplerSpeedCmd()
 AntennaHeightCmd = _AntennaHeightCmd()

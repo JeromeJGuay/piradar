@@ -8,11 +8,11 @@ Commands:
 + C1: Write to a registry.
 + C2: Read from a registry.
 
-|         | Registry | Command | Payload |
-|:--------|---------:|--------:|--------:|
+|               | Registry | Command | Payload |
+|:--------------|---------:|--------:|--------:|
 | *byte length* |        1 |       1 |       N |
-| Write   |   varies |      C1 |  varies |
-| Read    |   varies |      C2 |  varies |
+| Write         |   varies |      C1 |  varies |
+| Read          |   varies |      C2 |  varies |
 
 
 ## Write
@@ -53,7 +53,7 @@ Value is and unsigned integer
 
 + value (0-3600) (degree * 10)
 
-### Registry 06 (auto on/off and values)
+### Auto (on/off) and Values (0-255)| Registry 06 
 
 Auto and Value are unsigned integers
 
@@ -102,7 +102,12 @@ Value mapping
 | Doppler Mode                       |    off |   normal | approaching_only | -       | -    |
 | Light                              |    off |      low |           medium | high    | -    |
 
-### Auto Sea Clutter Nudge (unsure)
+
+### Sector Blanking
+# FIXME TODO
+
+
+### Auto Sea Clutter Nudge (unsure) | Registry: 11
 
 |                | Registry | Command | Manual / Auto | Value 1 | Value 2 | Selector |
 |:---------------|---------:|--------:|--------------:|--------:|--------:|---------:|
@@ -148,7 +153,7 @@ Examples
 
 
 
-### Doppler Speed 24
+### Doppler Speed 24 | registry 24
 |               | Registry | Command | Value |        
 |:--------------|---------:|--------:|------:|
 | *byte length* |        1 |       1 |     2 |           
@@ -157,7 +162,7 @@ Examples
 + centimeters per secondes 
 
 
-### Antenna Height 30
+### Antenna Height 30 | registry 30
 
 |               | Registry | Command | Selector |     Fill |        Auto |     
 |:--------------|---------:|--------:|---------:|---------:|------------:|
@@ -166,3 +171,8 @@ Examples
 
 + heigh value in millimeters
 + 1000 -> E3 03 00 00
+
+
+# Reports
+
+## FIXME TODO

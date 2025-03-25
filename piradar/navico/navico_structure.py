@@ -388,8 +388,8 @@ class RadarReport08C4:
         self.field10 = unpacked_fields[10][0]
         self.noise_rejection = unpacked_fields[11][0]
         self.target_separation = unpacked_fields[12][0]
-        self.sea_clutter = unpacked_fields[13][0]
-        self.auto_sea_clutter_nudge = unpacked_fields[14][0] #unsure fixme
+        self.sea_clutter = unpacked_fields[13][0] # doubt
+        self.auto_sea_clutter = unpacked_fields[14][0]
         self.field13 = unpacked_fields[14][0]
         self.field14 = unpacked_fields[15][0]
 
