@@ -78,7 +78,7 @@ def get_radar_values(radar: NavicoRadarController) -> RadarParameterValues:
 
     rpv.gain = radar.reports.setting.gain
     rpv.gain_auto = radar.reports.setting.gain_auto
-    rpv.sea_clutter = radar.reports.setting.sea_clutter_08c4
+    rpv.sea_clutter = radar.reports.setting.sea_clutter
     rpv.sea_clutter_auto = radar.reports.setting.sea_state_auto  # I think it might be it #unsure
     rpv.rain_clutter = radar.reports.setting.rain_clutter
     rpv.rain_clutter_auto = radar.reports.setting.sea_state_auto
@@ -359,6 +359,26 @@ for v in light:
     print("light", v, navico_radar.reports.spatial.light)
 
 
+sea_clutter_nudge = [-100,0,100]
+for v in sea_clutter_nudge:
+    navico_radar.radar_user_config.sea_clutter_auto = True
+    navico_radar.sea_clutter_nudge()
+    time.sleep(sleep)
+    navico_radar.get_reports()
+    time.sleep(sleep)
+    print("Sea clutter 08c4 [auto]", v, navico_radar.reports.filter.sea_clutter_08c4)
+    print("Sea clutter nudge [auto]", v, navico_radar.reports.filter.sea_clutter_nudge)
+
+
+sea_clutter_nudge = [-100,0,100]
+for v in sea_clutter_nudge:
+    navico_radar.radar_user_config.sea_clutter_auto = False
+    navico_radar.sea_clutter_nudge()
+    time.sleep(sleep)
+    navico_radar.get_reports()
+    time.sleep(sleep)
+    print("Sea clutter 08c4 [manual]", v, navico_radar.reports.filter.sea_clutter_08c4)
+    print("Sea clutter nudge [manual]", v, navico_radar.reports.filter.sea_clutter_nudge)
 
 
 
