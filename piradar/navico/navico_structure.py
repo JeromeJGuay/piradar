@@ -253,7 +253,7 @@ class RadarReport03C4:
         self.u00 = unpacked_fields[3] # 31 values
         self.hours = unpacked_fields[4][0]
         self.u01 = unpacked_fields[5] # 20 values
-        self.firmware_data = unpacked_fields[6][0].decode("ascii")
+        self.firmware_date = unpacked_fields[6][0].decode("ascii")
         self.firmware_time = unpacked_fields[7][0].decode("ascii")
         self.u02 = unpacked_fields[8] # 7 values
 

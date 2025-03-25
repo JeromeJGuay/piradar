@@ -44,9 +44,6 @@ ENTRY_GROUP_ADDRESS = '236.6.7.5'
 ENTRY_GROUP_PORT = 6878
 
 
-RANGE_SCALE = 10 * 2 ** (-1/2)
-
-
 class NavicoRadarType:
     navico4G = "4G"
     navico3G = "3G"
@@ -86,7 +83,7 @@ SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbour": 1, "offshore": 2}
 DOPPLER_MODE_VAL2STR_MAP = {0: "off", 1: "normal", 2: "approaching_only"}
 DOPPLER_MODE_STR2VAL_MAP = {"off": 0, "normal": 1, "approaching_only": 2}
 
-SCAN_MODE_STR2VAL_MAP = {0: "low", 1: "medium", 2: "high"}
+SCAN_SPEED_VAL2STR_MAP = {0: "low", 1: "medium", 2: "high"}
 SCAN_SPEED_STR2VAL_MAP = {"low": 0, "medium": 1, "high": 2}
 
 @dataclass
@@ -472,22 +469,19 @@ class NavicoRadarController:
                 self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter * (100 / 255)
 
                 try:
-                    if self.raw_reports.r02c4.interference_rejection:  # maybe add `if`s elsewhere ???
-                        self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.interference_rejection]
+                    self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.interference_rejection]
                 except KeyError:
                     self.reports.setting.interference_rejection = "unknown"
                     logging.warning(f"Unknown interference_rejection value: {self.raw_reports.r02c4.interference_rejection}")
 
                 try:
-                    if self.raw_reports.r02c4.target_expansion:
-                        self.reports.setting.target_expansion = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_expansion]
+                    self.reports.setting.target_expansion = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_expansion]
                 except KeyError:
                     self.reports.setting.target_expansion = "unknown"
                     logging.warning(f"Unknown target_expansion value: {self.raw_reports.r02c4.target_expansion}")
 
                 try:
-                    if self.raw_reports.r02c4.target_boost:
-                        self.reports.setting.target_boost = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_boost] #missing in commands
+                    self.reports.setting.target_boost = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_boost] #missing in commands
                 except KeyError:
                     self.reports.setting.target_boost = "unknown"
                     logging.warning(f"Unknown target_boost value: {self.raw_reports.r02c4.target_boost}")
@@ -500,20 +494,17 @@ class NavicoRadarController:
                     self.reports.system.radar_type = "unknown"
                     logging.warning(f"Unknown radar_type: {self.raw_reports.r03c4.radar_type}")
 
-                if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
-                    raise ValueError("NavicoBR24 radar type not supported (yet)")
 
             case REPORTS_IDS.r_04C4:  # SPATIAL
                 self.raw_reports.r04c4 = RadarReport04C4(raw_packet)
 
                 self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
                 self.reports.spatial.antenna_height = self.raw_reports.r04c4.antenna_height / 1000
-                if self.raw_reports.r04c4.accent_light:
-                    try:
-                        self.reports.spatial.light = OLMH_VAL2STR_MAP[self.raw_reports.r04c4.accent_light]
-                    except KeyError:
-                        self.reports.spatial.light = "unknown"
-                        logging.warning(f"Unknown accent_light value {self.raw_reports.r04c4.accent_light}")
+                try:
+                    self.reports.spatial.light = OLMH_VAL2STR_MAP[self.raw_reports.r04c4.accent_light]
+                except KeyError:
+                    self.reports.spatial.light = "unknown"
+                    logging.warning(f"Unknown accent_light value {self.raw_reports.r04c4.accent_light}")
 
             case REPORTS_IDS.r_06C4: # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
@@ -522,13 +513,13 @@ class NavicoRadarController:
                 # TODO THE REST
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
 
-                if self.raw_reports.r08c4.sea_state:
-                    try:
-                        self.reports.filters.sea_state = SEA_STATE_VAL2STR_MAP[self.raw_reports.r08c4.sea_state]
-                    except KeyError:
-                        self.reports.filters.sea_state = "unknown"
                 try:
-                    self.reports.filters.scan_speed = SCAN_MODE_STR2VAL_MAP[self.raw_reports.r08c4.scan_speed]
+                    self.reports.filters.sea_state = SEA_STATE_VAL2STR_MAP[self.raw_reports.r08c4.sea_state]
+                except KeyError:
+                    self.reports.filters.sea_state = "unknown"
+
+                try:
+                    self.reports.filters.scan_speed = SCAN_SPEED_VAL2STR_MAP[self.raw_reports.r08c4.scan_speed]
                 except KeyError:
                     self.reports.filters.scan_speed = "unknown"
                     logging.warning(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
@@ -577,57 +568,30 @@ class NavicoRadarController:
 
             spoke_data.spoke_number = raw_spoke.spoke_number
             spoke_data.heading = raw_spoke.heading
+            spoke_data.angle = raw_spoke.angle * 360 / 4096
 
-            if raw_spoke.status == 2: # Valid # and not 0x12 #according to NavicoReceive
+            if raw_spoke.status not in [0x02, 0x12]: # Valid # and not 0x12 #according to NavicoReceive
                 if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
-                    logging.warning("ERROR: Navico BR24 is not implemented")
-                    logging.warning("Will require a new structure since the range is a single values not (small and large)")
-                    # range_raw = ((line->br24.range[2] & 0xff) << 16 | (line->br24.range[1] & 0xff) << 8 | (line->br24.range[0] & 0xff));
-                    # angle_raw = (line->br24.angle[1] << 8) | line->br24.angle[0];
-                    # range_meters = (int)((double)range_raw * 10.0 / sqrt(2.0));
-                    # spoke_data._range *= RANGE_SCALE  # 10 / sqrt(2)
-
-                elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
-                    """ FIXME
-                    ## looks like it goes for SMALL endian 2Bytes int instead of BIG endian
-                    uint16_t large_range = (line->br4g.largerange[1] << 8) | line->br4g.largerange[0];
-                    uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
-                    angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
-                    """
-                    #_spoke_angle = (raw_spoke.angle & 0x00ff) << 8 | (raw_spoke.angle & 0xff00)
-                    # spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
-                    spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
-
-                    if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
-                        if raw_spoke.small_range == 0xffff:
-                            spoke_data._range = 0
-                        else:
-                            spoke_data._range = raw_spoke.small_range / 4
-                    else:
-                        spoke_data._range = raw_spoke.large_range * 64
-
-                elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
-                    """ FIXME
-                    ## looks like it goes for SMALL endian 2Bytes int instead of BIG endian
-                    uint16_t large_range = (line->br4g.largerange[1] << 8) | line->br4g.largerange[0];
-                    uint16_t small_range = (line->br4g.smallrange[1] << 8) | line->br4g.smallrange[0];
-                    angle_raw = (line->br4g.angle[1] << 8) | line->br4g.angle[0];
-                    """
-                    # TO TEST
-                    #_spoke_angle = (raw_spoke.angle & 0x00ff) << 8 | (raw_spoke.angle & 0xff00)
-                    # spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
-                    spoke_data.angle = raw_spoke.angle * 360 / 4096  # 0..4096 = 0..360
-
-                    if raw_spoke.large_range == 0x80: #why not smaller ? is this the min value for large_range ?
-                        if raw_spoke.small_range == 0xffff:
-                            spoke_data._range = 0
-                        else:
-                            spoke_data._range = raw_spoke.small_range / 4
-                    else:
-                        spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
+                    logging.warning("Navico BR24 is not tested")
+                    spoke_data._range = raw_spoke.small_range * (10 / 2 ** (1/2))
 
                 else:
-                    logging.error(f"Unknown radar type {self.reports.system.radar_type}. This should not happen") #FIXME REMOVE IF not nescessary
+                    if raw_spoke.large_range == 0x80:
+                        if raw_spoke.small_range == 0xffff:
+                            spoke_data._range = 0
+                        else:
+                            spoke_data._range = raw_spoke.small_range / 4
+
+                    elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
+                        spoke_data._range = raw_spoke.large_range * 64
+
+
+                    elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
+                        spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
+
+                    else:
+                        logging.error(f"Unknown radar type {self.reports.system.radar_type}. This should not happen.")
+
 
                 logging.debug(f"Actual spoke number: {spoke_data.spoke_number}")
                 logging.debug(f"Actual range {spoke_data._range}")
@@ -739,7 +703,7 @@ class NavicoRadarController:
                 cmd = ModeCmd.pack(value=MODE_STR2VAL_MAP[value])
             case "auto_sea_clutter_nudge": # unsure about this FIXME. ANd Int is dubious.
                 cmd = AutoSeaClutterNudgeCmd.pack(int(value))
-            case "target_expansion":
+            case "target_expansion": ## could be 0x09 for BR24, G4 and G3 FIXME
                 cmd = TargetExpansionCmd.pack(value=OLMH_STR2VAL_MAP[value])
             case "target_separation":
                 cmd = TargetSeparationCmd.pack(value=OLMH_STR2VAL_MAP[value])
