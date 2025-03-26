@@ -179,7 +179,6 @@ class _SeaStateAutoCmd:
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
 
 
-
 class _LocalInterferenceFilterCmd:
     cformat = "BBB"
     register = 0x0e
@@ -188,7 +187,6 @@ class _LocalInterferenceFilterCmd:
     def pack(self, value: int):
         """Values of 0 to 3 off, low, medium, high"""
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
-
 
 
 class _ScanSpeedCmd:

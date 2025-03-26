@@ -1,13 +1,30 @@
 import logging
 import time
+from gpiozero import LED
 
 from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoUserConfig,
                                               NavicoRadarController, wake_up_navico_radar)
 
+### APP ###
+
+debug_level = "DEBUG"
+write_log = False
+init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
+
+#logging.error(traceback.format_exc(), exc_info=True) ## for critical error
+
+
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
 # interface = "192.168.1.243"
+
+GPIO_RADAR_PIN = 17
+RADAR_POWER_SWITCH = LED(GPIO_RADAR_PIN)
+
+
+SCAN_INTERVAL = 60
+
 
 ### NETWORK ###
 interface = "192.168.1.228"
@@ -20,27 +37,53 @@ send_address = ('236.6.7.10', 6680)
 output_dir = "/home/capteur/Desktop/output_data"
 # put somewhere else:
 from pathlib import Path
+
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 ### Radar Settings ###
+RANGES_VALS_LIST = [50, 75, 100, 250, 500, 750, 1000,
+                    1500, 2000, 4000, 6000, 8000,
+                    12000, 15000, 24000]
 
+use_config = NavicoUserConfig(
+    _range=12,  # 12_000
+    antenna_height=10,
 
-_range = 2 # add a check in NavicoController or RadarSetting
-bearing = 0
-gain = 100
-antenna_height = 10
-#scan_speed = "low"
+    bearing=0,
+
+    gain=50,
+    gain_auto=False,
+
+    sea_clutter=0,
+    sea_clutter_auto=False,
+
+    rain_clutter=0,
+    rain_clutter_auto=False,
+
+    side_lobe_suppression=0,
+    side_lobe_suppression_auto=False,
+
+    sea_state='calm',  # filter
+
+    noise_rejection='off',
+
+    interference_rejection='off',
+    local_interference_filter='off',
+
+    #mode = None,
+    target_expansion=None,
+    target_separation=None,
+    target_boost=None,
+
+    #doppler_mode = None
+    #doppler_speed = None
+)
+
 ##... more to add ###
 
-### APP ###
-
-debug_level = "DEBUG"
-write_log = False
+# scanspeed is not in user config
+scan_speed = "low"
 ##################################################
-
-
-init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
-#logging.error(traceback.format_exc(), exc_info=True) ## for critical error
 
 mcast_ifaces = MulticastInterfaces(
     report=MulticastAddress(*report_address),
@@ -50,46 +93,52 @@ mcast_ifaces = MulticastInterfaces(
 )
 
 
-radar_parameters = NavicoUserConfig(
-    _range=_range,
-    bearing=bearing,
-    gain=gain,
-    antenna_height=antenna_height,
-   # scan_speed=scan_speed,
-)
+for _ in range(10):
 
-wake_up_navico_radar()
+    RADAR_POWER_SWITCH.on() # START RADAR EARLIER TO RECORD ON TIME. HAVE A TIMER.
 
-navico_radar = NavicoRadarController(
-    multicast_interfaces=mcast_ifaces,
-    radar_user_config=radar_parameters,
-    output_dir=output_dir,
-)
+    # wake_up_navico_radar()  # this might be unnecessary
 
-time.sleep(1)
-navico_radar.get_reports()
-while navico_radar.reports.system.radar_type is None:
-    time.sleep(.5)
+    navico_radar = NavicoRadarController(
+        multicast_interfaces=mcast_ifaces,
+        radar_user_config=use_config,
+        output_dir=output_dir,
+    )
 
-logging.info(f"Radar type received: {navico_radar.reports.system.radar_type}")
+    navico_radar.get_reports()
+    while navico_radar.reports.system.radar_type is None:
+        time.sleep(.1)
+        navico_radar.get_reports()
+        logging.info(f"Radar type received: {navico_radar.reports.system.radar_type}")
 
-#navico_radar.transmit()
-#time.sleep(5) # acquire for X seconds
-#navico_radar.standby()
-navico_radar.close_all()
+    # todo check all setting.
 
-print("Settings")
-print("_range", _range, navico_radar.reports.setting._range)
-print("gain", gain, navico_radar.reports.setting.gain)
+    navico_radar.transmit()
 
-print("Spatial")
-print("bearing", bearing, navico_radar.reports.spatial.bearing)
-print('antenna_height', antenna_height, navico_radar.reports.spatial,antenna_height)
+    #tries for 1 seconds
+    for _ in range(10):
+        if navico_radar.reports.filter.scan_speed != scan_speed:
+            navico_radar.commands('scan_speed', scan_speed)
+            time.sleep(0.1)
 
-# print("Filters")
-# print("scan_speed", scan_speed, navico_radar.reports.filters.scan_speed)
-#
-#
+    if navico_radar.reports.filter.scan_speed != scan_speed:
+        logging.warning(f"Unable to change scan speed to {scan_speed} from {navico_radar.reports.filter.scan_speed}")
+
+
+    t0 = time.time()
+    navico_radar.start_recording_data()
+    while time.time() - t0 < 4: #
+        time.sleep(1)
+    navico_radar.stop_recording_data()
+
+    navico_radar.close_all()
+
+    del navico_radar
+
+    RADAR_POWER_SWITCH.off()
+
+    time.sleep(SCAN_INTERVAL)
+
 
 
 

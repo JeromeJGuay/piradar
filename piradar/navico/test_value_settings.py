@@ -13,71 +13,42 @@ RANGES_VALS_LIST = [50, 75, 100, 250, 500, 750, 1000,
 class RadarParameterValues:
     def __init__(self):
         _range = None
+        antenna_height = None
 
         bearing = None
 
         gain = None
         gain_auto = None
+
         sea_clutter = None
         sea_clutter_auto = None
+
         rain_clutter = None
         rain_clutter_auto = None
+
         side_lobe_suppression = None
         side_lobe_suppression_auto = None
 
+        sea_state = None  # filter
+
+        noise_rejection = None
+
         interference_rejection = None
-        target_boost = None
-        sea_state = None  #filter
-        auto_sea_state = None  # setting #boolean ?
         local_interference_filter = None
-        scan_speed = None
+
         mode = None
         target_expansion = None
-        noise_rejection = None
         target_separation = None
+        target_boost = None
+
         doppler_mode = None
+        doppler_speed = None
+
         light = None
 
-        sea_clutter_filter = None
-        sea_clutter_nudge = None
-
-        doppler_speed = None
-        antenna_height = None
+        #sea_clutter_nudge = None
 
 
-def get_radar_values(radar: NavicoRadarController) -> RadarParameterValues:
-    rpv = RadarParameterValues()
-
-    rpv._range = radar.reports.setting._range
-    rpv.bearing = radar.reports.spatial.bearing
-
-    rpv.gain = radar.reports.setting.gain
-    rpv.gain_auto = radar.reports.setting.gain_auto
-    rpv.sea_clutter = radar.reports.setting.sea_clutter
-    rpv.sea_clutter_auto = radar.reports.setting.sea_clutter_auto  # I think it might be it #unsure
-    rpv.rain_clutter = radar.reports.setting.rain_clutter
-    rpv.rain_clutter_auto = radar.reports.setting.sea_clutter_auto
-    rpv.side_lobe_suppression = radar.reports.filter.side_lobe_suppression
-    rpv.side_lobe_suppression_auto = radar.reports.filter.side_lobe_suppression_auto
-
-    rpv.interference_rejection = radar.reports.setting.interference_rejection
-    rpv.target_boost = radar.reports.setting.target_boost
-    rpv.sea_state = radar.reports.filter.sea_state
-    rpv.auto_sea_state = radar.reports.setting.sea_clutter_auto
-    rpv.local_interference_filter = radar.reports.filter.local_interference_filter
-    rpv.scan_speed = radar.reports.filter.scan_speed
-    rpv.mode = radar.reports.setting.mode
-    rpv.target_expansion = radar.reports.setting.target_expansion
-    rpv.noise_rejection = radar.reports.filter.noise_rejection
-    rpv.target_separation = radar.reports.filter.target_separation
-    rpv.doppler_mode = radar.reports.filter.doppler_mode
-    rpv.light = radar.reports.spatial.light
-
-    rpv.sea_clutter_08c4 = radar.reports.filter.sea_clutter_08c4
-    rpv.sea_clutter_nudge = radar.reports.filter.sea_clutter_nudge
-
-    rpv.doppler_speed = radar.reports.filter.doppler_speed
-    rpv.antenna_height = radar.reports.spatial.antenna_height
 
 
 debug_level = "DEBUG"
@@ -122,8 +93,6 @@ navico_radar = NavicoRadarController(
 time.sleep(1)
 navico_radar.get_reports()
 time.sleep(1)
-
-initial_values = get_radar_values(navico_radar)
 
 
 #### value to test

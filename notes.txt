@@ -1,4 +1,15 @@
-+ TODO
+[2025-03-25]
 + 4Bit Unpacking for doppler
-+ BLANKING
++ TODO BLANKING
 + report 02c4 sea_clutter is to big (4 bytes)
+
+
+[2025-03-26]
++ Scan Speed can only be changed on transmit.
+-- Have a delay before recording to be sur that scan_speed is good.
+-- Save Raw data with a small header containing the import report values.
++ input value between 0-255 as int instead of 0-100. Avoid cumulative rounding/truncating error.
++ finish report with the proper values.
++ add exception for (doppler, mode, nudge)
++ Target Expansion register seems to differ between G4-G3(0x12) and Halo(0x09)
+-- On G4 only on or off

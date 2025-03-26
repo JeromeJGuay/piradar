@@ -231,7 +231,7 @@ class NavicoUserConfig:
 
     mode: str = None # ["custom", "harbor", "offshore", "weather", "bird"]
 
-    target_expansion: str = None # ["off", "low", "medium", "high"]
+    target_expansion: str = None # ["off", "low", "medium", "high"] G4 only off or low (on off)
     target_separation: str = None # ["off", "low", "medium", "high"]
     target_boost: str = None # ["off", "low", "high]
     noise_rejection: str = None # ["off", "low", "medium", "high"]
@@ -286,9 +286,9 @@ class NavicoRadarController:
         self.address_set = multicast_interfaces
         self.output_dir = output_dir
         self.keep_alive_interval = keep_alive_interval
-
-        self.data_path = Path(self.output_dir).joinpath("ppi_data.txt")
-        self.raw_data_path = Path(self.output_dir).joinpath("raw_ppi_data.raw")
+        _outfile_timestamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        self.data_output_file_path = Path(self.output_dir).joinpath(f"{_outfile_timestamp}_ppi_data.txt")
+        self.raw_data_output_file_path = Path(self.output_dir).joinpath("raw_ppi_data.raw")
         self.raw_reports_path = {
             report_id : Path(self.output_dir).joinpath(f"raw_report_{hex(report_id)}.raw")
             for report_id in REPORTS_IDS
@@ -303,10 +303,11 @@ class NavicoRadarController:
 
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
-        self.stay_alive_thread: threading.Thread = None
+        self.keep_alive_thread: threading.Thread = None
         self.writer_thread: threading.Thread = None
         self.writing_queue = queue.Queue()
 
+        self._data_recording_is_started = False
         self.radar_was_detected = False
         self.stop_flag = False
 
@@ -398,6 +399,14 @@ class NavicoRadarController:
         self.data_socket.close()
         self.send_socket.close()
         logging.info("All sockets closed")
+
+    def start_recording_data(self):
+        logging.info('Data recording started')
+        self._data_recording_is_started = True
+
+    def stop_recording_data(self):
+        logging.info('Data recording stopped')
+        self._data_recording_is_started = False
 
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
@@ -602,7 +611,8 @@ class NavicoRadarController:
 
             sector_data.spoke_data.append(spoke_data)
 
-        self.writing_queue.put((self.write_sector_data, sector_data))
+        if self._data_recording_is_started is True:
+            self.writing_queue.put((self.write_sector_data, sector_data))
 
     def unpack_4bit_gray_scale(self, data):
         """FIXME UPDATE THIS FOR DOOPLER
@@ -817,14 +827,14 @@ class NavicoRadarController:
                 time.sleep(0.25)
 
     def write_sector_data(self, sector_data: SectorData):
-        with open(self.data_path, "a") as f:
+        with open(self.data_output_file_path, "a") as f:
             f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}\n")
             for spoke_data in sector_data.spoke_data:
                 f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
                 f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n") #FIXME
 
     def write_raw_data_packet(self, raw_data: bytearray):
-        with open(self.raw_data_path, "wb") as f:
+        with open(self.raw_data_output_file_path, "wb") as f:
             f.write(raw_data)
 
     def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
