@@ -13,3 +13,16 @@
 + add exception for (doppler, mode, nudge)
 + Target Expansion register seems to differ between G4-G3(0x12) and Halo(0x09)
 -- On G4 only on or off
+
+
+
+
+
+
+
+
+
+
+
+UBUNTU INSTALL
+sudo apt install python3-lgpio

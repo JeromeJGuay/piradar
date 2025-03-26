@@ -9,7 +9,7 @@ from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddr
 
 ### APP ###
 
-debug_level = "DEBUG"
+debug_level = "INFO"
 write_log = False
 init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
 
