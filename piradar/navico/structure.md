@@ -70,6 +70,10 @@ Auto and Value are unsigned integers
 ### 1 Byte commands:
 For automatic settings.
 
++ Doopler mode and Light are only on Halo
++ Mode doesnt seem to work on G4
++ Scan speed can only be changed when transmitting.
+
 |                           | Registry | Command | Value |
 |:--------------------------|---------:|--------:|------:|
 |                           |        1 |       1 |     1 |
@@ -108,6 +112,7 @@ Value mapping
 
 
 ### Auto Sea Clutter Nudge (unsure) | Registry: 11
++ Only on Halo
 
 |                | Registry | Command | Manual / Auto | Value 1 | Value 2 | Selector |
 |:---------------|---------:|--------:|--------------:|--------:|--------:|---------:|
@@ -154,6 +159,8 @@ Examples
 
 
 ### Doppler Speed 24 | registry 24
++ Only on Halo
+
 |               | Registry | Command | Value |        
 |:--------------|---------:|--------:|------:|
 | *byte length* |        1 |       1 |     2 |           
@@ -163,6 +170,7 @@ Examples
 
 
 ### Antenna Height 30 | registry 30
+Only on Halo
 
 |               | Registry | Command | Selector |     Fill |        Auto |     
 |:--------------|---------:|--------:|---------:|---------:|------------:|

@@ -182,7 +182,7 @@ class RadarReport02C4:
           uint8_t target_boost;            // 42
 
           uint8_t field43[56] Added by jérôme
-          # NOTE THEIR MIGHT BE MORE FIELDS ?
+          # NOTE THERE MIGHT BE MORE FIELDS ?
         """
         if len(data) != self.expected_size: # size is 43 not 99. but it could be for halo ?? maybe idk.
             data = data + (self.size - len(data)) * b"\x00"
