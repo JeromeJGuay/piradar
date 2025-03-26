@@ -383,7 +383,7 @@ class NavicoRadarController:
         _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
         if _nbytes_sent != len(packed_data):
             logging.error(f"Failed to send command {packed_data}.")
-        time.sleep(0.1)
+        time.sleep(0.05)
 
     def close_all(self):
         logging.info("Closing all called.")
@@ -602,9 +602,7 @@ class NavicoRadarController:
 
             sector_data.spoke_data.append(spoke_data)
 
-        self.write_sector_data(sector_data)
         self.writing_queue.put((self.write_sector_data, sector_data))
-
 
     def unpack_4bit_gray_scale(self, data):
         """FIXME UPDATE THIS FOR DOOPLER
@@ -781,7 +779,7 @@ class NavicoRadarController:
             self.commands("interference_rejection", radar_parameters.interference_rejection)
 
         if radar_parameters.local_interference_filter is not None:
-            self.commands("local_interference_filer", radar_parameters.local_interference_filter)
+            self.commands("local_interference_filter", radar_parameters.local_interference_filter)
 
         if radar_parameters.side_lobe_suppression is not None:
             self.commands('side_lobe_suppression', radar_parameters.side_lobe_suppression)

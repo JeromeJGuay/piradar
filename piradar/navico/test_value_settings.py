@@ -10,31 +10,6 @@ RANGES_VALS_LIST = [50, 75, 100, 250, 500, 750, 1000,
                     1500, 2000, 4000, 6000, 8000,
                     12000, 15000, 24000]
 
-OLMH_VAL2STR_MAP = {0: "off", 1: "low", 2: "medium", 3: "high"}
-OLMH_STR2VAL_MAP = {"off": 0, "low": 1, "medium": 2, "high": 3}
-
-OLH_VAL2STR_MAP = {0: "off", 1: "low", 2: "high"}
-OLH_STR2VAL_MAP = {"off": 0, "low": 1, "high": 2}
-
-RADAR_STATUS_VAL2STR_MAP = {1: "standby", 2: "transmit", 5: "spinning-up"}
-RADAR_STATUS_STR2VAL_MAP = {}
-
-MODE_VAL2STR_MAP = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
-MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}
-
-SEA_STATE_VAL2STR_MAP = {0: "calm", 1: "moderate", 2: "rough"}
-SEA_STATE_STR2VAL_MAP = {"calm": 0, "moderate": 1, "rough": 2}
-# I dont get the difference between SEA_STATE and SEA_AUTO FIXME
-SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbor", 2: "offshore"}
-SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbor": 1, "offshore": 2}
-
-DOPPLER_MODE_VAL2STR_MAP = {0: "off", 1: "normal", 2: "approaching_only"}
-DOPPLER_MODE_STR2VAL_MAP = {"off": 0, "normal": 1, "approaching_only": 2}
-
-SCAN_SPEED_VAL2STR_MAP = {0: "low", 1: "medium", 2: "high"}
-SCAN_SPEED_STR2VAL_MAP = {"low": 0, "medium": 1, "high": 2}
-
-
 class RadarParameterValues:
     def __init__(self):
         _range = None
