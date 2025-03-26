@@ -823,7 +823,7 @@ class NavicoRadarController:
             try:
                 _write_task, *args = self.writing_queue.get(timeout=1)
                 _write_task(*args)
-            except TimeoutError:
+            except queue.Empty:
                 time.sleep(0.25)
 
     def write_sector_data(self, sector_data: SectorData):
