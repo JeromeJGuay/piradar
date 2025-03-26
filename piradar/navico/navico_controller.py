@@ -129,7 +129,7 @@ class SettingReport:
     mode: str = None
     gain: float = None
     gain_auto: bool = None
-    sea_state_auto: str = None # if sea_state is in auto mode ?auto_sea and auto_rain
+    sea_clutter_auto: str = None # if sea_state is in auto mode ?auto_sea and auto_rain
     sea_clutter: float = None
     rain_clutter: float = None
     interference_rejection: str = None
@@ -272,8 +272,6 @@ class NavicoUserConfig:
             raise ValueError(f'auto_side_lobe_suppression must be a boolean.')
 
 
-
-
 class NavicoRadarController:
     # RADAR NEED TO BE RESTARTED TO RECEIVE REPORTS FIXME
     # FIXME add Flags (signal) to hold thread until socket are open etc
@@ -326,7 +324,6 @@ class NavicoRadarController:
         self.start_report_thread()
         self.start_data_thread()
         self.start_writer_thread()
-        self.start_data_thread()
 
         logging.info("Waiting for radar ...")
         while not self.radar_was_detected: # this is unlocked in the listen report thread
@@ -457,15 +454,12 @@ class NavicoRadarController:
                 self.reports.setting.gain = self.raw_reports.r02c4.gain * (100 / 255)
                 self.reports.setting.gain_auto = bool(self.raw_reports.r02c4.auto_gain)
 
-                try:
-                    self.reports.setting.sea_state_auto = SEA_AUTO_VAL2STR_MAP[self.raw_reports.r02c4.auto_sea_state]
-                except KeyError:
-                    self.reports.setting.sea_state_auto = "unknown"
-                    logging.warning(f"Unknown auto_sea_state value: {self.raw_reports.r02c4.auto_sea_state}")
 
                 self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter * (100 / 255)
+                self.reports.setting.sea_clutter_auto = bool(self.raw_reports.r02c4.sea_clutter_auto)
 
                 self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter * (100 / 255)
+                # no auto flag for rain clutter ???
 
                 try:
                     self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.interference_rejection]
@@ -480,7 +474,7 @@ class NavicoRadarController:
                     logging.warning(f"Unknown target_expansion value: {self.raw_reports.r02c4.target_expansion}")
 
                 try:
-                    self.reports.setting.target_boost = OLMH_VAL2STR_MAP[self.raw_reports.r02c4.target_boost] #missing in commands
+                    self.reports.setting.target_boost = OLH_VAL2STR_MAP[self.raw_reports.r02c4.target_boost] #missing in commands
                 except KeyError:
                     self.reports.setting.target_boost = "unknown"
                     logging.warning(f"Unknown target_boost value: {self.raw_reports.r02c4.target_boost}")
@@ -492,7 +486,6 @@ class NavicoRadarController:
                 except KeyError:
                     self.reports.system.radar_type = "unknown"
                     logging.warning(f"Unknown radar_type: {self.raw_reports.r03c4.radar_type}")
-
 
             case REPORTS_IDS.r_04C4:  # SPATIAL
                 self.raw_reports.r04c4 = RadarReport04C4(raw_packet)
@@ -517,7 +510,7 @@ class NavicoRadarController:
                     self.reports.filter.sea_state = "unknown"
 
                 try:
-                    self.reports.filter.local_interference_filter = OLH_VAL2STR_MAP[self.raw_reports.r08c4.local_interference_filter]
+                    self.reports.filter.local_interference_filter = OLMH_VAL2STR_MAP[self.raw_reports.r08c4.local_interference_filter]
                 except KeyError:
                     self.reports.filter.local_interference_filter = "unknown"
                     logging.warning(f"Unknown local_interference_filter value: {self.raw_reports.r08c4.local_interference_filter}")
@@ -528,18 +521,18 @@ class NavicoRadarController:
                     self.reports.filter.scan_speed = "unknown"
                     logging.warning(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
 
-                self.reports.filter.side_lobe_suppression_auto = self.raw_reports.r08c4.auto_side_lobe_suppression
+                self.reports.filter.side_lobe_suppression_auto = bool(self.raw_reports.r08c4.side_lobe_suppression_auto)
 
-                self.reports.filter.side_lobe_suppression = self.raw_reports.r08c4.side_lobe_suppression
+                self.reports.filter.side_lobe_suppression = self.raw_reports.r08c4.side_lobe_suppression * (100 / 255)
 
                 try:
-                    self.reports.filter.noise_rejection = OLH_VAL2STR_MAP[self.raw_reports.r08c4.noise_rejection]
+                    self.reports.filter.noise_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r08c4.noise_rejection]
                 except KeyError:
                     self.reports.filter.noise_rejection = "unknown"
                     logging.warning(f'Unknown noise_rejection value: {self.raw_reports.r08c4.noise_rejection}')
 
                 try:
-                    self.reports.filter.target_separation = OLH_VAL2STR_MAP[self.raw_reports.r08c4.target_separation]
+                    self.reports.filter.target_separation = OLMH_VAL2STR_MAP[self.raw_reports.r08c4.target_separation]
                 except KeyError:
                     self.reports.filter.target_separation = "unknown"
                     logging.warning(f"Unknown target_separation value: {self.raw_reports.r08c4.target_separation}")
@@ -572,16 +565,13 @@ class NavicoRadarController:
         sector_data.number_of_spokes = raw_sector.number_of_spokes
 
         for raw_spoke in raw_sector.spokes:
-            #logging.debug(f"spoke number: {raw_spoke.spoke_number}, angle: {raw_spoke.angle * 360 / 4096}, heading: {raw_spoke.heading}")
-            #logging.debug(f"small range: {hex(raw_spoke.small_range)} | {raw_spoke.small_range}, large range {hex(raw_spoke.large_range)}| {raw_spoke.large_range}")
-            #logging.debug(f"rotation_angle: {raw_spoke.rotation_range}")
             spoke_data = SpokeData()
 
             spoke_data.spoke_number = raw_spoke.spoke_number
             spoke_data.heading = raw_spoke.heading
             spoke_data.angle = raw_spoke.angle * 360 / 4096
 
-            if raw_spoke.status not in [0x02, 0x12]: # Valid # and not 0x12 #according to NavicoReceive
+            if raw_spoke.status in [0x02, 0x12]: # Valid # and not 0x12 #according to NavicoReceive
                 if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
                     logging.warning("Navico BR24 is not tested")
                     spoke_data._range = raw_spoke.small_range * (10 / 2 ** (1/2))
@@ -615,6 +605,7 @@ class NavicoRadarController:
         self.write_sector_data(sector_data)
         self.writing_queue.put((self.write_sector_data, sector_data))
 
+
     def unpack_4bit_gray_scale(self, data):
         """FIXME UPDATE THIS FOR DOOPLER
 
@@ -640,7 +631,7 @@ class NavicoRadarController:
 
     def get_reports(self):
         # gets report 2,3,4,8
-        # settings, system, spatail, filter
+        # settings, system, spatial, filter
         self.send_pack_data(ReportCmds.R284)
         self.send_pack_data(ReportCmds.R3)
 
@@ -656,7 +647,7 @@ class NavicoRadarController:
 
     def sea_clutter_nudge(self, value):
         value = int(max(-128, min(127, value)))
-        self.send_pack_data(SeaClutterNudgeCmd(self.radar_user_config.sea_clutter_auto, value))
+        self.send_pack_data(SeaClutterNudgeCmd.pack(self.radar_user_config.sea_clutter_auto, value))
 
     def set_sector_blanking(self):
         """ # TODO
@@ -821,8 +812,11 @@ class NavicoRadarController:
 
     def writer(self):
         while not self.stop_flag:
-            _write_task, *args = self.writing_queue.get()
-            _write_task(*args)
+            try:
+                _write_task, *args = self.writing_queue.get(timeout=1)
+                _write_task(*args)
+            except TimeoutError:
+                time.sleep(0.25)
 
     def write_sector_data(self, sector_data: SectorData):
         with open(self.data_path, "a") as f:
