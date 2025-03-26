@@ -1,6 +1,6 @@
 import logging
 import time
-from gpiozero import LED
+import lgpio
 
 from piradar.logger import init_logging
 
@@ -19,8 +19,15 @@ init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
 ### UNPACK FORM A CONFIG FILE JSON would be nice###
 # interface = "192.168.1.243"
 
-GPIO_RADAR_PIN = 17
-RADAR_POWER_SWITCH = LED(GPIO_RADAR_PIN)
+GPIO_RADAR_PIN = 21
+GPIO_CLAIM = lgpio.gpiochip_open(0)
+lgpio.gpio_claim_output(GPIO_CLAIM, GPIO_RADAR_PIN)
+
+def power_on_radar():
+    lgpio.gpio_write(GPIO_CLAIM, GPIO_RADAR_PIN, 1)
+
+def power_off_radar():
+    lgpio.gpio_write(GPIO_CLAIM, GPIO_RADAR_PIN, 0)
 
 
 SCAN_INTERVAL = 60
@@ -95,7 +102,7 @@ mcast_ifaces = MulticastInterfaces(
 
 for _ in range(10):
 
-    RADAR_POWER_SWITCH.on() # START RADAR EARLIER TO RECORD ON TIME. HAVE A TIMER.
+    power_on_radar()
 
     # wake_up_navico_radar()  # this might be unnecessary
 
@@ -135,7 +142,7 @@ for _ in range(10):
 
     del navico_radar
 
-    RADAR_POWER_SWITCH.off()
+    power_off_radar()
 
     time.sleep(SCAN_INTERVAL)
 

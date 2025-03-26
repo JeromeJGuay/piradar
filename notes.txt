@@ -25,4 +25,6 @@
 
 
 UBUNTU INSTALL
-sudo apt install python3-lgpio
+>> sudo apt install python3-lgpio
+
+>> pip install lgpio # instead of gpiozero
