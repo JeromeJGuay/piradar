@@ -21,6 +21,7 @@ __all__ = [
     'ModeCmd',
     'NoiseRejectionCmd',
     'TargetExpansionCmd',
+    'TargetExpansionHaloCmd',
     'TargetSeparationCmd',
     'TargetBoostCmd',
     'LightCmd',
@@ -132,6 +133,7 @@ class _RainClutterCmd:
                            0,0,0, auto,
                            0,0,0, value)
 
+
 class _SidelobeSuppressionCmd:
     """
      CMD    |      fill |  1 |     fill  | 255
@@ -147,6 +149,7 @@ class _SidelobeSuppressionCmd:
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, self.sub_cmd,
                            0,0,0, auto,
                            0,0,0, value)
+
 
 class _InterferenceRejection:
     cformat = "BBB"
@@ -242,7 +245,17 @@ class _SeaClutterNudgeCmd:
 
 class _TargetExpansionCmd:
     cformat = "BBB"
-    register = 0x12 # could be 0x09 for BR24, G4 and G3
+    register = 0x09
+    cmd = 0xc1
+
+    def pack(self, value: int):
+        """Values of 0 or 1"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
+
+
+class _TargetExpansionHaloCmd:
+    cformat = "BBB"
+    register = 0x12
     cmd = 0xc1
 
     def pack(self, value: int):
@@ -335,6 +348,7 @@ ScanSpeedCmd = _ScanSpeedCmd()
 ModeCmd = _ModeCmd()
 NoiseRejectionCmd = _NoiseRejectionCmd()
 TargetExpansionCmd = _TargetExpansionCmd()
+TargetExpansionHaloCmd = _TargetExpansionHaloCmd()
 TargetSeparationCmd = _TargetSeparationCmd()
 TargetBoostCmd = _TargetBoostCmd()
 LightCmd = _LightCmd()
