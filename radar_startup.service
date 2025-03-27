@@ -1,0 +1,17 @@
+[Unit]
+Description=Start radar startup script
+After=network-online.target local-fs.target
+Requires=network-online.target local-fs.target
+ConditionPathExists=/home/capteur/radar_startup.sh
+ConditionPathExists=/media/capteur/2To-drive
+ConditionPathExists=/sys/class/net/eth0
+ConditionKernelCommandLine=ip=
+
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/capteur/radar_startup.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

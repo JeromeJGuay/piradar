@@ -51,6 +51,12 @@ class NavicoRadarType:
     navicoHALO = "HALO"
 
 
+class RadarStatus:
+    transmit = "transmit"
+    spinning_up = "spinning_up"
+    standby = "standby"
+
+
 RADAR_ID2TYPE_MAP = {
     0x01: NavicoRadarType.navico4G,
     0x08: NavicoRadarType.navico3G,
@@ -68,8 +74,8 @@ OLMH_STR2VAL_MAP = {"off": 0, "low": 1, "medium": 2, "high": 3}
 OLH_VAL2STR_MAP = {0: "off", 1: "low", 2: "high"}
 OLH_STR2VAL_MAP = {"off": 0, "low": 1, "high": 2}
 
-RADAR_STATUS_VAL2STR_MAP = {1: "standby", 2: "transmit", 5: "spinning-up"}
-RADAR_STATUS_STR2VAL_MAP = {}
+RADAR_STATUS_VAL2STR_MAP = {1: RadarStatus.standby, 2: RadarStatus.transmit, 5: RadarStatus.spinning_up}
+RADAR_STATUS_STR2VAL_MAP = {RadarStatus.standby: 1, RadarStatus.transmit: 2, RadarStatus.spinning_up: 5}
 
 MODE_VAL2STR_MAP = {0: "custom", 1: "harbor", 2: "offshore", 4: "weather", 5: "bird", 255: "unknown"}
 MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird": 5}
@@ -240,36 +246,13 @@ class NavicoUserConfig:
     doppler_speed: float = None
 
     light: str = None# ["off", "low", "medium", "high"]
-    # auto
+
+    # Auto
     gain_auto: bool = False
-    # this should probably be auto-clutter ? FIXME
     sea_clutter_auto: bool = False
     rain_clutter_auto: bool = False
     side_lobe_suppression_auto: bool = False
 
-    def __post_init__(self):
-        if self._range:
-            if self._range not in [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]:
-                raise ValueError(f'Range must be a vlue between 0, and  14.')
-
-        if self.bearing:
-            if self.bearing > 360 or self.bearing < 0:
-                raise ValueError(f'Bearing must be between 0 and 360.')
-
-        if self.scan_speed:
-            if self.scan_speed not in ['low', 'medium', 'high']:
-                raise ValueError(f'Scan_speed must be one of low, medium, high.')
-
-        # FIXME TODO add the rest
-
-        if not isinstance(self.gain_auto, bool):
-            raise ValueError(f'auto_gain must be a boolean.')
-        if not isinstance(self.sea_clutter_auto, bool):
-            raise ValueError(f'auto_sea_clutter must be a boolean.')
-        if not isinstance(self.rain_clutter_auto, bool):
-            raise ValueError(f'auto_rain_clutter must be a boolean.')
-        if not isinstance(self.side_lobe_suppression_auto, bool):
-            raise ValueError(f'auto_side_lobe_suppression must be a boolean.')
 
 
 class NavicoRadarController:
@@ -310,6 +293,13 @@ class NavicoRadarController:
         self._data_recording_is_started = False
         self.radar_was_detected = False
         self.stop_flag = False
+
+        # Data Recording
+        self.sector_first_spoke_number: int = None
+        self.current_spoke_number: int = None
+        self.last_spoke_number: int = None
+        self.sector_recorded_count = 0
+        self.number_of_sector_to_record: int = None
 
         ### RADAR PARAMETER ###
         # Not clear how to update this at the moment. Or use it
@@ -400,13 +390,37 @@ class NavicoRadarController:
         self.send_socket.close()
         logging.info("All sockets closed")
 
-    def start_recording_data(self):
+    def start_recording_data(self, number_of_sector_to_record: int):
         logging.info('Data recording started')
+        self.number_of_sector_to_record = number_of_sector_to_record
         self._data_recording_is_started = True
 
     def stop_recording_data(self):
         logging.info('Data recording stopped')
         self._data_recording_is_started = False
+
+        # reset value (maybe not necessary but does cost much)
+        self.sector_first_spoke_number = None
+        self.current_spoke_number = None
+        self.last_spoke_number = None
+        self.sector_recorded_count = 0
+
+    def check_data_recording_condition(self):
+        if self.sector_first_spoke_number is None:
+            self.sector_first_spoke_number = self.current_spoke_number
+            self.last_spoke_number = -1
+
+        elif self.current_spoke_number > self.last_spoke_number:
+            self.last_spoke_number = self.current_spoke_number
+
+        elif self.current_spoke_number > self.sector_first_spoke_number:
+            self.last_spoke_number = self.current_spoke_number
+            self.sector_recorded_count += 1
+            logging.info(f"Sector recorded {self.sector_recorded_count}")
+
+            if self.sector_recorded_count >= self.number_of_sector_to_record:
+                logging.info("Sector recorded count reached.")
+                self.start_recording_data()
 
     def report_listen(self):
         while not self.stop_flag: # have thread specific flags as well
@@ -580,39 +594,44 @@ class NavicoRadarController:
             spoke_data.heading = raw_spoke.heading
             spoke_data.angle = raw_spoke.angle * 360 / 4096
 
-            if raw_spoke.status in [0x02, 0x12]: # Valid # and not 0x12 #according to NavicoReceive
-                if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
-                    logging.warning("Navico BR24 is not tested")
-                    spoke_data._range = raw_spoke.small_range * (10 / 2 ** (1/2))
+            if self._data_recording_is_started:
 
-                else:
-                    if raw_spoke.large_range == 0x80:
-                        if raw_spoke.small_range == 0xffff:
-                            spoke_data._range = 0
-                        else:
-                            spoke_data._range = raw_spoke.small_range / 4
+                self.current_spoke_number = raw_spoke.spoke_number
 
-                    elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
-                        spoke_data._range = raw_spoke.large_range * 64
-
-                    elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
-                        spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
+                if raw_spoke.status in [0x02, 0x12]: # Valid # and not 0x12 #according to NavicoReceive
+                    if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
+                        logging.warning("Navico BR24 is not tested")
+                        spoke_data._range = raw_spoke.small_range * (10 / 2 ** (1/2))
 
                     else:
-                        logging.error(f"Unknown radar type {self.reports.system.radar_type}. This should not happen.")
+                        if raw_spoke.large_range == 0x80:
+                            if raw_spoke.small_range == 0xffff:
+                                spoke_data._range = 0
+                            else:
+                                spoke_data._range = raw_spoke.small_range / 4
 
-                logging.debug(
-                    f"Spoke #: {spoke_data.spoke_number}, range: {spoke_data._range}, angle: {spoke_data.angle}")
+                        elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
+                            spoke_data._range = raw_spoke.large_range * 64
 
-                spoke_data.intensities = self.unpack_4bit_gray_scale(raw_spoke.data)
+                        elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
+                            spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
-            else:
-                logging.warning("Invalid Spoke")
+                        else:
+                            logging.error(f"Unknown radar type {self.reports.system.radar_type}. This should not happen.")
 
-            sector_data.spoke_data.append(spoke_data)
+                    logging.debug(
+                        f"Spoke #: {spoke_data.spoke_number}, range: {spoke_data._range}, angle: {spoke_data.angle}")
 
-        if self._data_recording_is_started is True:
-            self.writing_queue.put((self.write_sector_data, sector_data))
+                    spoke_data.intensities = self.unpack_4bit_gray_scale(raw_spoke.data)
+
+                    sector_data.spoke_data.append(spoke_data)
+                else:
+                    logging.warning("Invalid Spoke")
+
+                self.writing_queue.put((self.write_sector_data, sector_data))
+
+            # do it at the end to set self._data_recording_is_start ot false if need
+            self.check_data_recording_condition()
 
     def unpack_4bit_gray_scale(self, data):
         """FIXME UPDATE THIS FOR DOOPLER
@@ -627,7 +646,7 @@ class NavicoRadarController:
 
         return data_4bit
 
-    ### Belows are all the commands method ###
+    #### Belows are all the commands method ####
     def keep_alive(self):
         """FIXME MAYBE ADD MORE FLAG FOR KEEP_ALIVE ?"""
         while not self.stop_flag:
@@ -646,14 +665,110 @@ class NavicoRadarController:
     def transmit(self):
         self.send_pack_data(TxOnCmds.A)
         self.send_pack_data(TxOnCmds.B)
+        self.get_reports()
         logging.info("Transmit Started")
 
     def standby(self):
         self.send_pack_data(TxOffCmds.A)
         self.send_pack_data(TxOffCmds.B)
+        self.get_reports()
         logging.info("Transmit Stopped")
 
+    def set_range(self, value: int):
+        value = RANGES_VALS_LIST[value]
+        cmd = RangeCmd.pack(value=int(RANGES_VALS_LIST[value] * 10))
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_bearing(self, value: int):
+        cmd = BearingAlignmentCmd.pack(value=int(min(max(value, 0), 360) * 10))
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_gain(self, value: int):
+        cmd = GainCmd.pack(auto=self.radar_user_config.gain_auto, value=int(min(max(value, 0), 255)))
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_gain_auto(self, value: bool):
+        self.radar_user_config.gain_auto = value
+        self.set_gain(value=self.reports.setting.gain)
+
+    def set_antenna_height(self, value: int):
+        cmd = AntennaHeightCmd.pack(value=int(value * 1000))
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_scan_speed(self, value: str):
+        if self.reports.status.status != RadarStatus.transmit:
+            logging.warning("Scan speed cannot be change if the radar is not transmitting")
+        else:
+            cmd = ScanSpeedCmd.pack(value=SCAN_SPEED_STR2VAL_MAP[value])
+            self.send_pack_data(cmd)
+            self.get_reports()
+
+    def set_sea_state(self, value: str):
+        cmd = SeaStateAutoCmd.pack(value=SEA_STATE_STR2VAL_MAP[value])
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_sea_clutter(self, value: int):
+        cmd = SeaClutterCmd.pack(auto=self.radar_user_config.sea_clutter_auto, value=min(max(int(value), 0), 255))
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_sea_clutter_auto(self, value: bool):
+        self.radar_user_config.sea_clutter_auto = value
+        self.set_sea_clutter(value=self.reports.setting.sea_clutter)
+
+    def set_rain_clutter(self, value: int):
+        cmd = RainClutterCmd.pack(auto=self.radar_user_config.rain_clutter_auto, value=min(max(int(value), 0), 255))
+        self.send_pack_data(cmd)
+        self.get_reports()
+
+    def set_rain_clutter_auto(self, value: bool):
+        self.radar_user_config.rain_clutter_auto = value
+        self.set_rain_clutter(value=self.reports.setting.rain_clutter)
+
+
+        case "rain_clutter":
+            cmd = RainClutterCmd.pack(auto=self.radar_user_config.rain_clutter_auto, value=min(int(value * 255 / 100), 255))
+
+        case "interference_rejection":
+            cmd = InterferenceRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
+
+        case "local_interference_filter":
+            cmd = LocalInterferenceFilterCmd.pack(value=OLMH_STR2VAL_MAP[value])
+
+        case "side_lobe_suppression":
+            cmd = SidelobeSuppressionCmd.pack(auto=self.radar_user_config.side_lobe_suppression_auto, value=min(int(value * 255 / 100), 255))
+
+        case "mode":
+            cmd = ModeCmd.pack(value=MODE_STR2VAL_MAP[value])
+
+        case "target_expansion": ## could be 0x09 for BR24, G4 and G3 FIXME
+            cmd = TargetExpansionCmd.pack(value=OLMH_STR2VAL_MAP[value])
+
+        case "target_separation":
+            cmd = TargetSeparationCmd.pack(value=OLMH_STR2VAL_MAP[value])
+
+        case "noise_rejection":
+            cmd = NoiseRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
+
+        case "doppler_mode":
+            cmd = DopplerModeCmd.pack(value=DOPPLER_MODE_STR2VAL_MAP[value])
+
+        case "doppler_speed":
+            cmd = DopplerSpeedCmd.pack(value=int(value * 100))
+
+        case "light":
+            cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
+
+        case "target_boost":
+            cmd = TargetBoostCmd.pack(value=OLH_STR2VAL_MAP[value])
+
     def sea_clutter_nudge(self, value):
+        # to test
         value = int(max(-128, min(127, value)))
         self.send_pack_data(SeaClutterNudgeCmd.pack(self.radar_user_config.sea_clutter_auto, value))
 

@@ -25,6 +25,15 @@
 
 
 UBUNTU INSTALL
+# for pin control
 >> sudo apt install python3-lgpio
-
 >> pip install lgpio # instead of gpiozero
+
+### to have service on start
+>> install ifupdown
+# bash startup service
+
+# move the radar_startup.service to /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable radar_startup.service
+sudo systemctl start radar_startup.service
