@@ -289,6 +289,8 @@ class NavicoRadarController:
 
         self.start_keep_alive_thread()
 
+        self.get_reports()
+
     def connect(self):
         if self.is_connected:
             return
@@ -310,6 +312,7 @@ class NavicoRadarController:
         logging.info("Radar detected on network")
 
         self.is_connected = True  # fixme add checks
+
 
     def disconnect(self):
         if not self.is_connected:
