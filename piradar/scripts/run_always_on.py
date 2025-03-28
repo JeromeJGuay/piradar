@@ -16,7 +16,7 @@ from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_s
 ###################################################
 #       PARAMETERS TO BE LOADED FROM INI          #
 ###################################################
-record_interval = 60
+record_interval = 30
 
 
 number_of_sector_per_scan = 4
@@ -73,7 +73,7 @@ scan_speed = "low"
 ### Write data ###
 output_drive = "/media/capteur/2To"
 output_data_dir = "data"
-output_report_dir = "data"
+output_report_dir = "report"
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
@@ -126,7 +126,10 @@ def main():
 
     # power on radar here if necessary
 
-    logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
+    if radar_controller.reports.system.radar_type is None:
+        raise Exception("Radar type not received. Communication Error")
+        logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
+
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
@@ -138,7 +141,7 @@ def main():
 
     logging.info("Ready to record.")
 
-    schedule.every(record_interval).seconds.do(scan, [radar_controller])
+    schedule.every(record_interval).seconds.do(scan, radar_controller)
 
     while True:
         schedule.run_pending()
