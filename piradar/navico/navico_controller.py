@@ -226,27 +226,22 @@ class NavicoRadarAutoSettings:
 
 
 class NavicoRadarController:
-    # RADAR NEED TO BE RESTARTED TO RECEIVE REPORTS FIXME
     # FIXME add Flags (signal) to hold thread until socket are open etc
     # FIXME add try -except in case error occures when creating sockets.
-    # FIXME add WATCHDOG to kill everything in case of big error
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
-            output_dir: str,
+            report_output_dir: str,
             keep_alive_interval: int = 10,
     ):
         self.address_set = multicast_interfaces
-        self.output_dir = output_dir
+        self.report_output_dir = report_output_dir
         self.keep_alive_interval = keep_alive_interval
-        _outfile_timestamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S")
-        self.data_output_file_path = Path(self.output_dir).joinpath(f"{_outfile_timestamp}_ppi_data.txt")
-        self.raw_data_output_file_path = Path(self.output_dir).joinpath("raw_ppi_data.raw")
         self.raw_reports_path = {
-            report_id: Path(self.output_dir).joinpath(f"raw_report_{hex(report_id)}.raw")
+            report_id: Path(self.report_output_dir).joinpath(f"raw_report_{hex(report_id)}.raw")
             for report_id in REPORTS_IDS
         }
 
-        # make object to store initial parameter to pass to Radar
+        self.raw_data_output_file: str = None
 
         self.send_socket = None
 
@@ -278,11 +273,6 @@ class NavicoRadarController:
         ### Reports Object ###
         self.raw_reports = RawReports()
         self.reports = Reports()
-
-        ### TODO FIXME ###
-        ### Flag and check should be added here
-        ### To restart it faileds before the
-        ### End of the init
 
         self.connect()
 
@@ -322,8 +312,8 @@ class NavicoRadarController:
         self.data_thread.join()
         self.keep_alive_thread.join()
         self.writer_thread.join()
-        with self.writing_queue.mutex:
-            self.writing_queue.clear()  # unsure if this will work. to test. FIXME
+#        with self.writing_queue.mutex: # turns out it doesnt work
+#            self.writing_queue.clear()  # unsure if this will work. to test. FIXME
         logging.info("All threads closed")
 
         self.report_socket.close()
@@ -389,11 +379,12 @@ class NavicoRadarController:
             self.stay_on_cmd()
             time.sleep(self.keep_alive_interval)
 
-    def start_recording_data(self, number_of_sector_to_record: int):
+    def start_recording_data(self, output_file: str, number_of_sector_to_record: int):
         if self._data_recording_is_started:
             logging.warning('Data recording already started')
             return
 
+        self.raw_data_output_file = output_file
         logging.info('Data recording started')
         self.number_of_sector_to_record = number_of_sector_to_record
         self._data_recording_is_started = True
@@ -454,7 +445,6 @@ class NavicoRadarController:
 
             if raw_packet:
                 logging.debug("Data received")
-                self.writing_queue.put((self.write_raw_data_packet, raw_packet))
                 self.process_data(in_data=raw_packet)
 
     def process_report(self, raw_packet):
@@ -602,23 +592,28 @@ class NavicoRadarController:
     def process_data(self, in_data):
 
         # PACKET MIGHT BE BROKEN FIXME
-        raw_sector = RawSectorData(in_data)
+        raw_frame = RawFrameData(in_data)
 
-        logging.debug(f"Number of spokes in sector: {raw_sector.number_of_spokes}")
+        logging.debug(f"Number of spokes in sector: {raw_frame.number_of_spokes}")
         sector_data = SectorData()
-        sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-        sector_data.number_of_spokes = raw_sector.number_of_spokes
+        #sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        sector_data.time = int(datetime.datetime.utcnow().timestamp()) # seconds "<L"
+        sector_data.number_of_spokes = raw_frame.number_of_spokes
 
-        for raw_spoke in raw_sector.spokes:
+        for raw_spoke in raw_frame.spokes:
             spoke_data = SpokeData()
 
             spoke_data.spoke_number = raw_spoke.spoke_number
-            spoke_data.heading = raw_spoke.heading
-            spoke_data.angle = raw_spoke.angle * 360 / 4096
+            #spoke_data.heading = raw_spoke.heading
+            #spoke_data.angle = raw_spoke.angle * 360 / 4096
 
             if self._data_recording_is_started:
 
                 self.current_spoke_number = raw_spoke.spoke_number
+
+                # record the raw data as is.
+                spoke_data.heading = raw_spoke.heading
+                spoke_data.angle = raw_spoke.angle
 
                 if raw_spoke.status in [0x02, 0x12]:  # Valid # and not 0x12 #according to NavicoReceive
                     if self.reports.system.radar_type == NavicoRadarType.navicoBR24:
@@ -635,17 +630,14 @@ class NavicoRadarController:
                         elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
                             spoke_data._range = raw_spoke.large_range * 64
 
-                        elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
+                        #elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
+                        else: # jsut default to halo behavior so data is recorded.
                             spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
-                        else:
-                            logging.error(
-                                f"Unknown radar type {self.reports.system.radar_type}. This should not happen.")
+                    spoke_data._range = int(spoke_data._range) # save as integer. meter precision is fine.
 
-                    logging.debug(
-                        f"Spoke #: {spoke_data.spoke_number}, range: {spoke_data._range}, angle: {spoke_data.angle}")
-
-                    spoke_data.intensities = self.unpack_4bit_gray_scale(raw_spoke.data)
+                    spoke_data.intensities = raw_spoke.data
+                    #spoke_data.intensities = self.unpack_4bit_gray_scale(raw_spoke.data)
 
                     sector_data.spoke_data.append(spoke_data)
                 else:
@@ -656,17 +648,17 @@ class NavicoRadarController:
             # do it at the end to set self._data_recording_is_start ot false if need
             self.check_data_recording_condition()
 
-    def unpack_4bit_gray_scale(self, data):
-        """FIXME UPDATE THIS FOR DOOPLER
-        """
-        data_4bit = []
-        for _bytes in data:
-            low_nibble = _bytes & 0x0F
-            high_nibble = (_bytes >> 4) & 0x0F
-
-            data_4bit.extend([low_nibble, high_nibble])
-
-        return data_4bit
+    # def unpack_4bit_gray_scale(self, data):
+    #     """FIXME UPDATE THIS FOR DOOPLER
+    #     """
+    #     data_4bit = []
+    #     for _bytes in data:
+    #         low_nibble = _bytes & 0x0F
+    #         high_nibble = (_bytes >> 4) & 0x0F
+    #
+    #         data_4bit.extend([low_nibble, high_nibble])
+    #
+    #     return data_4bit
 
     def writer(self):
         while not self.stop_flag:
@@ -676,16 +668,28 @@ class NavicoRadarController:
             except queue.Empty:
                 time.sleep(0.25)
 
-    def write_sector_data(self, sector_data: SectorData):
-        with open(self.data_output_file_path, "a") as f:
-            f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}\n")
-            for spoke_data in sector_data.spoke_data:
-                f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
-                f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n")  #FIXME
+    #def write_sector_data(self, sector_data: SectorData):
+    #    with open(self.raw_data_output_file, "a") as f:
+    #        f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}\n")
+    #        for spoke_data in sector_data.spoke_data:
+    #            f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
+    #            f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n")  #FIXME
 
-    def write_raw_data_packet(self, raw_data: bytearray):
-        with open(self.raw_data_output_file_path, "wb") as f:
-            f.write(raw_data)
+    def write_raw_sector_data(self, sector_data: SectorData):
+        with open(self.raw_data_output_file, "ba") as f:
+            packed_frame_header = b"FH" + struct.pack("<LB", sector_data.time, sector_data.number_of_spokes)
+            f.write(packed_frame_header)
+            for spoke_data in sector_data.spoke_data:
+                packed_spoke_data = b"SD" + struct.pack("<HHHH512B",
+                                                   spoke_data.spoke_number,
+                                                   spoke_data.heading,
+                                                   spoke_data.angle,
+                                                   spoke_data._range,
+                                                   spoke_data.intensities)
+
+                f.write(packed_spoke_data)
+
+
 
     def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
         with open(self.raw_reports_path[report_id], "wb") as f:

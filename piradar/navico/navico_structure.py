@@ -13,7 +13,7 @@ __all__ = [
     "RadarReport06C4",
     "RadarReport08C4",
     "RadarReport12C4",
-    "RawSectorData",
+    "RawFrameData",
     "RawSpokeData",
     # "HaloHeadingPacket",
     # "HaloMysteryPacket",
@@ -488,7 +488,7 @@ class RawSpokeData:
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
     field_offsets = [0] + list(accumulate(field_sizes))[:-1]
 
-    def __init__(self, data):
+    def __init__(self, data, unpack_intensities=False):
         """
           uint8_t headerLen;       // 1 bytes
           uint8_t status;          // 1 bytes
@@ -522,7 +522,7 @@ class RawSpokeData:
         self.data = unpacked_fields[11]
 
 
-class RawSectorData:
+class RawFrameData:
     """
     32 line expected. FIXME TODO
     make it so the number of line can vary according the size of the packet. that is:
@@ -555,7 +555,7 @@ class RawSectorData:
         self.number_of_spokes = unpacked_header[1][0]
         self.scanline_size = unpacked_header[2][0]
 
-        self.number_of_spokes = int((RawSectorData.size - RawSectorData.header_size) / RawSpokeData.size)
+        self.number_of_spokes = int((RawFrameData.size - RawFrameData.header_size) / RawSpokeData.size)
 
         spokes_data = data[self.header_size:]
 

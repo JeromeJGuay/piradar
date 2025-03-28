@@ -90,7 +90,8 @@ def scan(radar_controller: NavicoRadarController):
             radar_controller.get_reports()
             time.sleep(.1)
 
-
+### A watchdog should be added to raise an error if the radar disconnect
+### Turn radar off and on again.
 def main():
 
     # MAKE SURE THE DRIVE IS MOUNTED
@@ -102,7 +103,6 @@ def main():
     if not Path(output_path).is_dir():
         raise Exception("Output directory war not created")
 
-
     # MAKE SURE THE INTERFACE IS UP
     if not validate_interface(interface_name):
         raise Exception(f"Interface {interface_name} not found.")
@@ -110,14 +110,16 @@ def main():
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
-        output_dir=output_dir,
+        report_output_dir=output_dir,
     )
+
+    # power on radar here if necessary
 
     logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
-    time.sleep(.1) #just to be sure all reports are in and analyzed.
+    time.sleep(.5) #just to be sure all reports are in and analyzed.
 
     valide_radar_settings(radar_user_settings, radar_controller)
 
@@ -127,6 +129,7 @@ def main():
 
     schedule.every(record_interval).seconds.do(scan, [radar_controller])
 
+    schedule.run_pending()
 
 
 if __name__ == '__main__':

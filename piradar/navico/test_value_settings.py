@@ -42,7 +42,7 @@ wake_up_navico_radar()
 
 navico_radar = NavicoRadarController(
     multicast_interfaces=mcast_ifaces,
-    output_dir=output_dir,
+    report_output_dir=output_dir,
 )
 
 time.sleep(1)
