@@ -62,7 +62,6 @@ RADAR_ID2TYPE_MAP = {
     0x00: NavicoRadarType.navicoHALO
 }
 
-
 RANGES_PRESETS = {
     'p1': 50, 'p2': 75, 'p3': 100, 'p4': 250, 'p5': 500, 'p6': 750, 'p7': 1000,
     'p8': 1500, 'p9': 2000, 'p10': 4000, 'p11': 6000, 'p12': 8000,
@@ -313,7 +312,6 @@ class NavicoRadarController:
 
         self.is_connected = True  # fixme add checks
 
-
     def disconnect(self):
         if not self.is_connected:
             return
@@ -435,7 +433,7 @@ class NavicoRadarController:
 
             if self.sector_recorded_count >= self.number_of_sector_to_record:
                 logging.info("Sector recorded count reached.")
-                self.start_recording_data()
+                self.stop_recording_data()
 
     def report_listen(self):
         while not self.stop_flag:  # have thread specific flags as well
@@ -660,7 +658,6 @@ class NavicoRadarController:
 
     def unpack_4bit_gray_scale(self, data):
         """FIXME UPDATE THIS FOR DOOPLER
-
         """
         data_4bit = []
         for _bytes in data:
@@ -705,104 +702,120 @@ class NavicoRadarController:
         self.send_pack_data(ReportCmds.R284)
         self.send_pack_data(ReportCmds.R3)
 
-    def transmit(self):
+    def transmit(self, get_report: bool = False):
         self.send_pack_data(TxOnCmds.A)
         self.send_pack_data(TxOnCmds.B)
-        self.get_reports()
         logging.info("Tx On commands sent")
+        if get_report:
+            self.get_reports()
 
-    def standby(self):
+    def standby(self, get_report: bool = False):
         self.send_pack_data(TxOffCmds.A)
         self.send_pack_data(TxOffCmds.B)
-        self.get_reports()
         logging.info("Tx Off commands sent")
+        if get_report:
+            self.get_reports()
 
-    def set_range(self, value: int | str):
+    def set_range(self, value: int | str, get_report: bool = False):
         if isinstance(value, str):
             value = RANGES_PRESETS[value]
         cmd = RangeCmd.pack(value=int(value * 10))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_bearing(self, value: int):
+    def set_bearing(self, value: int, get_report: bool = False):
         cmd = BearingAlignmentCmd.pack(value=int(min(max(value, 0), 360) * 10))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_gain(self, value: int):
+    def set_gain(self, value: int, get_report: bool = False):
         cmd = GainCmd.pack(auto=self.auto_settings.gain_auto, value=int(min(max(value, 0), 255)))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_gain_auto(self, value: bool):
+    def set_gain_auto(self, value: bool, get_report: bool = False):
         self.auto_settings.gain_auto = value
-        self.set_gain(value=self.reports.setting.gain)
+        self.set_gain(value=self.reports.setting.gain, get_report=get_report)
 
-    def set_antenna_height(self, value: int):
+    def set_antenna_height(self, value: int, get_report: bool = False):
         cmd = AntennaHeightCmd.pack(value=int(value * 1000))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_scan_speed(self, value: str):
+    def set_scan_speed(self, value: str, get_report: bool = False):
         if self.reports.status.status is not RadarStatus.transmit:
             logging.warning("Scan speed cannot be change if the radar is not transmitting")
         else:
             cmd = ScanSpeedCmd.pack(value=SCAN_SPEED_STR2VAL_MAP[value])
             self.send_pack_data(cmd)
-            self.get_reports()
+            if get_report:
+                self.get_reports()
 
-    def set_sea_state(self, value: str):
+    def set_sea_state(self, value: str, get_report: bool = False):
         cmd = SeaStateAutoCmd.pack(value=SEA_STATE_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_sea_clutter(self, value: int):
+    def set_sea_clutter(self, value: int, get_report: bool = False):
         cmd = SeaClutterCmd.pack(auto=self.auto_settings.sea_clutter_auto, value=min(max(int(value), 0), 255))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_sea_clutter_auto(self, value: bool):
+    def set_sea_clutter_auto(self, value: bool, get_report: bool = False):
         self.auto_settings.sea_clutter_auto = value
-        self.set_sea_clutter(value=self.reports.setting.sea_clutter)
+        self.set_sea_clutter(value=self.reports.setting.sea_clutter, get_report=get_report)
 
-    def set_rain_clutter(self, value: int):
+    def set_rain_clutter(self, value: int, get_report: bool = False):
         cmd = RainClutterCmd.pack(auto=self.auto_settings.rain_clutter_auto, value=min(max(int(value), 0), 255))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
     def set_rain_clutter_auto(self, value: bool):
+        # No need for reports since no reports has the rain_clutter_auto values
         self.auto_settings.rain_clutter_auto = value
         self.set_rain_clutter(value=self.reports.setting.rain_clutter)
 
-    def set_side_lobe_suppression(self, value: int):
+    def set_side_lobe_suppression(self, value: int, get_report: bool = False):
         cmd = SidelobeSuppressionCmd.pack(auto=self.auto_settings.side_lobe_suppression_auto,
                                           value=min(max(int(value), 0), 255))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_side_lobe_suppression_auto(self, value: bool):
+    def set_side_lobe_suppression_auto(self, value: bool, get_report: bool = False):
         self.auto_settings.side_lobe_suppression_auto = value
-        self.set_side_lobe_suppression(value=self.reports.filter.side_lobe_suppression)
+        self.set_side_lobe_suppression(value=self.reports.filter.side_lobe_suppression, get_report=get_report)
 
-    def set_interference_rejection(self, value: str):
+
+    def set_interference_rejection(self, value: str, get_report: bool = False):
         cmd = InterferenceRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_local_interference_filter(self, value: str):
+    def set_local_interference_filter(self, value: str, get_report: bool = False):
         cmd = LocalInterferenceFilterCmd.pack(value=OLMH_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
         # maybe raise warning
 
-    def set_mode(self, value: str):
+    def set_mode(self, value: str, get_report: bool = False):
         logging.warning("Doenst seem to work. At least on G4")
         cmd = ModeCmd.pack(value=MODE_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_target_expansion(self, value: str | bool):
+    def set_target_expansion(self, value: str | bool, get_report: bool = False):
         logging.warning("Unsure about the register or values.")
 
         match self.reports.system.radar_type:
@@ -818,62 +831,74 @@ class NavicoRadarController:
 
         cmd = TargetExpansionCmd.pack(value=bool(value))
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_target_separation(self, value: str):
+    def set_target_separation(self, value: str, get_report: bool = False):
         cmd = TargetSeparationCmd.pack(value=OLMH_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def set_noise_rejection(self, value: str):
+    def set_noise_rejection(self, value: str, get_report: bool = False):
         cmd = NoiseRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
         # check type halo
 
-    def set_doppler_mode(self, value: str):
+    def set_doppler_mode(self, value: str, get_report: bool = False):
         if self.reports.system.radar_type is NavicoRadarType.navicoHALO:
             cmd = DopplerModeCmd.pack(value=DOPPLER_MODE_STR2VAL_MAP[value])
             self.send_pack_data(cmd)
-            self.get_reports()
+            if get_report:
+                self.get_reports()
+
         else:
             logging.warning("Doppler is only available on Halo")
 
-    def set_doppler_speed(self, value: str):
+    def set_doppler_speed(self, value: str, get_report: bool = False):
         if self.reports.system.radar_type is NavicoRadarType.navicoHALO:
             cmd = DopplerSpeedCmd.pack(value=int(value * 100))
             self.send_pack_data(cmd)
-            self.get_reports()
+            if get_report:
+                self.get_reports()
+
         else:
             logging.warning("Doppler is only available on Halo")
 
         # just halo
 
-    def set_light(self, value: str):
+    def set_light(self, value: str, get_report: bool = False):
         if self.reports.system.radar_type is NavicoRadarType.navicoHALO:
             cmd = LightCmd.pack(value=OLMH_STR2VAL_MAP[value])
             self.send_pack_data(cmd)
-            self.get_reports()
+            if get_report:
+                self.get_reports()
+
         else:
             logging.warning("Light is only available on Halo")
 
-    def set_target_boost(self, value: str):
+    def set_target_boost(self, value: str, get_report: bool = False):
         cmd = TargetBoostCmd.pack(value=OLH_STR2VAL_MAP[value])
         self.send_pack_data(cmd)
-        self.get_reports()
+        if get_report:
+            self.get_reports()
 
-    def sea_clutter_nudge(self, value):
+    def sea_clutter_nudge(self, value, get_report: bool = False):
         if self.reports.system.radar_type is NavicoRadarType.navicoHALO:
             logging.warning("Sea clutter nudge not tested yet.")  #FIXME
             value = int(max(-128, min(127, value)))
             cmd = SeaClutterNudgeCmd.pack(self.auto_settings.sea_clutter_auto, value)
             self.send_pack_data(cmd)
-            self.get_reports()
+            if get_report:
+                self.get_reports()
+
         else:
             logging.warning("Sea clutter nudge is only available on Halo")
 
-    def set_sector_blanking(self):
+    def set_sector_blanking(self, get_report: bool = False):
         """ # TODO
         ### DEDUCTION ###
 
@@ -898,9 +923,12 @@ class NavicoRadarController:
             end_angle = 2bytes (degree to decidegrees)
         """
         logging.warning("Blanking method not implemented yet.")
+        #if get_report:
+        #    self.get_reports()
 
 
 def wake_up_navico_radar():
+    # this may not be usefull
     cmd = struct.pack("2B", 0x01, 0xb1)
     send_socket = create_udp_socket()
     send_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)

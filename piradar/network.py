@@ -16,6 +16,19 @@ def get_local_addresses():
     return addresses
 
 
+def check_interface_inet_is_up(interface):
+    interface_addrs = psutil.net_if_addrs().get(interface) or []
+    return socket.AF_INET in [snicaddr.family for snicaddr in interface_addrs]
+
+
+def get_interface_inet_addr(interface):
+    interface_addrs = psutil.net_if_addrs().get(interface) or []
+    for addr in interface_addrs:
+        if addr.family == socket.AF_INET:
+            return addr.address
+    return None
+
+
 def create_udp_socket():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -36,4 +49,5 @@ def create_udp_multicast_receiver_socket(interface_address, group_address, group
 
 def ip_address_to_string(addr):
     return socket.inet_ntoa(struct.pack('!I', addr))
+
 

@@ -48,7 +48,7 @@ class Radar:
         self.m_send_socket.sendto(data, self.m_send_address)
 
     def data_thread(self):
-        data_socket = self.create_listener_socket(self.m_addresses.INTERFACE, self.m_addresses.data.address, self.m_addresses.data.port)
+        data_socket = self.create_listener_socket(self.m_addresses.interface_addr, self.m_addresses.data.address, self.m_addresses.data.port)
         while not self.m_exit_flag:
             try:
                 in_data, from_addr = data_socket.recvfrom(65535)
@@ -76,7 +76,7 @@ class Radar:
         print(processed_data)
 
     def report_thread(self):
-        report_socket = self.create_listener_socket(self.m_addresses.INTERFACE, self.m_addresses.report.address, self.m_addresses.report.port)
+        report_socket = self.create_listener_socket(self.m_addresses.interface_addr, self.m_addresses.report.address, self.m_addresses.report.port)
         while not self.m_exit_flag:
             try:
                 in_data = report_socket.recv(65535)

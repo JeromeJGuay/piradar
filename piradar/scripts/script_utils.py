@@ -1,8 +1,28 @@
 import logging
 import time
+from pathlib import Path
 from dataclasses import dataclass
 
 from piradar.navico.navico_controller import NavicoRadarController, RadarStatus
+
+from piradar.network import check_interface_inet_is_up
+
+
+def validate_interface(interface):
+    attempt = 10
+    for _ in range(attempt):
+        if check_interface_inet_is_up(interface):
+            return True
+    return False
+
+
+def validate_output_drive(output_drive):
+    attempt = 10
+    for _ in range(attempt):
+        if Path(output_drive).is_dir():
+            return True
+    return False
+
 
 @dataclass#(kw_only=True)
 class RadarUserSettings:
@@ -89,7 +109,7 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
         ['sea_gain', settings.gain, radar_controller.reports.setting.gain],
         ['sea_gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
         ['sea_clutter', settings.sea_clutter, radar_controller.reports.setting.sea_clutter],
-        ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_state_auto],  # I think it might be it #unsure
+        ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],  # I think it might be it #unsure
         ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
         ['side_lobe_suppression', settings.side_lobe_suppression, radar_controller.reports.filter.side_lobe_suppression],
 
@@ -125,9 +145,14 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
 def start_transmit(radar_controller: NavicoRadarController):
     max_try = 20
     _count = 0
+    radar_controller.transmit()
+    # FIXME THIS IS NOT WORKING
     while radar_controller.reports.status.status is not RadarStatus.transmit:
         time.sleep(.05)
         radar_controller.get_reports()
+
+        if radar_controller.reports.status.status == RadarStatus.spinning_up:
+            max_try = 100 # try a bit more if it spinning u
 
         if _count >= max_try:
             logging.error("Radar Was not Started")
@@ -138,15 +163,17 @@ def start_transmit(radar_controller: NavicoRadarController):
 
 def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, standby=False):
     # Set proper Scan speed
-    radar_controller.transmit()
     max_try = 20
     _count = 0
     if start_transmit(radar_controller) is True:
         #tries for 1 seconds
         for _ in range(10):
             if radar_controller.reports.filter.scan_speed != scan_speed:
-                radar_controller.set_scan_speed = radar_controller.set_scan_speed(scan_speed)
-                time.sleep(0.1)
+                radar_controller.set_scan_speed(scan_speed)
+                time.sleep(0.5)
+            else:
+                logging.info(f"Scan Speed set to {scan_speed}")
+                return
 
         if radar_controller.reports.filter.scan_speed != scan_speed:
             logging.warning(f"Unable to change scan speed to {scan_speed} from {radar_controller.reports.filter.scan_speed}")
