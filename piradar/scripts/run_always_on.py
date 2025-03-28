@@ -19,7 +19,7 @@ from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_s
 record_interval = 60
 
 
-sector_record_count = 4
+number_of_sector_per_scan = 4
 
 ## Radar Setting ##
 radar_user_settings = RadarUserSettings(
@@ -77,9 +77,13 @@ output_path = Path(output_drive).joinpath(output_dir)
 
 
 def scan(radar_controller: NavicoRadarController):
+    dt = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S")
     if start_transmit(radar_controller) is True:
 
-        radar_controller.start_recording_data(number_of_sector_to_record=sector_record_count)
+        radar_controller.start_recording_data(
+            number_of_sector_to_record=number_of_sector_per_scan,
+            output_file=output_path.joinpath(f"{dt}_ppi_{number_of_sector_per_scan}.raw")
+        )
 
         # add a watch dog here
         while radar_controller._data_recording_is_started:
@@ -90,9 +94,10 @@ def scan(radar_controller: NavicoRadarController):
             radar_controller.get_reports()
             time.sleep(.1)
 
-### A watchdog should be added to raise an error if the radar disconnect
-### Turn radar off and on again.
+
 def main():
+    ### A watchdog should be added to raise an error if the radar disconnect
+    ### Turn radar off and on again.
 
     # MAKE SURE THE DRIVE IS MOUNTED
     if not validate_output_drive(output_drive):
@@ -129,7 +134,9 @@ def main():
 
     schedule.every(record_interval).seconds.do(scan, [radar_controller])
 
-    schedule.run_pending()
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 
 if __name__ == '__main__':
