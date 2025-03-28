@@ -643,7 +643,7 @@ class NavicoRadarController:
                 else:
                     logging.warning("Invalid Spoke")
 
-                self.writing_queue.put((self.write_sector_data, sector_data))
+                self.writing_queue.put((self.write_raw_sector_data, sector_data))
 
             # do it at the end to set self._data_recording_is_start ot false if need
             self.check_data_recording_condition()
