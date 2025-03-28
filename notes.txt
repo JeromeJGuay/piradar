@@ -37,3 +37,12 @@ UBUNTU INSTALL
 sudo systemctl daemon-reload
 sudo systemctl enable radar_startup.service
 sudo systemctl start radar_startup.service
+
+
+
+
+ERROR MOUNTING DISK ON UBUNTU
+sudo fdisk -l
+sudo apt install nfs-common
+sudo apt install cifs-utils
+sudo ntfsfix -d /dev/sdb1

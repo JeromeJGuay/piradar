@@ -72,8 +72,10 @@ scan_speed = "low"
 
 ### Write data ###
 output_drive = "/media/capteur/2To"
-output_dir = "data"
-output_path = Path(output_drive).joinpath(output_dir)
+output_data_dir = "data"
+output_report_dir = "data"
+output_data_path = Path(output_drive).joinpath(output_data_dir)
+output_report_path = Path(output_drive).joinpath(output_report_dir)
 
 
 def scan(radar_controller: NavicoRadarController):
@@ -82,7 +84,7 @@ def scan(radar_controller: NavicoRadarController):
 
         radar_controller.start_recording_data(
             number_of_sector_to_record=number_of_sector_per_scan,
-            output_file=output_path.joinpath(f"{dt}_ppi_{number_of_sector_per_scan}.raw")
+            output_file=output_data_path.joinpath(f"{dt}_ppi_{number_of_sector_per_scan}.raw")
         )
 
         # add a watch dog here
@@ -103,10 +105,14 @@ def main():
     if not validate_output_drive(output_drive):
         raise Exception("Output drive does not exist")
     logging.info(f"{output_drive} directory found.")
-    Path(output_path).mkdir(parents=True, exist_ok=True)
+    Path(output_data_path).mkdir(parents=True, exist_ok=True)
+    Path(output_report_path).mkdir(parents=True, exist_ok=True)
 
-    if not Path(output_path).is_dir():
-        raise Exception("Output directory war not created")
+    if not Path(output_data_path).is_dir():
+        raise Exception(f"Output directory {output_data_path}, war not created")
+
+    if not Path(output_report_path).is_dir():
+        raise Exception(f"Output directory {output_report_path}, war not created")
 
     # MAKE SURE THE INTERFACE IS UP
     if not validate_interface(interface_name):
@@ -115,7 +121,7 @@ def main():
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
-        report_output_dir=output_dir,
+        report_output_dir=output_report_path,
     )
 
     # power on radar here if necessary
