@@ -41,6 +41,7 @@ sudo systemctl start radar_startup.service
 
 
 
+
 ERROR MOUNTING DISK ON UBUNTU
 sudo fdisk -l
 sudo apt install nfs-common

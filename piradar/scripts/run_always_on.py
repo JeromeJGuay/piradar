@@ -67,7 +67,7 @@ mcast_ifaces = MulticastInterfaces(
 )
 
 
-scan_speed = "low"
+scan_speed = "medium"
 
 
 ### Write data ###
@@ -79,7 +79,7 @@ output_report_path = Path(output_drive).joinpath(output_report_dir)
 
 
 def scan(radar_controller: NavicoRadarController):
-    dt = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+    dt = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%S")
     if start_transmit(radar_controller) is True:
 
         radar_controller.start_recording_data(
@@ -101,23 +101,30 @@ def main():
     ### A watchdog should be added to raise an error if the radar disconnect
     ### Turn radar off and on again.
 
-    # MAKE SURE THE DRIVE IS MOUNTED
-    if not validate_output_drive(output_drive):
-        raise Exception("Output drive does not exist")
-    logging.info(f"{output_drive} directory found.")
-    Path(output_data_path).mkdir(parents=True, exist_ok=True)
-    Path(output_report_path).mkdir(parents=True, exist_ok=True)
+    for _ in range(60):
+        try:
+            # MAKE SURE THE DRIVE IS MOUNTED
+            if not validate_output_drive(output_drive):
+                raise Exception("Output drive does not exist")
+            logging.info(f"{output_drive} directory found.")
+            Path(output_data_path).mkdir(parents=True, exist_ok=True)
+            Path(output_report_path).mkdir(parents=True, exist_ok=True)
 
-    if not Path(output_data_path).is_dir():
-        raise Exception(f"Output directory {output_data_path}, war not created")
+            if not Path(output_data_path).is_dir():
+                raise Exception(f"Output directory {output_data_path}, war not created")
 
-    if not Path(output_report_path).is_dir():
-        raise Exception(f"Output directory {output_report_path}, war not created")
+            if not Path(output_report_path).is_dir():
+                raise Exception(f"Output directory {output_report_path}, war not created")
 
-    # MAKE SURE THE INTERFACE IS UP
-    if not validate_interface(interface_name):
-        raise Exception(f"Interface {interface_name} not found.")
-    logging.info(f"{interface_name} interface found.")
+            # MAKE SURE THE INTERFACE IS UP
+            if not validate_interface(interface_name):
+                raise Exception(f"Interface {interface_name} not found.")
+            logging.info(f"{interface_name} interface found.")
+
+            break
+        except Exception as e:
+            time.sleep(1)
+
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,

@@ -597,7 +597,7 @@ class NavicoRadarController:
         logging.debug(f"Number of spokes in sector: {raw_frame.number_of_spokes}")
         sector_data = SectorData()
         #sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-        sector_data.time = int(datetime.datetime.utcnow().timestamp()) # seconds "<L"
+        sector_data.time = int(datetime.datetime.now(datetime.UTC).timestamp()) # seconds "<L"
         sector_data.number_of_spokes = raw_frame.number_of_spokes
 
         for raw_spoke in raw_frame.spokes:
@@ -685,10 +685,9 @@ class NavicoRadarController:
                                                    spoke_data.heading,
                                                    spoke_data.angle,
                                                    spoke_data._range,
-                                                   spoke_data.intensities)
+                                                   *spoke_data.intensities)
 
                 f.write(packed_spoke_data)
-
 
 
     def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
@@ -796,7 +795,6 @@ class NavicoRadarController:
     def set_side_lobe_suppression_auto(self, value: bool, get_report: bool = False):
         self.auto_settings.side_lobe_suppression_auto = value
         self.set_side_lobe_suppression(value=self.reports.filter.side_lobe_suppression, get_report=get_report)
-
 
     def set_interference_rejection(self, value: str, get_report: bool = False):
         cmd = InterferenceRejectionCmd.pack(value=OLMH_STR2VAL_MAP[value])

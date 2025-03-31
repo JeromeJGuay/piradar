@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 from dataclasses import dataclass
 
-from piradar.navico.navico_controller import NavicoRadarController, RadarStatus
+from piradar.navico.navico_controller import NavicoRadarController, RadarStatus, RANGES_PRESETS
 
 from piradar.network import check_interface_inet_is_up
 
@@ -102,7 +102,6 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
 
     check_list = [
-        ['range', settings._range, radar_controller.reports.setting._range],
         ['bearing', settings.bearing, radar_controller.reports.spatial.bearing],
         ['antenna_height', settings.antenna_height, radar_controller.reports.spatial.antenna_height],
 
@@ -141,6 +140,16 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
         except AssertionError:
             logging.error(f"{key} was not set. Expected: {v1}, Actual: {v2}")
 
+    key = "range"
+    v2 = radar_controller.reports.setting._range
+    if settings._range in RANGES_PRESETS:
+        v1 = RANGES_PRESETS[settings._range]
+    else:
+        v1 = settings._range
+    try:
+        assert v1 == v2
+    except AssertionError:
+            logging.error(f"{key} was not set. Expected: {v1}, Actual: {v2}")
 
 def start_transmit(radar_controller: NavicoRadarController):
     max_try = 20
@@ -159,6 +168,7 @@ def start_transmit(radar_controller: NavicoRadarController):
             return False
 
         _count += 1
+    return True
 
 
 def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, standby=False):
@@ -167,18 +177,21 @@ def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, sta
     _count = 0
     if start_transmit(radar_controller) is True:
         #tries for 1 seconds
-        for _ in range(10):
+        for _ in range(max_try):
             if radar_controller.reports.filter.scan_speed != scan_speed:
                 radar_controller.set_scan_speed(scan_speed)
-                time.sleep(0.5)
+                time.sleep(1)
+                radar_controller.get_reports()
+
             else:
                 logging.info(f"Scan Speed set to {scan_speed}")
-                return
+                break
 
         if radar_controller.reports.filter.scan_speed != scan_speed:
             logging.warning(f"Unable to change scan speed to {scan_speed} from {radar_controller.reports.filter.scan_speed}")
 
-        if standby:
-            radar_controller.standby()
     else:
         logging.error(f"Unable to change scan speed from {scan_speed}. Radar did not start to transmit.")
+
+    if standby:
+        radar_controller.standby()
