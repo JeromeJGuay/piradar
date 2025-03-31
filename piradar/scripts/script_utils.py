@@ -204,17 +204,21 @@ def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, sta
         radar_controller.standby()
 
 
-class DateTimeRounder:
-    def __init__(self, seconds):
-        self.time_delta = datetime.timedelta(seconds=seconds).total_seconds()
+class FileTimeStamper:
+    def __init__(self, rounding_seconds: float, is_utc: bool=True):
+        self.time_delta = datetime.timedelta(seconds=rounding_seconds).total_seconds()
+        self.is_utc = is_utc
 
-    def round(self, dt: datetime.datetime) -> datetime.datetime:
+    def stamp(self) -> datetime.datetime:
         """Round a datetime object to a multiple of a timedelta
         dt : datetime.datetime object, default now.
         """
-        seconds = (dt - dt.min).seconds
+        _dt = datetime.datetime.now()
+        seconds = (_dt - _dt.min).seconds
         rounding = (seconds + self.time_delta / 2) // self.time_delta * self.time_delta
-        return dt + datetime.timedelta(0, rounding - seconds, -dt.microsecond)
+        timestamp = _dt + datetime.timedelta(0, rounding - seconds, -_dt.microsecond)
+
+        return timestamp.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
 
 
 class TransmitWatchdog:

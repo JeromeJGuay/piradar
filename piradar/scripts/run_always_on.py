@@ -9,7 +9,7 @@ from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, validate_interface, validate_output_drive, DateTimeRounder
+    RadarUserSettings, validate_interface, validate_output_drive, FileTimeStamper
 
 ###################################################
 #       PARAMETERS TO BE LOADED FROM INI          #
@@ -72,11 +72,11 @@ output_report_dir = "report"
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
-datetime_rounder = DateTimeRounder(seconds=record_interval)
+time_stamper = FileTimeStamper(rounding_seconds=record_interval, is_utc=True)
 
 
 def scan(radar_controller: NavicoRadarController):
-    dt = datetime_rounder.round(datetime.datetime.now(datetime.UTC)).strftime("%Y%m%dT%H%M%S")
+    time_stamp = time_stamper.stamp()
 
     if start_transmit(radar_controller) is True:
 
@@ -86,7 +86,7 @@ def scan(radar_controller: NavicoRadarController):
 
             radar_controller.start_recording_data(
                 number_of_sector_to_record=number_of_sector_per_scan,
-                output_file=output_data_path.joinpath(f"{dt}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
+                output_file=output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
             )
 
             # add a watch dog here
