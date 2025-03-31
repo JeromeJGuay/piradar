@@ -160,7 +160,7 @@ def main():
 
 if __name__ == '__main__':
     debug_level = "INFO"
-    write_log = False
+    write_log = True
     init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
 
     main()
