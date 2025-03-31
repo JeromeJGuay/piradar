@@ -3,23 +3,20 @@ import time
 import datetime
 from pathlib import Path
 
-import schedule
-
 
 from piradar.logger import init_logging
 #from piradar.raspberry_utils import RaspIoSwitch
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, validate_interface, validate_output_drive
+    RadarUserSettings, validate_interface, validate_output_drive, DateTimeRounder
 
 ###################################################
 #       PARAMETERS TO BE LOADED FROM INI          #
 ###################################################
 record_interval = 30
 
-
-number_of_sector_per_scan = 4
+number_of_sector_per_scan = 1
 
 ## Radar Setting ##
 radar_user_settings = RadarUserSettings(
@@ -28,7 +25,7 @@ radar_user_settings = RadarUserSettings(
 
     bearing=0,
 
-    gain=50,
+    gain=127,
     gain_auto=False,
 
     sea_clutter=0,
@@ -52,7 +49,7 @@ radar_user_settings = RadarUserSettings(
 )
 
 ### NETWORK ###
-interface_addr = "192.168.1.228"
+interface_addr = "192.168.1.100"
 interface_name = "eth0"
 
 report_address = ('236.6.7.9', 6679)
@@ -68,7 +65,6 @@ mcast_ifaces = MulticastInterfaces(
 
 scan_speed = "medium"
 
-
 ### Write data ###
 output_drive = "/media/capteur/2To"
 output_data_dir = "data"
@@ -76,19 +72,26 @@ output_report_dir = "report"
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
+datetime_rounder = DateTimeRounder(seconds=record_interval)
+
 
 def scan(radar_controller: NavicoRadarController):
-    dt = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%S")
+    dt = datetime_rounder.round(datetime.datetime.now(datetime.UTC)).strftime("%Y%m%dT%H%M%S")
+
     if start_transmit(radar_controller) is True:
 
-        radar_controller.start_recording_data(
-            number_of_sector_to_record=number_of_sector_per_scan,
-            output_file=output_data_path.joinpath(f"{dt}_ppi_{number_of_sector_per_scan}.raw")
-        )
+        for _gain in [0, 63, 127, 190, 255]:
+            radar_controller.set_gain(_gain)
+            time.sleep(0.1)
 
-        # add a watch dog here
-        while radar_controller._data_recording_is_started:
-            time.sleep(.1)
+            radar_controller.start_recording_data(
+                number_of_sector_to_record=number_of_sector_per_scan,
+                output_file=output_data_path.joinpath(f"{dt}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
+            )
+
+            # add a watch dog here
+            while radar_controller._data_recording_is_started:
+                time.sleep(.1)
 
         while (radar_controller.reports.status.status is RadarStatus.transmit):
             radar_controller.standby()
@@ -96,7 +99,7 @@ def scan(radar_controller: NavicoRadarController):
             time.sleep(.1)
     else:
         logging.error("Failed to start radar scan")
-        # ping watchdog & reboot.
+    # ping watchdog & reboot.
 
 
 def main():
@@ -127,7 +130,6 @@ def main():
         except Exception as e:
             time.sleep(1)
 
-
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
@@ -136,8 +138,8 @@ def main():
     # power on radar here if necessary
 
     if radar_controller.reports.system.radar_type is None:
-        raise Exception("Radar type not received. Communication Error")
         logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
+        raise Exception("Radar type not received. Communication Error")
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
@@ -151,11 +153,17 @@ def main():
 
     logging.info("Ready to record.")
 
-    schedule.every(record_interval).seconds.do(scan, radar_controller)
+#    schedule.every(record_interval).seconds.do(scan, radar_controller)
 
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+#    while True:
+#        schedule.run_pending()
+#        time.sleep(1)
+
+    _time0 = time.time()
+    while True: # wait for the next round interval.
+        time.sleep(record_interval - (time.time() - _time0) % record_interval)
+        scan(radar_controller)
+        _time0 = time.time()
 
 
 if __name__ == '__main__':
@@ -164,6 +172,3 @@ if __name__ == '__main__':
     init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
 
     main()
-
-
-

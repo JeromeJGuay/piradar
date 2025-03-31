@@ -1,8 +1,9 @@
 
 # 1: Install isc-dhcp-server
 sudo apt-get install isc-dhcp-server
+also: ifupdown net-tools
 
-# 2: Set Up the dhcp at the desired ip addresss (192.168.1.5)
+# 2: Set Up the dhcp at the desired ip addresss (192.168.1.100)
 
 ## 2.1 In `/etc/default/isc-dhcp-server` add:
 
@@ -12,23 +13,41 @@ INTERFACESv4="eth0"
 ## 2.2 In ``/etc/dhcp/dhcpd.conf` add:
 
 ```
-subnet 192.168.1.5 netmask 255.255.255.0 {
+
+option domain-name "capteur.local";
+option domain-name-servers 1.1.1.1, 8.8.8.8;
+
+
+subnet 192.168.1.0 netmask 255.255.255.0 {
+
   range 192.168.1.110 192.168.1.210;
   option subnet-mask 255.255.255.0;
-  option routers 192.168.1.1;
+  option routers 192.168.1.100;
   option broadcast-address 192.168.1.255;
 }
 
+default-lease-time 600;
+max-lease-time 7200;
+
+authoritative;
 ```
 
 
 ## 3 Create config  in /etc/network/interfaces.d/locals
 
 ```
+# The loopback network interface (always required)
+auto lo
+iface lo inet loopback
+
+# Assign a static IP for this DHCP server through eth0:
+auto eth0
 allow-hotplug eth0
 iface eth0 inet static
-        address 192.168.1.1
+        address 192.168.1.100
         netmask 255.255.255.0
+        broadcast 192.168.1.255
+    		gateway 192.168.1.1
 ```
 
 ## apply
@@ -40,6 +59,6 @@ sudo ifup eth0
 
 sudo systemctl status isc-dhcp-server
 
-#if not start start it
+#if not start, start it
 
 sudo systemctl enable isc-dhcp-server

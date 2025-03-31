@@ -369,7 +369,7 @@ class NavicoRadarController:
         try:
             _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
             if _nbytes_sent != len(packed_data):
-                logging.error(f"Failed to send command {packed_data}.")
+                logging.error(f"Failed to send command {packed_data} to {self.address_set.send.address, self.address_set.send.port}.")
             else:
                 logging.debug(f"Sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
             time.sleep(0.05)  # not to overwhelm. Maybe this should be handled by a thread and a queue.
@@ -701,12 +701,15 @@ class NavicoRadarController:
             packed_frame_header = b"FH" + struct.pack("<LB", sector_data.time, sector_data.number_of_spokes)
             f.write(packed_frame_header)
             for spoke_data in sector_data.spoke_data:
-                packed_spoke_data = b"SD" + struct.pack("<HHHH512B",
-                                                   spoke_data.spoke_number,
-                                                   spoke_data.heading,
-                                                   spoke_data.angle,
-                                                   spoke_data._range,
-                                                   *spoke_data.intensities)
+                packed_spoke_data = b"SD" + struct.pack(
+                    "<HHHHH512B",
+                    spoke_data.spoke_number,
+                    spoke_data.heading,
+                    spoke_data.angle,
+                    spoke_data._range,
+                    self.reports.setting.gain,
+                    *spoke_data.intensities
+                )
 
                 f.write(packed_spoke_data)
 

@@ -1,5 +1,7 @@
 import logging
 import time
+import datetime
+import threading
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -24,7 +26,7 @@ def validate_output_drive(output_drive):
     return False
 
 
-@dataclass#(kw_only=True)
+@dataclass  #(kw_only=True)
 class RadarUserSettings:
     _range: int | str
     antenna_height: float
@@ -100,7 +102,6 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
 
 
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
-
     check_list = [
         ['bearing', settings.bearing, radar_controller.reports.spatial.bearing],
         ['antenna_height', settings.antenna_height, radar_controller.reports.spatial.antenna_height],
@@ -108,17 +109,22 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
         ['sea_gain', settings.gain, radar_controller.reports.setting.gain],
         ['sea_gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
         ['sea_clutter', settings.sea_clutter, radar_controller.reports.setting.sea_clutter],
-        ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],  # I think it might be it #unsure
+        ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],
+        # I think it might be it #unsure
         ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
-        ['side_lobe_suppression', settings.side_lobe_suppression, radar_controller.reports.filter.side_lobe_suppression],
+        ['side_lobe_suppression', settings.side_lobe_suppression,
+         radar_controller.reports.filter.side_lobe_suppression],
 
-        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto, radar_controller.reports.filter.side_lobe_suppression_auto],
+        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto,
+         radar_controller.reports.filter.side_lobe_suppression_auto],
 
         ['sea_state', settings.sea_state, radar_controller.reports.filter.sea_state],
 
         ['noise_rejection', settings.noise_rejection, radar_controller.reports.filter.noise_rejection],
-        ['interference_rejction', settings.interference_rejection, radar_controller.reports.setting.interference_rejection],
-        ['local_interference_filter', settings.local_interference_filter, radar_controller.reports.filter.local_interference_filter],
+        ['interference_rejction', settings.interference_rejection,
+         radar_controller.reports.setting.interference_rejection],
+        ['local_interference_filter', settings.local_interference_filter,
+         radar_controller.reports.filter.local_interference_filter],
 
         #assert settings.mode, radar_controller.reports.setting.mode
         ['target_expansion', settings.target_expansion, radar_controller.reports.setting.target_expansion],
@@ -148,7 +154,7 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
     try:
         assert v1 == v2
     except AssertionError:
-            logging.error(f"{key} was not set. Expected: {v1}, Actual: {v2}")
+        logging.error(f"{key} was not set. Expected: {v1}, Actual: {v2}")
 
 
 def start_transmit(radar_controller: NavicoRadarController):
@@ -161,7 +167,7 @@ def start_transmit(radar_controller: NavicoRadarController):
         radar_controller.get_reports()
 
         if radar_controller.reports.status.status == RadarStatus.spinning_up:
-            max_try = 100 # try a bit more if it spinning u
+            max_try = 100  # try a bit more if it spinning u
 
         if _count >= max_try:
             logging.error("Radar Was not Started")
@@ -188,10 +194,43 @@ def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, sta
                 break
 
         if radar_controller.reports.filter.scan_speed != scan_speed:
-            logging.warning(f"Unable to change scan speed to {scan_speed} from {radar_controller.reports.filter.scan_speed}")
+            logging.warning(
+                f"Unable to change scan speed to {scan_speed} from {radar_controller.reports.filter.scan_speed}")
 
     else:
         logging.error(f"Unable to change scan speed from {scan_speed}. Radar did not start to transmit.")
 
     if standby:
         radar_controller.standby()
+
+
+class DateTimeRounder:
+    def __init__(self, seconds):
+        self.time_delta = datetime.timedelta(seconds=seconds).total_seconds()
+
+    def round(self, dt: datetime.datetime) -> datetime.datetime:
+        """Round a datetime object to a multiple of a timedelta
+        dt : datetime.datetime object, default now.
+        """
+        seconds = (dt - dt.min).seconds
+        rounding = (seconds + self.time_delta / 2) // self.time_delta * self.time_delta
+        return dt + datetime.timedelta(0, rounding - seconds, -dt.microsecond)
+
+
+class TransmitWatchdog:
+    def __init__(self, interval: int, radar_controller: NavicoRadarController):
+        self.radar_controller = radar_controller
+        self.interval = interval
+        self._thread: threading.Thread
+
+    def watch(self):
+        time.sleep(self.interval)
+
+        if self.radar_controller.reports.status.status is not RadarStatus.standby:
+            logging.error("Radar is still transmitting.")
+            self.radar_controller.standby(get_report=True)
+            time.sleep(0.5)  # give some time to received the reports.
+            if self.radar_controller.reports.status.status is not RadarStatus.standby:
+                logging.error("Unable to stop radar.")
+                pass
+                # If it gets here, trigger somethings else FIXME
