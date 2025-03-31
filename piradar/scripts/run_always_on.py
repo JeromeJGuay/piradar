@@ -66,7 +66,6 @@ mcast_ifaces = MulticastInterfaces(
     interface=interface_addr
 )
 
-
 scan_speed = "medium"
 
 
@@ -95,6 +94,9 @@ def scan(radar_controller: NavicoRadarController):
             radar_controller.standby()
             radar_controller.get_reports()
             time.sleep(.1)
+    else:
+        logging.error("Failed to start radar scan")
+        # ping watchdog & reboot.
 
 
 def main():
@@ -137,14 +139,15 @@ def main():
         raise Exception("Radar type not received. Communication Error")
         logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
 
-
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
-    time.sleep(.5) #just to be sure all reports are in and analyzed.
+    time.sleep(.5)  #just to be sure all reports are in and analyzed.
 
     valide_radar_settings(radar_user_settings, radar_controller)
+    # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
     set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
+    # DO SOMETHIGN LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
 
     logging.info("Ready to record.")
 

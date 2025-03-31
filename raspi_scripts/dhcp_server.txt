@@ -1,0 +1,45 @@
+
+# 1: Install isc-dhcp-server
+sudo apt-get install isc-dhcp-server
+
+# 2: Set Up the dhcp at the desired ip addresss (192.168.1.5)
+
+## 2.1 In `/etc/default/isc-dhcp-server` add:
+
+```
+INTERFACESv4="eth0"
+``
+## 2.2 In ``/etc/dhcp/dhcpd.conf` add:
+
+```
+subnet 192.168.1.5 netmask 255.255.255.0 {
+  range 192.168.1.110 192.168.1.210;
+  option subnet-mask 255.255.255.0;
+  option routers 192.168.1.1;
+  option broadcast-address 192.168.1.255;
+}
+
+```
+
+
+## 3 Create config  in /etc/network/interfaces.d/locals
+
+```
+allow-hotplug eth0
+iface eth0 inet static
+        address 192.168.1.1
+        netmask 255.255.255.0
+```
+
+## apply
+
+sudo ifdown eth0
+sudo ifup eth0
+
+# check with ip a
+
+sudo systemctl status isc-dhcp-server
+
+#if not start start it
+
+sudo systemctl enable isc-dhcp-server

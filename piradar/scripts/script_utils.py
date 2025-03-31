@@ -120,7 +120,6 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
         ['interference_rejction', settings.interference_rejection, radar_controller.reports.setting.interference_rejection],
         ['local_interference_filter', settings.local_interference_filter, radar_controller.reports.filter.local_interference_filter],
 
-
         #assert settings.mode, radar_controller.reports.setting.mode
         ['target_expansion', settings.target_expansion, radar_controller.reports.setting.target_expansion],
         ['target_separation', settings.target_separation, radar_controller.reports.filter.target_separation],
@@ -150,6 +149,7 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
         assert v1 == v2
     except AssertionError:
             logging.error(f"{key} was not set. Expected: {v1}, Actual: {v2}")
+
 
 def start_transmit(radar_controller: NavicoRadarController):
     max_try = 20

@@ -1,0 +1,15 @@
+[Unit]
+Description=Start radar run app
+After=multi-user.target
+
+
+[Service]
+Type=idle
+User=capteur
+WorkingDirectory=/home/capteur/program/piradar
+ExecStartPre=sleep 30
+ExecStart= .env/bin/python3 /piradar.scripts.run_always_on.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
