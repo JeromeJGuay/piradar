@@ -82,7 +82,7 @@ MODE_STR2VAL_MAP = {"custom": 0, "harbor": 1, "offshore": 2, "weather": 4, "bird
 
 SEA_STATE_VAL2STR_MAP = {0: "calm", 1: "moderate", 2: "rough"}
 SEA_STATE_STR2VAL_MAP = {"calm": 0, "moderate": 1, "rough": 2}
-# I dont get the difference between SEA_STATE and SEA_AUTO FIXME
+
 SEA_AUTO_VAL2STR_MAP = {0: "off", 1: "harbor", 2: "offshore"}
 SEA_AUTO_STR2VAL_MAP = {"off": 0, "harbor": 1, "offshore": 2}
 
@@ -366,12 +366,16 @@ class NavicoRadarController:
         logging.debug("Writer thread started")
 
     def send_pack_data(self, packed_data):
-        logging.debug(f"Sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
-        _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
-        if _nbytes_sent != len(packed_data):
-            logging.error(f"Failed to send command {packed_data}.")
-        time.sleep(0.05)  # not to overwealm. Maybe tthis should be handl by a thread and a queue.
-        # FIXME MAKE THIS THREAD SAFE
+        try:
+            _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
+            if _nbytes_sent != len(packed_data):
+                logging.error(f"Failed to send command {packed_data}.")
+            else:
+                logging.debug(f"Sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
+            time.sleep(0.05)  # not to overwhelm. Maybe this should be handled by a thread and a queue.
+            # maybe it's fine.
+        except socket.error as e:
+            logging.error(f"Failed to send command {packed_data}. Error: {e}")
 
     def keep_alive(self):
         """FIXME MAYBE ADD MORE FLAG FOR KEEP_ALIVE ?"""
@@ -460,7 +464,7 @@ class NavicoRadarController:
 
             case REPORTS_IDS.r_01C4:  #STATUS
                 self.raw_reports.r01c4 = RadarReport01C4(raw_packet)
-                try:
+                try:  # RADAR STATUS --------------
                     self.reports.status.status = RADAR_STATUS_VAL2STR_MAP[self.raw_reports.r01c4.radar_status]
                 except ValueError:
                     self.reports.status.status = "unknown"
@@ -469,25 +473,29 @@ class NavicoRadarController:
             case REPORTS_IDS.r_02C4:  # SETTINGS
                 self.raw_reports.r02c4 = RadarReport02C4(raw_packet)
 
+                # RANGE --------------
                 self.reports.setting._range = self.raw_reports.r02c4.range / 10
 
-                try:
+                try:  # MODE --------------
                     self.reports.setting.mode = MODE_VAL2STR_MAP[
                         self.raw_reports.r02c4.mode]  #Raise or log warning for unknown type TODO
                 except KeyError:
                     self.reports.setting.mode = "unknown"
                     logging.warning(f"Unknown mode: {self.raw_reports.r02c4.mode}")
 
+                # GAIN  & GAIN AUTO --------------
                 self.reports.setting.gain = self.raw_reports.r02c4.gain
                 self.reports.setting.gain_auto = bool(self.raw_reports.r02c4.auto_gain)
 
+                # SEA CUTTER & SEA CLUTTER AUTO --------------
                 self.reports.setting.sea_clutter = self.raw_reports.r02c4.sea_clutter
                 self.reports.setting.sea_clutter_auto = bool(self.raw_reports.r02c4.sea_clutter_auto)
 
+                # RAIN CLUTTER --------------
                 self.reports.setting.rain_clutter = self.raw_reports.r02c4.rain_clutter
                 # no auto flag for rain clutter ???
 
-                try:
+                try:  # INTERFERENCE REJECTION --------------
                     self.reports.setting.interference_rejection = OLMH_VAL2STR_MAP[
                         self.raw_reports.r02c4.interference_rejection]
                 except KeyError:
@@ -495,8 +503,10 @@ class NavicoRadarController:
                     logging.warning(
                         f"Unknown interference_rejection value: {self.raw_reports.r02c4.interference_rejection}")
 
+                # TARGET EXPANSION --------------
                 if self.reports.system.radar_type is not NavicoRadarType.navicoHALO:  # G4, G3 not available on BR24 ? maybe
-                    self.reports.setting.target_expansion = bool(self.raw_reports.r02c4.target_expansion)
+                    # Seems to be a special case ? maybe map to high (off, high)
+                    self.reports.setting.target_expansion = {0: 'off', 1: 'high'}[self.raw_reports.r02c4.target_expansion]
                 else:
                     try:
                         self.reports.setting.target_expansion = OLMH_VAL2STR_MAP[
@@ -505,7 +515,7 @@ class NavicoRadarController:
                         self.reports.setting.target_expansion = "unknown"
                         logging.warning(f"Unknown target_expansion value: {self.raw_reports.r02c4.target_expansion}")
 
-                try:
+                try:  # TARGET BOOST --------------
                     self.reports.setting.target_boost = OLH_VAL2STR_MAP[
                         self.raw_reports.r02c4.target_boost]  #missing in commands
                 except KeyError:
@@ -514,7 +524,8 @@ class NavicoRadarController:
 
             case REPORTS_IDS.r_03C4:  # SYSTEM
                 self.raw_reports.r03c4 = RadarReport03C4(raw_packet)
-                try:
+
+                try:  # RADAR TYPE --------------
                     self.reports.system.radar_type = RADAR_ID2TYPE_MAP[self.raw_reports.r03c4.radar_type]
                 except KeyError:
                     self.reports.system.radar_type = "unknown"
@@ -523,7 +534,10 @@ class NavicoRadarController:
             case REPORTS_IDS.r_04C4:  # SPATIAL
                 self.raw_reports.r04c4 = RadarReport04C4(raw_packet)
 
+                # BEARING --------------
                 self.reports.spatial.bearing = self.raw_reports.r04c4.bearing_alignment / 10
+
+                # ANTENNA HEIGHT --------------
                 self.reports.spatial.antenna_height = self.raw_reports.r04c4.antenna_height / 1000
                 try:
                     self.reports.spatial.light = OLMH_VAL2STR_MAP[self.raw_reports.r04c4.accent_light]
@@ -534,15 +548,16 @@ class NavicoRadarController:
             case REPORTS_IDS.r_06C4:  # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
                 # TODO
-            case REPORTS_IDS.r_08C4:  #FILTERS
+
+            case REPORTS_IDS.r_08C4:  # FILTERS
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)
 
-                try:
+                try:  # SEA STATE --------------
                     self.reports.filter.sea_state = SEA_STATE_VAL2STR_MAP[self.raw_reports.r08c4.sea_state]
                 except KeyError:
                     self.reports.filter.sea_state = "unknown"
 
-                try:
+                try:  # LOCAL INTERFERENCE FILTER --------------
                     self.reports.filter.local_interference_filter = OLMH_VAL2STR_MAP[
                         self.raw_reports.r08c4.local_interference_filter]
                 except KeyError:
@@ -550,37 +565,43 @@ class NavicoRadarController:
                     logging.warning(
                         f"Unknown local_interference_filter value: {self.raw_reports.r08c4.local_interference_filter}")
 
-                try:
+                try:  # SCAN SPEED --------------
                     self.reports.filter.scan_speed = SCAN_SPEED_VAL2STR_MAP[self.raw_reports.r08c4.scan_speed]
                 except KeyError:
                     self.reports.filter.scan_speed = "unknown"
                     logging.warning(f"Unknown scan_speed value: {self.raw_reports.r08c4.scan_speed}")
 
+                # SIDE LOBE SUPPRESSION AUTO --------------
                 self.reports.filter.side_lobe_suppression_auto = bool(self.raw_reports.r08c4.side_lobe_suppression_auto)
 
+                # SIDE LOBE SUPPRESSION --------------
                 self.reports.filter.side_lobe_suppression = self.raw_reports.r08c4.side_lobe_suppression
 
-                try:
+                try:  # NOISE REJECTION --------------
                     self.reports.filter.noise_rejection = OLMH_VAL2STR_MAP[self.raw_reports.r08c4.noise_rejection]
                 except KeyError:
                     self.reports.filter.noise_rejection = "unknown"
                     logging.warning(f'Unknown noise_rejection value: {self.raw_reports.r08c4.noise_rejection}')
 
-                try:
+                try:  # TARGET SEPARATION --------------
                     self.reports.filter.target_separation = OLMH_VAL2STR_MAP[self.raw_reports.r08c4.target_separation]
                 except KeyError:
                     self.reports.filter.target_separation = "unknown"
                     logging.warning(f"Unknown target_separation value: {self.raw_reports.r08c4.target_separation}")
 
                 # FIXME TEST THESE
+                # SEA CLUTTER 08C4 --------------
                 self.reports.filter.sea_clutter_08c4 = self.raw_reports.r08c4.sea_clutter
+                # AUTO SEA CLUTTER NUDGE --------------
                 self.reports.filter.auto_sea_clutter_nudge = self.raw_reports.r08c4.auto_sea_clutter
 
-                try:
+                try:  # DOPPLER MODE --------------
                     self.reports.filter.doppler_mode = DOPPLER_MODE_VAL2STR_MAP[self.raw_reports.r08c4.doppler_mode]
                 except KeyError:
                     self.reports.filter.doppler_mode = "unknown"
                     logging.warning(f"Unknown doppler_mode value: {self.raw_reports.r08c4.doppler_mode}")
+
+                #  Doppler Speed --------------
                 self.reports.filter.doppler_speed = self.raw_reports.r08c4.doppler_speed / 100
 
             case REPORTS_IDS.r_12C4:  # SERIAL
@@ -825,10 +846,12 @@ class NavicoRadarController:
                 cmd = TargetExpansionHaloCmd.pack(value=OLMH_STR2VAL_MAP[value])
 
             case NavicoRadarType.navico4G | NavicoRadarType.navico3G:
-                cmd = TargetExpansionCmd.pack(value=bool(value))
-
+                if value in ['low', 'medium']:
+                    logging.warning("Only `off` and `high` are available for target expansion on 4G and 3G (I think).")
+                value = {'off': 0, 'low': 1, 'medium': 1, 'high': 1}[value]
+                cmd = TargetExpansionCmd.pack(value=value)
             case _:
-                logging.warning("target expansion is not available on BR24 (I think(")
+                logging.warning("target expansion is not available on BR24 (I think).")
                 return
 
         cmd = TargetExpansionCmd.pack(value=bool(value))
