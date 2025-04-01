@@ -9,12 +9,12 @@ from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, validate_interface, validate_output_drive, FileTimeStamper
+    RadarUserSettings, validate_interface, validate_output_drive, round_datetime
 
 ###################################################
 #       PARAMETERS TO BE LOADED FROM INI          #
 ###################################################
-record_interval = 30
+record_interval = 60
 
 number_of_sector_per_scan = 1
 
@@ -63,7 +63,7 @@ mcast_ifaces = MulticastInterfaces(
     interface=interface_addr
 )
 
-scan_speed = "medium"
+scan_speed = "high"
 
 ### Write data ###
 output_drive = "/media/capteur/2To"
@@ -72,15 +72,12 @@ output_report_dir = "report"
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
-time_stamper = FileTimeStamper(rounding_seconds=record_interval, is_utc=True)
 
-
-def scan(radar_controller: NavicoRadarController):
-    time_stamp = time_stamper.stamp()
+def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
+    time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
 
     if start_transmit(radar_controller) is True:
-
-        for _gain in [0, 63, 127, 190, 255]:
+        for _gain in [0, 127, 255]:
             radar_controller.set_gain(_gain)
             time.sleep(0.1)
 
@@ -100,6 +97,28 @@ def scan(radar_controller: NavicoRadarController):
     else:
         logging.error("Failed to start radar scan")
     # ping watchdog & reboot.
+
+
+def run_schedule(radar_controller: NavicoRadarController):
+
+    dt_now = datetime.datetime.now()
+    logging.info(f"app start time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
+    dt_next = round_datetime(dt_now, rounding_to=record_interval, up=True)
+    logging.info(f"First scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
+    time.sleep((dt_next - dt_now).total_seconds())
+
+    while True:
+        logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
+
+        scan(radar_controller, dt=dt_next)
+
+        dt_now = datetime.datetime.now()
+        logging.info(f"After scan time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
+        dt_next = round_datetime(dt_now, rounding_to=record_interval, up=True)
+        logging.info(f"Next scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
+        seconds_to_next_scan = (dt_next - dt_now).total_seconds()
+        time.sleep(seconds_to_next_scan)
+
 
 
 def main():
@@ -143,7 +162,7 @@ def main():
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
-    time.sleep(.5)  #just to be sure all reports are in and analyzed.
+    time.sleep(1)  #just to be sure all reports are in and analyzed.
 
     valide_radar_settings(radar_user_settings, radar_controller)
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
@@ -153,17 +172,10 @@ def main():
 
     logging.info("Ready to record.")
 
-#    schedule.every(record_interval).seconds.do(scan, radar_controller)
+    #### Scheduler ####
 
-#    while True:
-#        schedule.run_pending()
-#        time.sleep(1)
-
-    _time0 = time.time()
-    while True: # wait for the next round interval.
-        time.sleep(record_interval - (time.time() - _time0) % record_interval)
-        scan(radar_controller)
-        _time0 = time.time()
+    # add a watchdog here. FIXMe
+    run_schedule(radar_controller=radar_controller)
 
 
 if __name__ == '__main__':

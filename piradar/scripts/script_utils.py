@@ -204,21 +204,27 @@ def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, sta
         radar_controller.standby()
 
 
-class FileTimeStamper:
-    def __init__(self, rounding_seconds: float, is_utc: bool=True):
-        self.time_delta = datetime.timedelta(seconds=rounding_seconds).total_seconds()
-        self.is_utc = is_utc
+def round_datetime(dt: datetime.datetime, rounding_to: float, offset=0.0, up=False) -> datetime.datetime:
+    """
+    :param dt: datetime.datetime object (native not UTC)
+    :param rounding_to: near whole seconds interval to round to.
+    :param offset: Offset in seconds to round to. Rounds to each rounding_to + offset.
+    :param up: Round up or down.
+    :return: datetime.datetime object.
+    """
+    total_seconds = dt.hour * 3600 + dt.minute * 60 + dt.second - offset
 
-    def stamp(self) -> datetime.datetime:
-        """Round a datetime object to a multiple of a timedelta
-        dt : datetime.datetime object, default now.
-        """
-        _dt = datetime.datetime.now()
-        seconds = (_dt - _dt.min).seconds
-        rounding = (seconds + self.time_delta / 2) // self.time_delta * self.time_delta
-        timestamp = _dt + datetime.timedelta(0, rounding - seconds, -_dt.microsecond)
+#    if up:
+#        total_seconds -= 1
 
-        return timestamp.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
+    reminder = total_seconds % rounding_to
+    rounded_seconds = total_seconds - reminder + offset
+
+    if up:
+        rounded_seconds += rounding_to
+
+    return datetime.datetime(dt.year, dt.month, dt.day) + datetime.timedelta(seconds=rounded_seconds)
+
 
 
 class TransmitWatchdog:

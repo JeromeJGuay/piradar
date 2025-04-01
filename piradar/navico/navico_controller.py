@@ -401,7 +401,7 @@ class NavicoRadarController:
 
     def stop_recording_data(self):
         if not self._data_recording_is_started:
-            logging.warning('Data recording already stoped')
+            logging.warning('Data recording already stopped')
             return
 
         logging.info('Data recording stopped')
@@ -440,6 +440,8 @@ class NavicoRadarController:
                 self.radar_was_detected = True
                 self.process_report(raw_packet=raw_packet)
 
+            time.sleep(0.01)
+
     def data_listen(self):
         while not self.stop_flag:  # have thread specific flags as well
             try:
@@ -450,6 +452,8 @@ class NavicoRadarController:
             if raw_packet:
                 logging.debug("Data received")
                 self.process_data(in_data=raw_packet)
+
+            time.sleep(0.0001)
 
     def process_report(self, raw_packet):
         # TODO DECODE ALL MISSING
@@ -612,23 +616,22 @@ class NavicoRadarController:
 
     def process_data(self, in_data):
 
-        # PACKET MIGHT BE BROKEN FIXME
-        raw_frame = RawFrameData(in_data)
+        if self._data_recording_is_started:
+            # PACKET MIGHT BE BROKEN FIXME
+            raw_frame = RawFrameData(in_data)
 
-        logging.debug(f"Number of spokes in sector: {raw_frame.number_of_spokes}")
-        sector_data = SectorData()
-        #sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-        sector_data.time = int(datetime.datetime.now(datetime.UTC).timestamp()) # seconds "<L"
-        sector_data.number_of_spokes = raw_frame.number_of_spokes
+            logging.debug(f"Number of spokes in sector: {raw_frame.number_of_spokes}")
+            sector_data = SectorData()
+            #sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+            sector_data.time = int(datetime.datetime.now(datetime.UTC).timestamp()) # seconds "<L"
+            sector_data.number_of_spokes = raw_frame.number_of_spokes
 
-        for raw_spoke in raw_frame.spokes:
-            spoke_data = SpokeData()
+            for raw_spoke in raw_frame.spokes:
+                spoke_data = SpokeData()
 
-            spoke_data.spoke_number = raw_spoke.spoke_number
-            #spoke_data.heading = raw_spoke.heading
-            #spoke_data.angle = raw_spoke.angle * 360 / 4096
-
-            if self._data_recording_is_started:
+                spoke_data.spoke_number = raw_spoke.spoke_number
+                #spoke_data.heading = raw_spoke.heading
+                #spoke_data.angle = raw_spoke.angle * 360 / 4096
 
                 self.current_spoke_number = raw_spoke.spoke_number
 
@@ -664,7 +667,7 @@ class NavicoRadarController:
                 else:
                     logging.warning("Invalid Spoke")
 
-                self.writing_queue.put((self.write_raw_sector_data, sector_data))
+            self.writing_queue.put((self.write_raw_sector_data, self.raw_data_output_file, sector_data))
 
             # do it at the end to set self._data_recording_is_start ot false if need
             self.check_data_recording_condition()
@@ -696,23 +699,26 @@ class NavicoRadarController:
     #            f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
     #            f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n")  #FIXME
 
-    def write_raw_sector_data(self, sector_data: SectorData):
-        with open(self.raw_data_output_file, "ba") as f:
-            packed_frame_header = b"FH" + struct.pack("<LB", sector_data.time, sector_data.number_of_spokes)
+    def write_raw_sector_data(self, raw_data_output_file: str, sector_data: SectorData):
+        with open(raw_data_output_file, "ba") as f:
+            packed_frame_header = b"FH" + struct.pack(
+                "<LB",
+                sector_data.time,
+                sector_data.number_of_spokes,
+                sector_data.spoke_data[0]._range,  #
+                sector_data.spoke_data[0].heading, # should not change but ok
+                self.reports.setting.gain,
+            )
             f.write(packed_frame_header)
             for spoke_data in sector_data.spoke_data:
                 packed_spoke_data = b"SD" + struct.pack(
                     "<HHHHH512B",
                     spoke_data.spoke_number,
-                    spoke_data.heading,
                     spoke_data.angle,
-                    spoke_data._range,
-                    self.reports.setting.gain,
                     *spoke_data.intensities
                 )
 
                 f.write(packed_spoke_data)
-
 
     def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
         with open(self.raw_reports_path[report_id], "wb") as f:
