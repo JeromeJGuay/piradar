@@ -40,9 +40,9 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
             else:
                 logging.info(f"{output_drive} directory found.")
                 output_drive_found = True
+                Path(output_data_path).mkdir(parents=True, exist_ok=True)
+                Path(output_report_path).mkdir(parents=True, exist_ok=True)
 
-            Path(output_data_path).mkdir(parents=True, exist_ok=True)
-            Path(output_report_path).mkdir(parents=True, exist_ok=True)
 
             # FIXME Check that the directory to write to exist.
             #if not Path(output_data_path).is_dir():
