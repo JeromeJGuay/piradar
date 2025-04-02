@@ -5,16 +5,18 @@ from pathlib import Path
 
 
 from piradar.logger import init_logging
-#from piradar.raspberry_utils import RaspIoSwitch
+from piradar.raspberry_utils import RADAR_POWER, GREEN_LED, BLUE_LED, RED_LED
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, validate_interface, validate_output_drive, round_datetime
+    RadarUserSettings, run_scan_schedule, startup_sequence
 
 ###################################################
-#       PARAMETERS TO BE LOADED FROM INI          #
+#        PARAMETERS TO BE LOADED FROM INI         #
 ###################################################
-record_interval = 60
+startup_timeout = 60
+
+scan_record_interval = 60
 
 number_of_sector_per_scan = 1
 
@@ -69,6 +71,13 @@ scan_speed = "high"
 output_drive = "/media/capteur/2To"
 output_data_dir = "data"
 output_report_dir = "report"
+
+
+###################################################
+#               Actual Script Below               #
+###################################################
+
+
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
@@ -81,73 +90,49 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
             radar_controller.set_gain(_gain)
             time.sleep(0.1)
 
-            radar_controller.start_recording_data(
-                number_of_sector_to_record=number_of_sector_per_scan,
-                output_file=output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
-            )
+            scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
 
-            # add a watch dog here
-            while radar_controller._data_recording_is_started:
+            radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan, output_file=scan_output_path)
+            RED_LED.on()
+
+            # add a watch dog here stop recording
+            while radar_controller.is_recording_data:
                 time.sleep(.1)
 
+            RED_LED.off()
+
+        # add a watchdog here (stop transmit)
         while (radar_controller.reports.status.status is RadarStatus.transmit):
             radar_controller.standby()
             radar_controller.get_reports()
             time.sleep(.1)
     else:
         logging.error("Failed to start radar scan")
+        BLUE_LED.pulse(n_flash=10) # error led flash
+        GREEN_LED.pulse(n_flash=10)
+        # Fixme reboot
+
     # ping watchdog & reboot.
-
-
-def run_schedule(radar_controller: NavicoRadarController):
-
-    dt_now = datetime.datetime.now()
-    logging.info(f"app start time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
-    dt_next = round_datetime(dt_now, rounding_to=record_interval, up=True)
-    logging.info(f"First scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
-    time.sleep((dt_next - dt_now).total_seconds())
-
-    while True:
-        logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
-
-        scan(radar_controller, dt=dt_next)
-
-        dt_now = datetime.datetime.now()
-        logging.info(f"After scan time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
-        dt_next = round_datetime(dt_now, rounding_to=record_interval, up=True)
-        logging.info(f"Next scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
-        seconds_to_next_scan = (dt_next - dt_now).total_seconds()
-        time.sleep(seconds_to_next_scan)
-
 
 
 def main():
     ### A watchdog should be added to raise an error if the radar disconnect
     ### Turn radar off and on again.
 
-    for _ in range(60):
-        try:
-            # MAKE SURE THE DRIVE IS MOUNTED
-            if not validate_output_drive(output_drive):
-                raise Exception("Output drive does not exist")
-            logging.info(f"{output_drive} directory found.")
-            Path(output_data_path).mkdir(parents=True, exist_ok=True)
-            Path(output_report_path).mkdir(parents=True, exist_ok=True)
+    BLUE_LED.on()
 
-            if not Path(output_data_path).is_dir():
-                raise Exception(f"Output directory {output_data_path}, war not created")
+    if not startup_sequence(output_drive=output_drive, output_report_path=output_report_path,
+                        output_data_path=output_data_path, timeout=startup_timeout):
 
-            if not Path(output_report_path).is_dir():
-                raise Exception(f"Output directory {output_report_path}, war not created")
+        # Do something like  reboot pi ? send message to witty 4  etc...
+        logging.error("Failed to run the startup sequence radar scan.")
+        BLUE_LED.off()
+        BLUE_LED.pulse(n_flash=10) # error led flash
+        GREEN_LED.pulse(n_flash=10)
 
-            # MAKE SURE THE INTERFACE IS UP
-            if not validate_interface(interface_name):
-                raise Exception(f"Interface {interface_name} not found.")
-            logging.info(f"{interface_name} interface found.")
+        return
 
-            break
-        except Exception as e:
-            time.sleep(1)
+    BLUE_LED.off()
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
@@ -168,14 +153,17 @@ def main():
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
     set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
-    # DO SOMETHIGN LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
+    # DO SOMETHING LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
 
     logging.info("Ready to record.")
+    GREEN_LED.on()
 
-    #### Scheduler ####
-
-    # add a watchdog here. FIXMe
-    run_schedule(radar_controller=radar_controller)
+    # add a watchdog here. Fixme
+    run_scan_schedule(
+        scan_record_interval=scan_record_interval,
+        scan_func=scan,
+        radar_controller=radar_controller
+    )
 
 
 if __name__ == '__main__':

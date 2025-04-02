@@ -1,3 +1,37 @@
+"""
+    def write_raw_sector_data(self, raw_data_output_file: str, sector_data: SectorData):
+        with open(raw_data_output_file, "ba") as f:
+            packed_frame_header = b"FH" + struct.pack(
+                "<LBHHH",
+                sector_data.time,
+                sector_data.number_of_spokes,
+                sector_data.spoke_data[0]._range,  #
+                sector_data.spoke_data[0].heading, # should not change but ok
+                self.reports.setting.gain,
+            )
+            f.write(packed_frame_header)
+            for spoke_data in sector_data.spoke_data:
+                packed_spoke_data = b"SD" + struct.pack(
+                    "<HH512B",
+                    spoke_data.spoke_number,
+                    spoke_data.angle,
+                    *spoke_data.intensities
+                )
+
+                f.write(packed_spoke_data)
+
+ def unpack_4bit_gray_scale(self, data):
+
+     data_4bit = []
+     for _bytes in data:
+         low_nibble = _bytes & 0x0F
+         high_nibble = (_bytes >> 4) & 0x0F
+
+         data_4bit.extend([low_nibble, high_nibble])
+
+     return data_4bit
+
+"""
 import numpy as np
 import matplotlib as mpl
 mpl.use('Qt5Agg')
@@ -72,3 +106,7 @@ for j in range(3):
 plt.xlim([-10, 10])
 plt.ylim([-10, 10])
 plt.show(block=True)
+
+
+
+

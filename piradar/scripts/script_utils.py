@@ -26,6 +26,44 @@ def validate_output_drive(output_drive):
     return False
 
 
+def startup_sequence(output_drive, output_report_path, output_data_path, interface_name, timeout=60):
+
+    sequence_passed = False
+
+    for _ in range(timeout):
+        try:
+            # MAKE SURE THE DRIVE IS MOUNTED
+            if not validate_output_drive(output_drive):
+                raise Exception("Output drive does not exist")
+
+            logging.info(f"{output_drive} directory found.")
+            Path(output_data_path).mkdir(parents=True, exist_ok=True)
+            Path(output_report_path).mkdir(parents=True, exist_ok=True)
+
+            if not Path(output_data_path).is_dir():
+                raise Exception(f"Output directory {output_data_path}, was not created.")
+
+            if not Path(output_report_path).is_dir():
+                raise Exception(f"Output directory {output_report_path}, was not created.")
+
+            # MAKE SURE THE INTERFACE IS UP
+            if not validate_interface(interface_name):
+                raise Exception(f"Interface {interface_name} not found.")
+            logging.info(f"{interface_name} interface found.")
+
+            sequence_passed = True
+            break
+
+        except Exception as e:  # this is meh
+            pass
+
+        time.sleep(1)
+
+    return sequence_passed
+
+
+
+
 @dataclass  #(kw_only=True)
 class RadarUserSettings:
     _range: int | str
@@ -226,21 +264,65 @@ def round_datetime(dt: datetime.datetime, rounding_to: float, offset=0.0, up=Fal
     return datetime.datetime(dt.year, dt.month, dt.day) + datetime.timedelta(seconds=rounded_seconds)
 
 
+def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: NavicoRadarController):
+    """
 
-class TransmitWatchdog:
-    def __init__(self, interval: int, radar_controller: NavicoRadarController):
+    :param scan_record_interval: Interval of the schedule
+    :param scan_func: The scan function must take radar_controller: NavicoRadarController
+        and dt: datatime.datetime as arguments.
+    :param radar_controller: NavicoRadarController
+    :return:
+    """
+
+    dt_now = datetime.datetime.now()
+    logging.info(f"App start time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
+    dt_next = round_datetime(dt_now, rounding_to=scan_record_interval, up=True)
+    logging.info(f"First scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
+    time.sleep((dt_next - dt_now).total_seconds())
+
+    while True:
+        logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
+
+        scan_func(radar_controller, dt=dt_next)
+
+        dt_now = datetime.datetime.now()
+        logging.info(f"After scan time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
+        dt_next = round_datetime(dt_now, rounding_to=scan_record_interval, up=True)
+        logging.info(f"Next scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
+        seconds_to_next_scan = (dt_next - dt_now).total_seconds()
+        time.sleep(seconds_to_next_scan)
+
+
+class ReportWatchDog:
+    def __init__(self, radar_controller: NavicoRadarController, interval=10):
         self.radar_controller = radar_controller
         self.interval = interval
-        self._thread: threading.Thread
+
+        self.stop_flag = True
+        self.thread: threading.Thread = None
 
     def watch(self):
-        time.sleep(self.interval)
+        self.stop_flag = False
 
-        if self.radar_controller.reports.status.status is not RadarStatus.standby:
-            logging.error("Radar is still transmitting.")
-            self.radar_controller.standby(get_report=True)
-            time.sleep(0.5)  # give some time to received the reports.
-            if self.radar_controller.reports.status.status is not RadarStatus.standby:
-                logging.error("Unable to stop radar.")
-                pass
-                # If it gets here, trigger somethings else FIXME
+        self.thread = threading.Thread(name='Report Watchdog', target=self.duty, daemon=True)
+        self.thread.start()
+
+    def duty(self):
+        while not self.stop:
+            if self.radar_controller.radar_was_detected:
+                self.radar_controller.radar_was_detected = False
+            else:
+                self.bark()
+
+            time.sleep(self.interval)
+
+    def stop(self):
+        self.stop_flag = True
+        self.thread.join()
+
+    def bark(self):
+        raise RadarConnectionError("Stopped receiving radar ping.")
+
+class RadarConnectionError(Exception):
+    pass
+

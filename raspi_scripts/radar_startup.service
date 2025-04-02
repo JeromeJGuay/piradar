@@ -7,7 +7,7 @@ After=multi-user.target
 Type=idle
 User=capteur
 WorkingDirectory=/home/capteur/program/piradar
-ExecStartPre=sleep 30
+# ExecStartPre=sleep 30
 ExecStart=/home/capteur/program/piradar/.venv/bin/python3 /home/capteur/program/piradar/piradar/scripts/run_always_on.py
 Restart=on-failure
 

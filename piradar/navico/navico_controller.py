@@ -41,6 +41,12 @@ RCV_BUFF = 65535
 ENTRY_GROUP_ADDRESS = '236.6.7.5'
 ENTRY_GROUP_PORT = 6878
 
+NUMBER_CONNECT_TRY = 10 # Will try fo NUMBER_CONNECT_TRY * WAKE_UP_SLEEP
+WAKE_UP_SLEEP = 0.5
+REPORT_SLEEP = 1e-3
+DATA_SLEEP = 1e-5
+SEND_SLEEP = 1e-2
+
 
 class NavicoRadarType:
     navico4G = "4G"
@@ -254,7 +260,7 @@ class NavicoRadarController:
         self.writer_thread: threading.Thread = None
         self.writing_queue = queue.Queue()
 
-        self._data_recording_is_started = False
+        self.is_recording_data = False
         self.radar_was_detected = False
         self.is_connected = False
         self.stop_flag = False
@@ -293,27 +299,34 @@ class NavicoRadarController:
         self.start_writer_thread()
 
         logging.info("Waiting for radar ...")
-        while not self.radar_was_detected:
-            # this is unlocked in the listen report thread
-            wake_up_navico_radar()
-            time.sleep(1)
-            # FIXME add a timeout and raise an Error
-        logging.info("Radar detected on network")
+        for _nct in range(NUMBER_CONNECT_TRY):
+            if not self.radar_was_detected: # this is unlocked in the listen report thread
+                logging.info(f"Waiting for radar ({_nct + 1})")
+                wake_up_navico_radar()
+                time.sleep(WAKE_UP_SLEEP)
+                continue
 
-        self.is_connected = True  # fixme add checks
+            logging.info("Radar detected on network")
+            self.is_connected = True
+            break
+
+        logging.info("Could not connect. Radar was not detected.")
+        self.disconnect()
 
     def disconnect(self):
         if not self.is_connected:
             return
 
+        self.stop_recording_data()
+
         logging.info("Disconnect all called.")
+        self.writing_queue.queue.clear()
         self.stop_flag = True
         self.report_thread.join()
         self.data_thread.join()
         self.keep_alive_thread.join()
         self.writer_thread.join()
-#        with self.writing_queue.mutex: # turns out it doesnt work
-#            self.writing_queue.clear()  # unsure if this will work. to test. FIXME
+
         logging.info("All threads closed")
 
         self.report_socket.close()
@@ -346,22 +359,22 @@ class NavicoRadarController:
         logging.debug("Data socket initialized")
 
     def start_report_thread(self):
-        self.report_thread = threading.Thread(target=self.report_listen, daemon=True)
+        self.report_thread = threading.Thread(name="report", target=self.report_listen, daemon=True)
         self.report_thread.start()
         logging.debug("Report thread started")
 
     def start_data_thread(self):
-        self.data_thread = threading.Thread(target=self.data_listen, daemon=True)
+        self.data_thread = threading.Thread(name="data", target=self.data_listen, daemon=True)
         self.data_thread.start()
         logging.debug("Data thread started")
 
     def start_keep_alive_thread(self):
-        self.keep_alive_thread = threading.Thread(target=self.keep_alive, daemon=True)
+        self.keep_alive_thread = threading.Thread(name="keep", target=self.keep_alive, daemon=True)
         self.keep_alive_thread.start()
         logging.debug("Keep alive thread started")
 
     def start_writer_thread(self):
-        self.writer_thread = threading.Thread(target=self.writer, daemon=True)
+        self.writer_thread = threading.Thread(name="writer",target=self.writer, daemon=True)
         self.writer_thread.start()
         logging.debug("Writer thread started")
 
@@ -372,7 +385,7 @@ class NavicoRadarController:
                 logging.error(f"Failed to send command {packed_data} to {self.address_set.send.address, self.address_set.send.port}.")
             else:
                 logging.debug(f"Sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
-            time.sleep(0.05)  # not to overwhelm. Maybe this should be handled by a thread and a queue.
+            time.sleep(SEND_SLEEP)  # not to overwhelm. Maybe this should be handled by a thread and a queue.
             # maybe it's fine.
         except socket.error as e:
             logging.error(f"Failed to send command {packed_data}. Error: {e}")
@@ -384,36 +397,34 @@ class NavicoRadarController:
             time.sleep(self.keep_alive_interval)
 
     def start_recording_data(self, output_file: str, number_of_sector_to_record: int):
-        if self._data_recording_is_started:
+        if self.is_recording_data:
             logging.warning('Data recording already started')
             return
 
         self.raw_data_output_file = output_file
         logging.info('Data recording started')
         self.number_of_sector_to_record = number_of_sector_to_record
-        self._data_recording_is_started = True
+        self.is_recording_data = True
 
-        # reset value (maybe not necessary but does cost much)
-        self.sector_first_spoke_number = None
-        self.current_spoke_number = None
-        self.last_spoke_number = None
-        self.sector_recorded_count = 0
+        self._reset_recording_vales() # reset value (maybe not necessary but does cost much)
 
     def stop_recording_data(self):
-        if not self._data_recording_is_started:
+        if not self.is_recording_data:
             logging.warning('Data recording already stopped')
             return
 
         logging.info('Data recording stopped')
-        self._data_recording_is_started = False
+        self.is_recording_data = False
 
-        # reset value (maybe not necessary but does cost much)
+        self._reset_recording_vales()  # reset value (maybe not necessary but does cost much)
+
+    def _reset_recording_vales(self):
         self.sector_first_spoke_number = None
         self.current_spoke_number = None
         self.last_spoke_number = None
         self.sector_recorded_count = 0
 
-    def check_data_recording_condition(self):
+    def check_data_recording_conditions(self):
         if self.sector_first_spoke_number is None:
             self.sector_first_spoke_number = self.current_spoke_number
             self.last_spoke_number = -1
@@ -433,19 +444,20 @@ class NavicoRadarController:
     def report_listen(self):
         while not self.stop_flag:  # have thread specific flags as well
             try:
-                raw_packet = self.report_socket.recv(RCV_BUFF)
+                raw_packet = self.report_socket.recv(RCV_BUFF) # 1 second socket timeout
             except socket.timeout:
                 continue
+
             if raw_packet and len(raw_packet) >= 2:
                 self.radar_was_detected = True
                 self.process_report(raw_packet=raw_packet)
 
-            time.sleep(0.01)
+            time.sleep(REPORT_SLEEP)
 
     def data_listen(self):
         while not self.stop_flag:  # have thread specific flags as well
             try:
-                raw_packet = self.data_socket.recv(RCV_BUFF)
+                raw_packet = self.data_socket.recv(RCV_BUFF) # 1 second socket timeout
             except socket.timeout:
                 continue
 
@@ -453,7 +465,7 @@ class NavicoRadarController:
                 logging.debug("Data received")
                 self.process_data(in_data=raw_packet)
 
-            time.sleep(0.0001)
+            time.sleep(DATA_SLEEP)
 
     def process_report(self, raw_packet):
         # TODO DECODE ALL MISSING
@@ -616,13 +628,11 @@ class NavicoRadarController:
 
     def process_data(self, in_data):
 
-        if self._data_recording_is_started:
-            # PACKET MIGHT BE BROKEN FIXME
-            raw_frame = RawFrameData(in_data)
+        if self.is_recording_data:
+            raw_frame = RawFrameData(in_data) # PACKET MIGHT BE BROKEN FIXME
 
             logging.debug(f"Number of spokes in sector: {raw_frame.number_of_spokes}")
             sector_data = SectorData()
-            #sector_data.time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
             sector_data.time = int(datetime.datetime.now(datetime.UTC).timestamp()) # seconds "<L"
             sector_data.number_of_spokes = raw_frame.number_of_spokes
 
@@ -630,8 +640,6 @@ class NavicoRadarController:
                 spoke_data = SpokeData()
 
                 spoke_data.spoke_number = raw_spoke.spoke_number
-                #spoke_data.heading = raw_spoke.heading
-                #spoke_data.angle = raw_spoke.angle * 360 / 4096
 
                 self.current_spoke_number = raw_spoke.spoke_number
 
@@ -654,14 +662,12 @@ class NavicoRadarController:
                         elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
                             spoke_data._range = raw_spoke.large_range * 64
 
-                        #elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
-                        else: # jsut default to halo behavior so data is recorded.
+                        else:   #elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
                             spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
-                    spoke_data._range = int(spoke_data._range) # save as integer. meter precision is fine.
+                    spoke_data._range = int(spoke_data._range)  # save as integer. meter precision is fine.
 
                     spoke_data.intensities = raw_spoke.data
-                    #spoke_data.intensities = self.unpack_4bit_gray_scale(raw_spoke.data)
 
                     sector_data.spoke_data.append(spoke_data)
                 else:
@@ -670,19 +676,7 @@ class NavicoRadarController:
             self.writing_queue.put((self.write_raw_sector_data, self.raw_data_output_file, sector_data))
 
             # do it at the end to set self._data_recording_is_start ot false if need
-            self.check_data_recording_condition()
-
-    # def unpack_4bit_gray_scale(self, data):
-    #     """FIXME UPDATE THIS FOR DOOPLER
-    #     """
-    #     data_4bit = []
-    #     for _bytes in data:
-    #         low_nibble = _bytes & 0x0F
-    #         high_nibble = (_bytes >> 4) & 0x0F
-    #
-    #         data_4bit.extend([low_nibble, high_nibble])
-    #
-    #     return data_4bit
+            self.check_data_recording_conditions()
 
     def writer(self):
         while not self.stop_flag:
@@ -691,18 +685,13 @@ class NavicoRadarController:
                 _write_task(*args)
             except queue.Empty:
                 time.sleep(0.25)
-
-    #def write_sector_data(self, sector_data: SectorData):
-    #    with open(self.raw_data_output_file, "a") as f:
-    #        f.write(f"FH:{sector_data.time},{sector_data.number_of_spokes}\n")
-    #        for spoke_data in sector_data.spoke_data:
-    #            f.write(f"SH:{spoke_data.spoke_number},{spoke_data.angle},{spoke_data._range}\n")
-    #            f.write(f"SD:" + str(spoke_data.intensities)[1:-1].replace(' ', '') + "\n")  #FIXME
+            except Exception as e:
+                logging.error(f"Unexpected error on writer thread: {e}.")
 
     def write_raw_sector_data(self, raw_data_output_file: str, sector_data: SectorData):
         with open(raw_data_output_file, "ba") as f:
             packed_frame_header = b"FH" + struct.pack(
-                "<LB",
+                "<LBHHH",
                 sector_data.time,
                 sector_data.number_of_spokes,
                 sector_data.spoke_data[0]._range,  #
@@ -712,7 +701,7 @@ class NavicoRadarController:
             f.write(packed_frame_header)
             for spoke_data in sector_data.spoke_data:
                 packed_spoke_data = b"SD" + struct.pack(
-                    "<HHHHH512B",
+                    "<HH512B",
                     spoke_data.spoke_number,
                     spoke_data.angle,
                     *spoke_data.intensities
