@@ -36,3 +36,7 @@ RADAR_POWER = RaspIoSwitch(6)
 GREEN_LED = RaspIoSwitch(13)
 BLUE_LED = RaspIoSwitch(19)
 RED_LED = RaspIoSwitch(26)
+
+
+def kill_gpio():
+    lgpio.gpiochip_close(GPIO_CLAIM)

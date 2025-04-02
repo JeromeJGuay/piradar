@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 from piradar.logger import init_logging
-from piradar.raspberry_utils import RADAR_POWER, GREEN_LED, BLUE_LED, RED_LED
+from piradar.raspberry_utils import RADAR_POWER, GREEN_LED, BLUE_LED, RED_LED, kill_gpio
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
@@ -77,6 +77,11 @@ output_report_dir = "report"
 #               Actual Script Below               #
 ###################################################
 
+def reboot_radar():
+    RADAR_POWER.power_off()
+    time.sleep(1)
+    RADAR_POWER.power_on()
+
 
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
@@ -139,6 +144,8 @@ def main():
 
     BLUE_LED.off()
 
+    RADAR_POWER.on()
+
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
@@ -172,8 +179,14 @@ def main():
 
 
 if __name__ == '__main__':
+
     debug_level = "INFO"
     write_log = True
     init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
-
-    main()
+    try:
+        main()
+    except Exception as e:
+        logging.error(e)
+    finally:
+        RADAR_POWER.off() # maybe kill gpio does the tricks
+        kill_gpio()
