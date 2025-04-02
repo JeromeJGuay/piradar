@@ -11,55 +11,59 @@ from piradar.network import check_interface_inet_is_up
 
 
 def validate_interface(interface):
-    attempt = 10
-    for _ in range(attempt):
-        if check_interface_inet_is_up(interface):
-            return True
+    #attempt = 10
+    #for _ in range(attempt):
+    if check_interface_inet_is_up(interface):
+        return True
     return False
 
 
 def validate_output_drive(output_drive):
-    attempt = 10
-    for _ in range(attempt):
-        if Path(output_drive).is_dir():
-            return True
+    #attempt = 10
+    #for _ in range(attempt):
+    if Path(output_drive).is_dir():
+        return True
     return False
 
 
 def startup_sequence(output_drive, output_report_path, output_data_path, interface_name, timeout=60):
 
-    sequence_passed = False
+    output_drive_found = False
+    interface_is_valid = False
 
     for _ in range(timeout):
-        try:
-            # MAKE SURE THE DRIVE IS MOUNTED
-            if not validate_output_drive(output_drive):
-                raise Exception("Output drive does not exist")
+        # MAKE SURE THE DRIVE IS MOUNTED
 
-            logging.info(f"{output_drive} directory found.")
+        if not output_drive_found:
+            if not validate_output_drive(output_drive):
+                logging.warning("Output drive does not exist")
+            else:
+                logging.info(f"{output_drive} directory found.")
+                output_drive_found = True
+
             Path(output_data_path).mkdir(parents=True, exist_ok=True)
             Path(output_report_path).mkdir(parents=True, exist_ok=True)
 
-            if not Path(output_data_path).is_dir():
-                raise Exception(f"Output directory {output_data_path}, was not created.")
+            # FIXME Check that the directory to write to exist.
+            #if not Path(output_data_path).is_dir():
+            #    raise Exception(f"Output directory {output_data_path}, was not created.")
+            #if not Path(output_report_path).is_dir():
+            #    raise Exception(f"Output directory {output_report_path}, was not created.")
 
-            if not Path(output_report_path).is_dir():
-                raise Exception(f"Output directory {output_report_path}, was not created.")
-
-            # MAKE SURE THE INTERFACE IS UP
+        # MAKE SURE THE INTERFACE IS UP
+        if not interface_is_valid:
             if not validate_interface(interface_name):
-                raise Exception(f"Interface {interface_name} not found.")
-            logging.info(f"{interface_name} interface found.")
+                logging.warning(f"Interface {interface_name} not found.")
+            else:
+                logging.info(f"{interface_name} interface found.")
+                interface_is_valid = True
 
-            sequence_passed = True
-            break
-
-        except Exception as e:  # this is meh
-            pass
+        if interface_is_valid and output_drive_found:
+            return True
 
         time.sleep(1)
 
-    return sequence_passed
+    return False
 
 
 

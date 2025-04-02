@@ -108,8 +108,8 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
             time.sleep(.1)
     else:
         logging.error("Failed to start radar scan")
-        BLUE_LED.pulse(n_flash=10) # error led flash
-        GREEN_LED.pulse(n_flash=10)
+        BLUE_LED.pulse(period=0.5, n_pulse=10) # error led flash
+        GREEN_LED.pulse(period=0.5, n_pulse=10)
         # Fixme reboot
 
     # ping watchdog & reboot.
@@ -127,8 +127,8 @@ def main():
         # Do something like  reboot pi ? send message to witty 4  etc...
         logging.error("Failed to run the startup sequence radar scan.")
         BLUE_LED.off()
-        BLUE_LED.pulse(n_flash=10) # error led flash
-        GREEN_LED.pulse(n_flash=10)
+        BLUE_LED.pulse(period=0.5, n_pulse=10) # error led flash
+        GREEN_LED.pulse(period=0.5, n_pulse=10)
 
         return
 

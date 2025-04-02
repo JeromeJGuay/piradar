@@ -22,10 +22,14 @@ class RaspIoSwitch():
 
     def pulse(self, period=1, n_pulse=0):
         """
-        period: milliseconds. High 1/4 of the time.
+        period: seconds
         n_pulse: 0 -> infinite.
         """
-        lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, 0.25*period, 0.75*period, 0, n_pulse)
+        if period < 0.004:
+            raise ValueError("Pulse must be greater than 0.004")
+        _high = int(1e6 * (0.25 * period))
+        _low = int(1e6 * (0.75 * period))
+        lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, _high, _low, 0, n_pulse)
 
 
 RADAR_POWER = RaspIoSwitch(6)
