@@ -308,7 +308,7 @@ class NavicoRadarController:
 
             logging.info("Radar detected on network")
             self.is_connected = True
-            break
+            return
 
         logging.info("Could not connect. Radar was not detected.")
         self.disconnect()
@@ -324,8 +324,9 @@ class NavicoRadarController:
         self.stop_flag = True
         self.report_thread.join()
         self.data_thread.join()
-        self.keep_alive_thread.join()
         self.writer_thread.join()
+        if self.keep_alive_thread is not None:
+            self.keep_alive_thread.join()
 
         logging.info("All threads closed")
 

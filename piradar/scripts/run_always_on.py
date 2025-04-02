@@ -22,7 +22,7 @@ number_of_sector_per_scan = 1
 
 ## Radar Setting ##
 radar_user_settings = RadarUserSettings(
-    _range=12,
+    _range=40_000,
     antenna_height=10,
 
     bearing=0,
@@ -88,8 +88,8 @@ output_report_path = Path(output_drive).joinpath(output_report_dir)
 
 
 def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
+    BLUE_LED.off()
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
-
     if start_transmit(radar_controller) is True:
         for _gain in [0, 127, 255]:
             radar_controller.set_gain(_gain)
@@ -116,9 +116,10 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
         BLUE_LED.pulse(period=0.5, n_pulse=10) # error led flash
         GREEN_LED.pulse(period=0.5, n_pulse=10)
         # Fixme reboot
+        return
 
     # ping watchdog & reboot.
-
+    BLUE_LED.on()
 
 def main():
     ### A watchdog should be added to raise an error if the radar disconnect
@@ -186,7 +187,10 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        logging.error(e)
+        logging.error(f"MAIN EXIT: {e}")
     finally:
+        BLUE_LED.off()
+        GREEN_LED.off()
+        RED_LED.off()
         RADAR_POWER.off() # maybe kill gpio does the tricks
         kill_gpio()
