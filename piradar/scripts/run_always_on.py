@@ -121,8 +121,13 @@ def main():
 
     BLUE_LED.on()
 
-    if not startup_sequence(output_drive=output_drive, output_report_path=output_report_path,
-                        output_data_path=output_data_path, timeout=startup_timeout):
+    if not startup_sequence(
+            output_drive=output_drive,
+            output_report_path=output_report_path,
+            output_data_path=output_data_path,
+            interface_name=interface_name,
+            timeout=startup_timeout
+    ):
 
         # Do something like  reboot pi ? send message to witty 4  etc...
         logging.error("Failed to run the startup sequence radar scan.")
