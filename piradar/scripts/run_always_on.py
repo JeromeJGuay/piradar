@@ -94,11 +94,11 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
             gpio_controller.transmit_start()
 
             while radar_controller.is_recording_data:
-                time.sleep(.1)
+                time.sleep(.1) # this will never turn off
 
             gpio_controller.transmit_stop()
 
-        for _ in range(5):
+        for _ in range(5): # tries to shutdown radar tranmsmit 5 times at 1sec interval.
             if radar_controller.reports.status.status is RadarStatus.standby:
                 return # You want to scan to exit here !
 

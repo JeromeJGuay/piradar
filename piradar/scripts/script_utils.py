@@ -282,7 +282,8 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
     :return:
     """
 
-    data_watchdog = DataWatchDog(radar_controller) # will check after 10 seconds if data were received.
+    scan_watchdog = ScanWatchDog(radar_controller)
+    data_watchdog = DataWatchDog(radar_controller)  # will check after 10 seconds if data were received.
 
     dt_now = datetime.datetime.now()
     logging.info(f"App start time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
@@ -292,7 +293,7 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
 
     while True:
         logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
-
+        scan_watchdog.watch(interval=scan_record_interval) # if the scan never stopped
         data_watchdog.watch(interval=10)  # this raise an error if data are not received after the interval.
         scan_func(radar_controller, dt=dt_next)
 
@@ -312,7 +313,7 @@ class DataWatchDog:
         self.stand_down_flag = True
         self.thread: threading.Thread = None
 
-    def watch(self, interval=10):
+    def watch(self, interval: int):
         self.interval = interval
         self.stand_down_flag = False
 
@@ -325,6 +326,32 @@ class DataWatchDog:
             self.radar_controller.is_receiving_data = False
         else:
             raise NavicoRadarError("No Data received.")
+
+
+class ScanWatchDog:
+    def __init__(self, radar_controller: NavicoRadarController):
+        self.radar_controller = radar_controller
+        self.interval = None
+
+        self.stand_down_flag = False
+
+        self.stand_down_flag = True
+        self.thread: threading.Thread = None
+
+    def watch(self, interval: int):
+        self.interval = interval
+        self.stand_down_flag = False
+
+        self.thread = threading.Thread(name='Scan Watchdog', target=self.duty, daemon=True)
+        self.thread.start()
+
+    def duty(self):
+        time.sleep(self.interval)
+        if not self.stand_down_flag:
+            raise NavicoRadarError("Scan delay timeout.")
+
+    def stand_down(self):
+        self.stand_down_flag = True
 
 
 class NavicoRadarError(Exception):
