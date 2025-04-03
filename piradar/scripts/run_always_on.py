@@ -141,11 +141,14 @@ def main():
     )
 
     # power on radar here if necessary
+    gpio_controller.waiting_for_radar()
 
     if radar_controller.reports.system.radar_type is None:
         logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
 
         raise Exception("Radar type not received. Communication Error")
+
+    gpio_controller.setting_radar()
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()

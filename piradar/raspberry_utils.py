@@ -41,6 +41,7 @@ class RaspIoLED(RaspIoSwitch):
         lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, _high, _low, _offset, n_pulse)
 
     def stop_pulse(self):
+        lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, 1000, 1000, 0, 0)
         lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, 0, 0, 0, 0)
 
 

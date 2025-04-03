@@ -4,11 +4,11 @@ After=multi-user.target
 
 
 [Service]
-Type=root
-User=capteur
+Type=simple
+User=root
 WorkingDirectory=/home/capteur/program/piradar
-# ExecStartPre=sleep 30
-ExecStart=/home/capteur/program/radar_program.sh
+ExecStartPre=ifup eth0
+ExecStart=/home/capteur/program/piradar/.venv/bin/python3 /home/capteur/program/piradar/piradar/scripts/run_always_on.py
 Restart=always
 
 [Install]

@@ -282,10 +282,10 @@ class NavicoRadarController:
         self.reports = Reports()
 
         self.connect()
+        if self.is_connected:
+            self.start_keep_alive_thread()
 
-        self.start_keep_alive_thread()
-
-        self.get_reports()
+            self.get_reports()
 
     def connect(self):
         if self.is_connected:

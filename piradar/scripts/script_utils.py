@@ -336,7 +336,7 @@ class RadarConnectionError(Exception):
 
 
 class GPIOControllter:
-    def __init__(self, radar_controller: NavicoRadarController):
+    def __init__(self):
         self.radar_power = RaspIoSwitch(6)
 
         self.green_led = RaspIoLED(13) # Green
@@ -344,23 +344,32 @@ class GPIOControllter:
         self.red_led = RaspIoLED(26) # Red
 
     def program_started(self):
+        self.led_off()
         self.blue_led.on()
         self.green_led.on()
 
+    def waiting_for_radar(self):
+        self.led_off()
+        self.green_led.on()
+
+    def setting_radar(self):
+        self.led_off()
+        self.green_led.pulse(period=0.25)
+
     def ready_to_record(self):
-        self.blue_led.on()
-        self.green_led.off()
+        self.led_off()
+        self.blue_led.pulse(period=0.5)
 
     def transmit_start(self):
-        self.blue_led.off()
+        self.led_off()
         self.red_led.on()
 
     def transmit_stop(self):
-        self.blue_led.off()
-        self.red_led.on()
+        self.led_off()
+        self.blue_led.pulse(period=0.5)
 
     def error_pulse(self, error_type: str):
-        self.all_off()
+        self.led_off()
 
         match error_type:
             case 'no_radar':
@@ -384,11 +393,14 @@ class GPIOControllter:
         time.sleep(1)
         self.radar_power.on()
 
-    def all_off(self):
-        self.radar_power.off()
-        for _pin in [self.green_led, self.blue_led, self.red_led, self.radar_power]:
+    def led_off(self):
+        for _pin in [self.green_led, self.blue_led, self.red_led]:
             _pin.stop_pulse()
             _pin.off()
+
+    def all_off(self):
+        self.led_off()
+        self.radar_power.off()
 
     def __aexit__(self, exc_type, exc_val, exc_tb):
         release_gpio() # myabe not be nescessary but hey.
