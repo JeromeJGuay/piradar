@@ -282,6 +282,8 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
     :return:
     """
 
+    data_watchdog = DataWatchDog(radar_controller) # will check after 10 seconds if data were received.
+
     dt_now = datetime.datetime.now()
     logging.info(f"App start time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
     dt_next = round_datetime(dt_now, rounding_to=scan_record_interval, up=True)
@@ -291,6 +293,7 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
     while True:
         logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
 
+        data_watchdog.watch(interval=10)  # this raise an error if data are not received after the interval.
         scan_func(radar_controller, dt=dt_next)
 
         dt_now = datetime.datetime.now()
@@ -301,37 +304,30 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
         time.sleep(seconds_to_next_scan)
 
 
-class ReportWatchDog:
-    def __init__(self, radar_controller: NavicoRadarController, interval=10):
+class DataWatchDog:
+    def __init__(self, radar_controller: NavicoRadarController):
         self.radar_controller = radar_controller
-        self.interval = interval
+        self.interval = None
 
-        self.stop_flag = True
+        self.stand_down_flag = True
         self.thread: threading.Thread = None
 
-    def watch(self):
-        self.stop_flag = False
+    def watch(self, interval=10):
+        self.interval = interval
+        self.stand_down_flag = False
 
-        self.thread = threading.Thread(name='Report Watchdog', target=self.duty, daemon=True)
+        self.thread = threading.Thread(name='Data Watchdog', target=self.duty, daemon=True)
         self.thread.start()
 
     def duty(self):
-        while not self.stop:
-            if self.radar_controller.radar_was_detected:
-                self.radar_controller.radar_was_detected = False
-            else:
-                self.bark()
+        time.sleep(self.interval)
+        if self.radar_controller.is_receiving_data:
+            self.radar_controller.is_receiving_data = False
+        else:
+            raise NavicoRadarError("No Data received.")
 
-            time.sleep(self.interval)
 
-    def stop(self):
-        self.stop_flag = True
-        self.thread.join()
-
-    def bark(self):
-        raise RadarConnectionError("Stopped receiving radar ping.")
-
-class RadarConnectionError(Exception):
+class NavicoRadarError(Exception):
     pass
 
 

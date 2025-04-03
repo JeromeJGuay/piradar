@@ -7,7 +7,7 @@ from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, run_scan_schedule, startup_sequence, gpio_controller
+    RadarUserSettings, run_scan_schedule, startup_sequence, gpio_controller, NavicoRadarError
 
 ###################################################
 #        PARAMETERS TO BE LOADED FROM INI         #
@@ -93,25 +93,24 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
                                                   output_file=scan_output_path)
             gpio_controller.transmit_start()
 
-            # add a watch dog here stop recording
             while radar_controller.is_recording_data:
                 time.sleep(.1)
 
             gpio_controller.transmit_stop()
 
-        # add a watchdog here (stop transmit)
-        while (radar_controller.reports.status.status is RadarStatus.transmit):
+        for _ in range(5):
+            if radar_controller.reports.status.status is RadarStatus.standby:
+                return # You want to scan to exit here !
+
             radar_controller.standby()
             radar_controller.get_reports()
-            time.sleep(.1)
+            time.sleep(1)
+
+        raise NavicoRadarError("Radar did not stopped transmitting.")
+
     else:
         logging.error("Failed to start radar scan")
-        gpio_controller.error_pulse('no_radar')
-        # Fixme reboot
-        return
-
-    # ping watchdog & reboot.
-
+        raise NavicoRadarError("Radar did not start transmitting.")
 
 
 def main():
@@ -132,16 +131,15 @@ def main():
 
         return
 
+    logging.info("Powering Up Radar")
     gpio_controller.radar_power.on()
+    gpio_controller.waiting_for_radar()
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
         connect_timeout=60 # the radar has 1 minutes to boot up and be available on the network
     )
-
-    # power on radar here if necessary
-    gpio_controller.waiting_for_radar()
 
     if radar_controller.reports.system.radar_type is None:
         logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
@@ -163,8 +161,12 @@ def main():
     logging.info("Ready to record.")
     gpio_controller.ready_to_record()
 
-    # add a watchdog here. Fixme
-    run_scan_schedule(
+
+    ## ERROR WILL BE RAISE IN HERE.
+    # - Did not start to transmit
+    # - Did not stop to transmit
+    # - No data were received.
+    run_scan_schedule(  # <- Watchdog for receiving data is hidden in here.
         scan_record_interval=scan_record_interval,
         scan_func=scan,
         radar_controller=radar_controller

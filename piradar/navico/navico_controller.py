@@ -261,10 +261,13 @@ class NavicoRadarController:
         self.writer_thread: threading.Thread = None
         self.writing_queue = queue.Queue()
 
-        self.is_recording_data = False
         self.radar_was_detected = False
         self.is_connected = False
+        self.is_recording_data = False
+        self.is_receiving_data = False
+
         self.stop_flag = False
+
 
         # Data Recording
         self.sector_first_spoke_number: int = None
@@ -460,6 +463,7 @@ class NavicoRadarController:
         while not self.stop_flag:  # have thread specific flags as well
             try:
                 raw_packet = self.data_socket.recv(RCV_BUFF) # 1 second socket timeout
+                self.is_receiving_data = True
             except socket.timeout:
                 continue
 
