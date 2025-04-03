@@ -41,7 +41,6 @@ RCV_BUFF = 65535
 ENTRY_GROUP_ADDRESS = '236.6.7.5'
 ENTRY_GROUP_PORT = 6878
 
-NUMBER_CONNECT_TRY = 120 # Will try fo NUMBER_CONNECT_TRY * WAKE_UP_SLEEP
 WAKE_UP_SLEEP = 0.5
 REPORT_SLEEP = 1e-3
 DATA_SLEEP = 1e-5
@@ -237,11 +236,13 @@ class NavicoRadarController:
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
             report_output_dir: str,
+            connect_timeout: float,
             keep_alive_interval: int = 10,
     ):
         self.address_set = multicast_interfaces
         self.report_output_dir = report_output_dir
         self.keep_alive_interval = keep_alive_interval
+        self.connect_timeout = connect_timeout
         self.raw_reports_path = {
             report_id: Path(self.report_output_dir).joinpath(f"raw_report_{hex(report_id)}.raw")
             for report_id in REPORTS_IDS
@@ -299,7 +300,7 @@ class NavicoRadarController:
         self.start_writer_thread()
 
         logging.info("Waiting for radar ...")
-        for _nct in range(NUMBER_CONNECT_TRY):
+        for _nct in range(int(self.connect_timeout / WAKE_UP_SLEEP)):
             if not self.radar_was_detected: # this is unlocked in the listen report thread
                 logging.info(f"Waiting for radar ({_nct + 1})")
                 wake_up_navico_radar()

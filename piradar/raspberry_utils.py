@@ -20,7 +20,13 @@ class RaspIoSwitch():
         lgpio.gpio_write(GPIO_CLAIM, self.io_pin, 0)
         self.is_up = False
 
-    def pulse(self, period=1, n_pulse=0):
+
+class RaspIoLED(RaspIoSwitch):
+
+    def __init__(self, io_pin: int):
+        super().__init__(io_pin)
+
+    def pulse(self, period=1, n_pulse=0, offset=0):
         """
         period: seconds
         n_pulse: 0 -> infinite.
@@ -29,7 +35,13 @@ class RaspIoSwitch():
             raise ValueError("Pulse must be greater than 0.004")
         _high = int(1e6 * (0.25 * period))
         _low = int(1e6 * (0.75 * period))
-        lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, _high, _low, 0, n_pulse)
+
+        _offset = int(1e6 * offset)
+
+        lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, _high, _low, _offset, n_pulse)
+
+    def stop_pulse(self):
+        lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, 0, 0, 0, 0)
 
 
 RADAR_POWER = RaspIoSwitch(6)
@@ -38,5 +50,5 @@ BLUE_LED = RaspIoSwitch(19)
 RED_LED = RaspIoSwitch(26)
 
 
-def kill_gpio():
+def release_gpio():
     lgpio.gpiochip_close(GPIO_CLAIM)

@@ -9,6 +9,8 @@ from piradar.navico.navico_controller import NavicoRadarController, RadarStatus,
 
 from piradar.network import check_interface_inet_is_up
 
+from piradar.raspberry_utils import RaspIoSwitch, RaspIoLED, release_gpio
+
 
 def validate_interface(interface):
     #attempt = 10
@@ -37,6 +39,7 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
         if not output_drive_found:
             if not validate_output_drive(output_drive):
                 logging.warning("Output drive does not exist")
+                gpio_controller.error_pulse('no_drive')
             else:
                 logging.info(f"{output_drive} directory found.")
                 output_drive_found = True
@@ -55,6 +58,7 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
         if not interface_is_valid:
             if not validate_interface(interface_name):
                 logging.warning(f"Interface {interface_name} not found.")
+                gpio_controller.error_pulse('no_eth')
             else:
                 logging.info(f"{interface_name} interface found.")
                 interface_is_valid = True
@@ -64,9 +68,8 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
 
         time.sleep(1)
 
+    gpio_controller.error_pulse('no_eth_drive')
     return False
-
-
 
 
 @dataclass  #(kw_only=True)
@@ -331,3 +334,64 @@ class ReportWatchDog:
 class RadarConnectionError(Exception):
     pass
 
+
+class GPIOControllter:
+    def __init__(self, radar_controller: NavicoRadarController):
+        self.radar_power = RaspIoSwitch(6)
+
+        self.green_led = RaspIoLED(13) # Green
+        self.blue_led = RaspIoLED(19) # Blue
+        self.red_led = RaspIoLED(26) # Red
+
+    def program_started(self):
+        self.blue_led.on()
+        self.green_led.on()
+
+    def ready_to_record(self):
+        self.blue_led.on()
+        self.green_led.off()
+
+    def transmit_start(self):
+        self.blue_led.off()
+        self.red_led.on()
+
+    def transmit_stop(self):
+        self.blue_led.off()
+        self.red_led.on()
+
+    def error_pulse(self, error_type: str):
+        self.all_off()
+
+        match error_type:
+            case 'no_radar':
+                self.green_led.pulse(period=0.5, n_pulse=10)
+                self.blue_led.pulse(period=0.5, n_pulse=10)
+            case 'no_eth':
+                self.green_led.pulse(period=0.5, n_pulse=10)
+                self.blue_led.pulse(period=0.25, n_pulse=20)
+            case 'no_drive':
+                self.green_led.pulse(period=0.25, n_pulse=20)
+                self.blue_led.pulse(period=0.5, n_pulse=10)
+            case 'no_eth_drive':
+                self.green_led.pulse(period=0.5, n_pulse=10, offset=0.25)
+                self.blue_led.pulse(period=0.5, n_pulse=10)
+            case 'fatal':
+                self.green_led.pulse(period=0.25, n_pulse=20)
+                self.blue_led.pulse(period=0.25, n_pulse=20)
+
+    def reboot_radar(self):
+        self.radar_power.off()
+        time.sleep(1)
+        self.radar_power.on()
+
+    def all_off(self):
+        self.radar_power.off()
+        for _pin in [self.green_led, self.blue_led, self.red_led, self.radar_power]:
+            _pin.stop_pulse()
+            _pin.off()
+
+    def __aexit__(self, exc_type, exc_val, exc_tb):
+        release_gpio() # myabe not be nescessary but hey.
+
+
+gpio_controller = GPIOControllter()

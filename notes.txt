@@ -25,25 +25,58 @@
 
 
 UBUNTU INSTALL
-# for pin control
+### for pin control
 >> sudo apt install python3-lgpio
 >> pip install lgpio # instead of gpiozero
+
+
+## Enable ssh
+>> sudo apt update
+>> sudo apt install apache2 (is it necessary ^)
+
+>> sudo apt install openssh-server
+>> sudo systemctl enable ssh
+>> sudo systemctl start ssh
+
+### Disable to disable Desktop:
+>> sudo systemctl set-default multi-user.target
+>> sudo reboot
+
+### to remove every desktop related packages
+>> sudo apt purge ubuntu-desktop
+>> sudo apt autoremove
+
 
 ### to have service on start
 >> install ifupdown
 # bash startup service
 
-# move the radar_startup.service to /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable radar_startup.service
-sudo systemctl start radar_startup.service
+### move the radar_startup.service to /etc/systemd/system/
+>> sudo systemctl daemon-reload
+>> sudo systemctl enable radar_startup.service
+>> sudo systemctl start radar_startup.service
+
+
+### ERROR MOUNTING DISK ON UBUNTU
+>> sudo fdisk -l
+>> sudo apt install nfs-common
+>> sudo apt install cifs-utils
+>> sudo ntfsfix -d /dev/sdb1
+
+
+
+### Disable usb,wifi,eth
+
+>> sudo nano /boot/config.txt
+```
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+
+```
+>> sudo reboot
+>> sudo apt install hub-ctrl
+>> hub-ctrl -h 0 -P 1 -p 0
 
 
 
 
-
-ERROR MOUNTING DISK ON UBUNTU
-sudo fdisk -l
-sudo apt install nfs-common
-sudo apt install cifs-utils
-sudo ntfsfix -d /dev/sdb1

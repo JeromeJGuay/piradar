@@ -3,13 +3,11 @@ import time
 import datetime
 from pathlib import Path
 
-
 from piradar.logger import init_logging
-from piradar.raspberry_utils import RADAR_POWER, GREEN_LED, BLUE_LED, RED_LED, kill_gpio
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, run_scan_schedule, startup_sequence
+    RadarUserSettings, run_scan_schedule, startup_sequence, gpio_controller
 
 ###################################################
 #        PARAMETERS TO BE LOADED FROM INI         #
@@ -77,18 +75,12 @@ output_report_dir = "report"
 #               Actual Script Below               #
 ###################################################
 
-def reboot_radar():
-    RADAR_POWER.power_off()
-    time.sleep(1)
-    RADAR_POWER.power_on()
-
 
 output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
 
 def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
-    BLUE_LED.off()
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
     if start_transmit(radar_controller) is True:
         for _gain in [0, 127, 255]:
@@ -97,14 +89,15 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
 
             scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
 
-            radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan, output_file=scan_output_path)
-            RED_LED.on()
+            radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan,
+                                                  output_file=scan_output_path)
+            gpio_controller.transmit_start()
 
             # add a watch dog here stop recording
             while radar_controller.is_recording_data:
                 time.sleep(.1)
 
-            RED_LED.off()
+            gpio_controller.transmit_stop()
 
         # add a watchdog here (stop transmit)
         while (radar_controller.reports.status.status is RadarStatus.transmit):
@@ -113,49 +106,45 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
             time.sleep(.1)
     else:
         logging.error("Failed to start radar scan")
-        BLUE_LED.pulse(period=0.5, n_pulse=10) # error led flash
-        GREEN_LED.pulse(period=0.5, n_pulse=10)
+        gpio_controller.error_pulse('no_radar')
         # Fixme reboot
         return
 
     # ping watchdog & reboot.
-    BLUE_LED.on()
+
+
 
 def main():
     ### A watchdog should be added to raise an error if the radar disconnect
     ### Turn radar off and on again.
 
-    BLUE_LED.on()
+    gpio_controller.program_started()
 
-    if not startup_sequence(
+    if not startup_sequence( # return flag
             output_drive=output_drive,
             output_report_path=output_report_path,
             output_data_path=output_data_path,
             interface_name=interface_name,
             timeout=startup_timeout
     ):
-
         # Do something like  reboot pi ? send message to witty 4  etc...
         logging.error("Failed to run the startup sequence radar scan.")
-        BLUE_LED.off()
-        BLUE_LED.pulse(period=0.5, n_pulse=10) # error led flash
-        GREEN_LED.pulse(period=0.5, n_pulse=10)
 
         return
 
-    BLUE_LED.off()
-
-    RADAR_POWER.on()
+    gpio_controller.radar_power.on()
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
+        connect_timeout=60 # the radar has 1 minutes to boot up and be available on the network
     )
 
     # power on radar here if necessary
 
     if radar_controller.reports.system.radar_type is None:
         logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
+
         raise Exception("Radar type not received. Communication Error")
 
     set_user_radar_settings(radar_user_settings, radar_controller)
@@ -169,7 +158,7 @@ def main():
     # DO SOMETHING LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
 
     logging.info("Ready to record.")
-    GREEN_LED.on()
+    gpio_controller.ready_to_record()
 
     # add a watchdog here. Fixme
     run_scan_schedule(
@@ -188,9 +177,7 @@ if __name__ == '__main__':
         main()
     except Exception as e:
         logging.error(f"MAIN EXIT: {e}")
+        gpio_controller.error_pulse('fatal')
+        time.sleep(10)
     finally:
-        BLUE_LED.off()
-        GREEN_LED.off()
-        RED_LED.off()
-        RADAR_POWER.off() # maybe kill gpio does the tricks
-        kill_gpio()
+        gpio_controller.all_off()
