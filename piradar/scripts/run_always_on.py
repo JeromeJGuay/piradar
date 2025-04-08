@@ -91,12 +91,12 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
 
             radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan,
                                                   output_file=scan_output_path)
-            gpio_controller.transmit_start()
+            gpio_controller.record_start()
 
             while radar_controller.is_recording_data:
                 time.sleep(.1) # this will never turn off
 
-            gpio_controller.transmit_stop()
+            gpio_controller.led_off()
 
         for _ in range(5): # tries to shutdown radar tranmsmit 5 times at 1sec interval.
             if radar_controller.reports.status.status is RadarStatus.standby:
@@ -138,13 +138,14 @@ def main():
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
-        connect_timeout=60 # the radar has 1 minutes to boot up and be available on the network
+        connect_timeout = 60 # the radar has 1 minutes to boot up and be available on the network
     )
 
-    if radar_controller.reports.system.radar_type is None:
-        logging.info(f"Radar type received: {radar_controller.reports.system.radar_type}")
 
-        raise Exception("Radar type not received. Communication Error")
+    if radar_controller.raw_reports.r01c4 is None:
+       logging.info(f"Radar status reports (01c4) was not received.")
+
+       raise Exception("Radar type not received. Communication Error")
 
     gpio_controller.setting_radar()
 

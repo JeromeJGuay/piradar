@@ -1,0 +1,20 @@
+Allô, oui, on a passé une bonne fin de semaine. Vous autres aussi, j'espère ! Un timeline… mhmm. Si tout va bien, je devrais être en mesure de tester un radar dehors aujourd'hui. Si on parle de hardware, ça peut aller vite. Je dirais une semaine, une fois qu'on sait où on s'en va. Pour ce qui est du software, c'est toujours dur à dire. A priori, le code fonctionne, mais il manque de la chair autour de l'os pour avoir de la résilience logicielle. J'en ai implémenté un peu, mais il va falloir que je le teste et que j'en rajoute. Une liste des TODO seraient:
+
+Niveau Radar
+Tester l'impacte des différents paramètres sur les données.
+Déterminer la fréquence d'échantillonnage en fonction de la consommation énergétique.
+Niveau Software
+Programmer le Shield du Raspberry Pi 4.
+Clock
+ Watchdog: Entre chaque loop de scan, le soft devrait mettre un flag à True et, disons au 30 minutes, le shield regarde si le valeur du flag. SI le flag est True et le met False et si le flag n'était pas vrai c'est que le soft à planté et il devrait reboot le Rpb4.
+Faire un meilleur system de log.
+Sauvegarder les logs uniquemement en cas de Warning ou Error.
+Limiter la grosseur de fichier de log pour éviter des problèmes d'overflow.
+Améliorer la résilience du code.
+Niveau Linux Rpb4.
+S'assurer que le drive de sauvegarde est monté correctement lors du boot.
+Faire une gestion de l'espace mémoire. Quoi faire si le ssd est plein. Est-ce que ça peut effacer des données etc.
+S'assurer que le serveur dhcp et l'interface eth0 sont montés correctement lors d'un reboot (Fait, mais à valider).
+Tester sur un OS plus lège et sans GUI.
+Hardware.
+Tester que le système ne surchauffe pas.

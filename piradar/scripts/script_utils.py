@@ -220,6 +220,7 @@ def start_transmit(radar_controller: NavicoRadarController):
             return False
 
         _count += 1
+    gpio_controller.transmit_start()
     return True
 
 
@@ -387,9 +388,9 @@ class GPIOControllter:
         self.led_off()
         self.red_led.on()
 
-    def transmit_stop(self):
+    def record_start(self):
         self.led_off()
-        self.blue_led.pulse(period=0.5)
+        self.red_led.pulse(period=0.5)
 
     def error_pulse(self, error_type: str):
         self.led_off()

@@ -231,8 +231,13 @@ class NavicoRadarAutoSettings:
 
 
 class NavicoRadarController:
-    # FIXME add Flags (signal) to hold thread until socket are open etc
-    # FIXME add try -except in case error occures when creating sockets.
+    """
+    Radar models default is HALO since it doesnt seem to the the system report. However 4G does ...
+
+
+    FIXME add Flags (signal) to hold thread until socket are open etc
+    FIXME add try -except in case error occurs when creating sockets.
+    """
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
             report_output_dir: str,
@@ -283,6 +288,8 @@ class NavicoRadarController:
         ### Reports Object ###
         self.raw_reports = RawReports()
         self.reports = Reports()
+        # Halo don't seem to send the radar type so just go with it by default.
+        self.reports.system.radar_type = NavicoRadarType.navicoHALO
 
         self.connect()
         if self.is_connected:
@@ -306,7 +313,7 @@ class NavicoRadarController:
         for _nct in range(int(self.connect_timeout / WAKE_UP_SLEEP)):
             if not self.radar_was_detected: # this is unlocked in the listen report thread
                 logging.info(f"Waiting for radar ({_nct + 1})")
-                wake_up_navico_radar()
+                wake_up_navico_radar() # this might not be necessary but hey !...
                 time.sleep(WAKE_UP_SLEEP)
                 continue
 
@@ -544,7 +551,7 @@ class NavicoRadarController:
                     self.reports.setting.target_boost = "unknown"
                     logging.warning(f"Unknown target_boost value: {self.raw_reports.r02c4.target_boost}")
 
-            case REPORTS_IDS.r_03C4:  # SYSTEM
+            case REPORTS_IDS.r_03C4:  # SYSTEM # doesn't seem to be sent by Halo. odd.
                 self.raw_reports.r03c4 = RadarReport03C4(raw_packet)
 
                 try:  # RADAR TYPE --------------
