@@ -91,15 +91,16 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
 
             radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan,
                                                   output_file=scan_output_path)
-            gpio_controller.record_start()
+            gpio_controller.is_recording_led()
 
             while radar_controller.is_recording_data:
                 time.sleep(.1) # this will never turn off
 
-            gpio_controller.led_off()
+            gpio_controller.is_transmitting_led()
 
         for _ in range(5): # tries to shutdown radar tranmsmit 5 times at 1sec interval.
             if radar_controller.reports.status.status is RadarStatus.standby:
+                gpio_controller.led_off()
                 return # You want to scan to exit here !
 
             radar_controller.standby()
@@ -117,7 +118,7 @@ def main():
     ### A watchdog should be added to raise an error if the radar disconnect
     ### Turn radar off and on again.
 
-    gpio_controller.program_started()
+    gpio_controller.program_started_led()
 
     if not startup_sequence( # return flag
             output_drive=output_drive,
@@ -133,21 +134,20 @@ def main():
 
     logging.info("Powering Up Radar")
     gpio_controller.radar_power.on()
-    gpio_controller.waiting_for_radar()
+    gpio_controller.waiting_for_radar_led()
 
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
-        connect_timeout = 60 # the radar has 1 minutes to boot up and be available on the network
+        connect_timeout=60 # the radar has 1 minutes to boot up and be available on the network
     )
-
 
     if radar_controller.raw_reports.r01c4 is None:
        logging.info(f"Radar status reports (01c4) was not received.")
 
        raise Exception("Radar type not received. Communication Error")
 
-    gpio_controller.setting_radar()
+    gpio_controller.setting_radar_led()
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
@@ -160,7 +160,7 @@ def main():
     # DO SOMETHING LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
 
     logging.info("Ready to record.")
-    gpio_controller.ready_to_record()
+    gpio_controller.ready_to_record_led()
 
 
     ## ERROR WILL BE RAISE IN HERE.
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         main()
     except Exception as e:
         logging.error(f"MAIN EXIT: {e}")
-        gpio_controller.error_pulse('fatal')
+        gpio_controller.error_pulse_led('fatal')
         time.sleep(10)
     finally:
         gpio_controller.all_off()

@@ -39,7 +39,7 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
         if not output_drive_found:
             if not validate_output_drive(output_drive):
                 logging.warning("Output drive does not exist")
-                gpio_controller.error_pulse('no_drive')
+                gpio_controller.error_pulse_led('no_drive')
             else:
                 logging.info(f"{output_drive} directory found.")
                 output_drive_found = True
@@ -58,7 +58,7 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
         if not interface_is_valid:
             if not validate_interface(interface_name):
                 logging.warning(f"Interface {interface_name} not found.")
-                gpio_controller.error_pulse('no_eth')
+                gpio_controller.error_pulse_led('no_eth')
             else:
                 logging.info(f"{interface_name} interface found.")
                 interface_is_valid = True
@@ -68,7 +68,7 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
 
         time.sleep(1)
 
-    gpio_controller.error_pulse('no_eth_drive')
+    gpio_controller.error_pulse_led('no_eth_drive')
     return False
 
 
@@ -207,7 +207,6 @@ def start_transmit(radar_controller: NavicoRadarController):
     max_try = 20
     _count = 0
     radar_controller.transmit()
-    # FIXME THIS IS NOT WORKING
     while radar_controller.reports.status.status is not RadarStatus.transmit:
         time.sleep(.05)
         radar_controller.get_reports()
@@ -220,7 +219,7 @@ def start_transmit(radar_controller: NavicoRadarController):
             return False
 
         _count += 1
-    gpio_controller.transmit_start()
+    gpio_controller.is_transmitting_led()
     return True
 
 
@@ -290,6 +289,8 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
     logging.info(f"App start time: {dt_now.strftime('%Y-%m-%dT%H:%M:%S')}")
     dt_next = round_datetime(dt_now, rounding_to=scan_record_interval, up=True)
     logging.info(f"First scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
+
+    gpio_controller.scan_standby_led()
     time.sleep((dt_next - dt_now).total_seconds())
 
     while True:
@@ -303,6 +304,8 @@ def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: Na
         dt_next = round_datetime(dt_now, rounding_to=scan_record_interval, up=True)
         logging.info(f"Next scan time: {dt_next.strftime('%Y-%m-%dT%H:%M:%S')}")
         seconds_to_next_scan = (dt_next - dt_now).total_seconds()
+
+        gpio_controller.scan_standby_led()
         time.sleep(seconds_to_next_scan)
 
 
@@ -367,32 +370,36 @@ class GPIOControllter:
         self.blue_led = RaspIoLED(19) # Blue
         self.red_led = RaspIoLED(26) # Red
 
-    def program_started(self):
+    def program_started_led(self):
         self.led_off()
         self.blue_led.on()
         self.green_led.on()
 
-    def waiting_for_radar(self):
+    def waiting_for_radar_led(self):
         self.led_off()
         self.green_led.on()
 
-    def setting_radar(self):
+    def setting_radar_led(self):
         self.led_off()
         self.green_led.pulse(period=0.25)
 
-    def ready_to_record(self):
+    def ready_to_record_led(self):
+        self.led_off()
+        self.blue_led.on()
+
+    def scan_standby_led(self):
         self.led_off()
         self.blue_led.pulse(period=0.5)
 
-    def transmit_start(self):
+    def is_transmitting_led(self):
         self.led_off()
         self.red_led.on()
 
-    def record_start(self):
+    def is_recording_led(self):
         self.led_off()
         self.red_led.pulse(period=0.5)
 
-    def error_pulse(self, error_type: str):
+    def error_pulse_led(self, error_type: str):
         self.led_off()
 
         match error_type:
@@ -400,15 +407,17 @@ class GPIOControllter:
                 self.green_led.pulse(period=0.5, n_pulse=10)
                 self.blue_led.pulse(period=0.5, n_pulse=10)
             case 'no_eth':
+                self.red_led.pulse(period=0.5, n_pulse=10)
                 self.green_led.pulse(period=0.5, n_pulse=10)
-                self.blue_led.pulse(period=0.25, n_pulse=20)
             case 'no_drive':
-                self.green_led.pulse(period=0.25, n_pulse=20)
+                self.red_led.pulse(period=0.5, n_pulse=10)
                 self.blue_led.pulse(period=0.5, n_pulse=10)
             case 'no_eth_drive':
-                self.green_led.pulse(period=0.5, n_pulse=10, offset=0.25)
-                self.blue_led.pulse(period=0.5, n_pulse=10)
+                self.red_led.pulse(period=0.6, n_pulse=10, offset=0)
+                self.green_led.pulse(period=0.6, n_pulse=10, offset=0.2)
+                self.blue_led.pulse(period=0.6, n_pulse=10, offset=0.4)
             case 'fatal':
+                self.red_led.pulse(period=0.25, n_pulse=20)
                 self.green_led.pulse(period=0.25, n_pulse=20)
                 self.blue_led.pulse(period=0.25, n_pulse=20)
 
