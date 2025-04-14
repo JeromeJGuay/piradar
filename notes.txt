@@ -19,11 +19,6 @@
 
 
 
-
-
-
-
-
 UBUNTU INSTALL
 ### for pin control
 >> sudo apt install python3-lgpio
@@ -32,7 +27,7 @@ UBUNTU INSTALL
 
 ## Enable ssh
 >> sudo apt update
->> sudo apt install apache2 (is it necessary ^)
+>> sudo apt install apache2 (is it necessary ?)
 
 >> sudo apt install openssh-server
 >> sudo systemctl enable ssh
@@ -63,6 +58,14 @@ UBUNTU INSTALL
 >> sudo apt install cifs-utils
 >> sudo ntfsfix -d /dev/sdb1
 
+### OK maybe just need to edit this tab
+>> sudo nano -Bw /etc/fstab
+```
+
+LABEL=writable  /       ext4    discard 0       1
+LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
+/dev/disk/by-id/usb-Seagate_Portable_NAA5PW6Y-0:0-part1 /media/capteur/2To auto nosuid,nodev,nofail,x-gvfs-show 0 0
+```
 
 
 ### Disable usb,wifi,eth
@@ -79,4 +82,45 @@ dtoverlay=disable-bt
 
 
 
+### BUG TO FIX
 
+#### 1
+
+(2025-04-08 11:50:20,308) - {MainThread} - [INFO]     - Next scan time: 2025-04-08T11:51:00
+(2025-04-08 11:50:20,324) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:22,325) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:24,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:26,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:28,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:30,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:32,327) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:34,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:36,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:38,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:40,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:42,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:44,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:46,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:48,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:50,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:52,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:54,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:56,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:50:58,326) - {report}   - [WARNING]  - report b'\x11\xc6' unknown
+(2025-04-08 11:51:00,002) - {MainThread} - [INFO]     - Scan Time: 2025-04-08T11:51:00
+Exception in thread Scan Watchdog:
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/capteur/program/piradar/piradar/scripts/script_utils.py", line 355, in duty
+    raise NavicoRadarError("Scan delay timeout.")
+piradar.scripts.script_utils.NavicoRadarError: Scan delay timeout.
+(2025-04-08 11:51:00,031) - {MainThread} - [INFO]     - Tx On commands sent
+(2025-04-08 11:51:00,088) - {report}   - [WARNING]  - report b'\t\xc4' unknown
+
+#### 2
+
+
+ sudo nano -Bw /etc/fstab
