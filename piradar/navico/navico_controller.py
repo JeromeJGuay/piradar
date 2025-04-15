@@ -476,7 +476,11 @@ class NavicoRadarController:
 
             if raw_packet:
                 logging.debug("Data received")
-                self.process_data(in_data=raw_packet)
+                try:
+                    self.process_data(in_data=raw_packet)
+                except Exception as e:
+                    logging.error(f"Error Raise when trying to process data: {e}")
+                    continue
 
             time.sleep(DATA_SLEEP)
 
