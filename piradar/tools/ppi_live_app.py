@@ -66,7 +66,6 @@ class PpiLivePlotter:
         self.existing_files.update(new_files)
         return sorted(new_files)
 
-
     def fade_radar_plot(self):
         for plot in self.previous_radar_plots:
             alpha = max(plot.get_alpha() - self.fading_rate, 0)
@@ -123,7 +122,8 @@ class PpiLivePlotter:
         data[data < 1] = np.nan
         azimuth_rad = np.radians(azimuth)
 
-        radar_plot = self.ax.contourf(azimuth_rad, radius, data.T, levels=15, cmap="viridis", alpha=1)
+        radar_plot = self.ax.contourf(azimuth_rad, radius, data.T, levels=16 if self.is4bits else 256, cmap="viridis", alpha=1)
+
         self.previous_radar_plots.append(radar_plot)
 
         self.ax.set_title(f"Radar PPI - {timestamp[0]}")
