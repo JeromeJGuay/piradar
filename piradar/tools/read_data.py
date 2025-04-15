@@ -12,6 +12,51 @@ SPOKE_DATA_HEADER = "<HH512B"
 
 
 def unpack_4bit_gray_scale(data):
+    """
+    void NavicoReceive::InitializeLookupData() {
+      if (lookupData[5][255] == 0) {
+        for (int j = 0; j <= UINT8_MAX; j++) {
+          uint8_t low = lookupNibbleToByte[(j & 0x0f)];
+          uint8_t high = lookupNibbleToByte[(j & 0xf0) >> 4];
+
+          lookupData[LOOKUP_SPOKE_LOW_NORMAL][j] = (uint8_t)low;
+          lookupData[LOOKUP_SPOKE_HIGH_NORMAL][j] = (uint8_t)high;
+
+          switch (low) {
+            case 0xf4:
+              lookupData[LOOKUP_SPOKE_LOW_BOTH][j] = 0xff;
+              lookupData[LOOKUP_SPOKE_LOW_APPROACHING][j] = 0xff;
+              break;
+
+            case 0xe8:
+              lookupData[LOOKUP_SPOKE_LOW_BOTH][j] = 0xfe;
+              lookupData[LOOKUP_SPOKE_LOW_APPROACHING][j] = (uint8_t)low;
+              break;
+
+            default:
+              lookupData[LOOKUP_SPOKE_LOW_BOTH][j] = (uint8_t)low;
+              lookupData[LOOKUP_SPOKE_LOW_APPROACHING][j] = (uint8_t)low;
+          }
+
+          switch (high) {
+            case 0xf4:
+              lookupData[LOOKUP_SPOKE_HIGH_BOTH][j] = 0xff;
+              lookupData[LOOKUP_SPOKE_HIGH_APPROACHING][j] = 0xff;
+              break;
+
+            case 0xe8:
+              lookupData[LOOKUP_SPOKE_HIGH_BOTH][j] = 0xfe;
+              lookupData[LOOKUP_SPOKE_HIGH_APPROACHING][j] = (uint8_t)high;
+              break;
+
+            default:
+              lookupData[LOOKUP_SPOKE_HIGH_BOTH][j] = (uint8_t)high;
+              lookupData[LOOKUP_SPOKE_HIGH_APPROACHING][j] = (uint8_t)high;
+          }
+        }
+      }
+    }
+    """
     data_4bit = []
     for _bytes in data:
         low_nibble = _bytes & 0x0F

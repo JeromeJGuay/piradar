@@ -934,33 +934,28 @@ class NavicoRadarController:
         else:
             logging.warning("Sea clutter nudge is only available on Halo")
 
-    def set_sector_blanking(self, get_report: bool = False):
-        """ # TODO
-        ### DEDUCTION ###
+    def set_sector_blanking(self, sector_number: int, start: float, stop: float, get_report: bool = False):
+        # maybe only for halo but unsure.
+        sector_number = int(max(0, min(3, sector_number)))
+        start = int(max(0, min(360, start)))
+        stop = int(max(0, min(360, stop)))
+        if start > stop:
+            start, stop = stop, start
 
-        This command sets no transmit sectors
-        You can set up to 4 sectors, which are the blanking sectors
+        cmd = SetBlankingSectorCmd(sector_number, start * 10, stop * 10)
+        self.send_pack_data(cmd)
+        if get_report:
+            self.get_reports()
 
-        First the ENABLE COMMAND
-        [
-            register = 0x0d
-            command  = 0xc1
-            sector = (0x00 to 0x03) maybe or maybe 1-4 dont know yet.
-            3 bytes 0x00 padding
-            enable = [0x00 or 0x01] I would guess
-        ]
-        Then the Angle command
-        [
-            register = 0xc0
-            command 0xc1
-            sector = (0x00 to 0x03) maybe or maybe 1-4 dont know yet.
-            3 bytes 0x00 padding
-            start_angle = 2bytes (degree to decidegrees)
-            end_angle = 2bytes (degree to decidegrees)
-        """
-        logging.warning("Blanking method not implemented yet.")
-        #if get_report:
-        #    self.get_reports()
+    def enable_sector_blanking(self, sector_number: int, value: bool, get_report: bool = False):
+        # maybe only for halo but unsure.
+        sector_number = int(max(0, min(3, sector_number)))
+        value = int(value)
+
+        cmd = SetBlankingSectorCmd(sector_number, value)
+        self.send_pack_data(cmd)
+        if get_report:
+            self.get_reports()
 
 
 def wake_up_navico_radar():

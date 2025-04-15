@@ -1,3 +1,26 @@
+"""Note on sector blanking
+### DEDUCTION ###
+
+This command sets no transmit sectors
+You can set up to 4 sectors, which are the blanking sectors
+
+First the ENABLE COMMAND
+[
+    register = 0x0d
+    command  = 0xc1
+    sector = (0x00 to 0x03) maybe or maybe 1-4 dont know yet.
+    3 bytes 0x00 padding
+    enable = [0x00 or 0x01] I would guess
+]
+Then the Angle command
+[
+    register = 0xc0
+    command = 0xc1
+    sector = (0x00 to 0x03) maybe or maybe 1-4 dont know yet.
+    3 bytes 0x00 padding
+    start_angle = 2bytes (degree to decidegrees)
+    end_angle = 2bytes (degree to decidegrees)
+"""
 import struct
 
 __all__ = [
@@ -25,7 +48,10 @@ __all__ = [
     'TargetSeparationCmd',
     'TargetBoostCmd',
     'LightCmd',
-    'LocalInterferenceFilterCmd'
+    'LocalInterferenceFilterCmd',
+
+    'SetBlankingSectorCmd',
+    'EnableBlankingSectorCmd'
 ]
 
 ENDIAN = "<"
@@ -329,10 +355,38 @@ class _LightCmd:
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
 
 
+class _SetBlankingSector:
+    """
+     CMD  | Sector  |      fill |  Start |  Stop |
+     0  1 |        2|   3  4  5 |   6  7 |  8  9 |
+    0d C1 |  [00,03]|  00 00 00 |  00 00 | 00 00 |
+
+    """
+    cformat = "BBB 3B HH"
+    register = 0xc0
+    cmd = 0xc1
+
+    def pack(self, sector: int, start: int, stop: int):
+        """Sector: 0..3 and start and stop are in decidegree"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, start, stop)
 
 
+class _EnableBlankingSector:
+    """
+     CMD  | Sector  |      fill |  On/off |
+     0  1 |        2|   3  4  5 |       6 |
+    0d C1 |  [00,03]|  00 00 00 | [00,01] |
+    """
+    cformat = "BBB 3B B"
+    register = 0x0d
+    cmd = 0xc1
 
-RangeCmd = _RangeCmd() # TODO
+    def pack(self, sector: int, value: int):
+        """Sector: 0..3 and value 0-1 (enable, disable)"""
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, value)
+
+
+RangeCmd = _RangeCmd()  # TODO
 BearingAlignmentCmd = _BearingAlignmentCmd()
 GainCmd = _GainCmd()
 SeaClutterCmd = _SeaClutterCmd()
@@ -353,4 +407,7 @@ TargetSeparationCmd = _TargetSeparationCmd()
 TargetBoostCmd = _TargetBoostCmd()
 LightCmd = _LightCmd()
 LocalInterferenceFilterCmd = _LocalInterferenceFilterCmd()
+
+SetBlankingSectorCmd = _SetBlankingSector()
+EnableBlankingSectorCmd = _EnableBlankingSector()
 

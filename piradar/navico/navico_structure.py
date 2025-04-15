@@ -295,17 +295,17 @@ class RadarReport04C4:
 
 
 class SectorBlanking:
-    cformat = "B2H"
+    cformat = "BHH"
 
     def __init__(self, data: tuple[int, int, int]):
         self.enable = data[0]
-        self.start_angle = data[1]
-        self.end_angle = data[2]
+        self.start = data[1]
+        self.stop = data[2]
 
 
 class RadarReport06C4:
-    expected_size = 74
-    cformats = ["B", "B", "L", "6c", "30B"] + 4 * [SectorBlanking.cformat] + ["12B"]
+    expected_size = 74 # can be 68
+    cformats = ["B", "B", "4B", "6s", "30B"] + 4 * [SectorBlanking.cformat] + ["12B"] # this is 80 ...
 
     size = struct.calcsize(ENDIAN + "".join(cformats))
     field_sizes = [struct.calcsize(ENDIAN + f) for f in cformats]
@@ -333,7 +333,9 @@ class RadarReport06C4:
         """
 
         if len(data) == 68:
-            self.cformats = ["B", "B", "L", "6c", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
+            self.cformats = ["B", "B", "4B", "6s", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
+            self.field_sizes = [struct.calcsize(ENDIAN + f) for f in self.cformats]
+            self.field_offsets = [0] + list(accumulate(self.field_sizes))[:-1]
 
         unpacked_fields = [
             struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
@@ -342,10 +344,10 @@ class RadarReport06C4:
         self.register = unpacked_fields[0][0]
         self.command = unpacked_fields[1][0]
         self.field1 = unpacked_fields[2][0]
-        self.name = unpacked_fields[3]  #6 values #myabe use 6s and unpack as ascii ? Fixme
-        self.field2 = unpacked_fields[4]  # 26 or 30 values depending on the report size (68 or 74)
+        self.name = unpacked_fields[3][0]  #6 values #myabe use 6s and unpack as ascii ? Fixme
+        self.field2 = unpacked_fields[4][0]  # 26 or 30 values depending on the report size (68 or 74)
         self.blanking = (
-            SectorBlanking(unpacked_fields[5]),  # will be unpakced by SectorBlanking
+            SectorBlanking(unpacked_fields[5]),  # will be unpacked by SectorBlanking
             SectorBlanking(unpacked_fields[6]),
             SectorBlanking(unpacked_fields[7]),
             SectorBlanking(unpacked_fields[8])
@@ -563,3 +565,19 @@ class RawFrameData:
             RawSpokeData(spokes_data[i * RawSpokeData.size: (i + 1) * RawSpokeData.size]) for i in
             range(self.number_of_spokes)
         ]
+
+
+if __name__ == "__main__":
+
+    report_filename = "E:\\report\\raw_report_0x6c4.raw"
+    with open(report_filename, "rb") as report_file:
+        data = report_file.read()
+
+    report = RadarReport06C4(data)
+
+    #cformats = ["B", "B", "4B", "6s", "24B"] + 4 * [SectorBlanking.cformat] + ["12B"]
+
+    #unpacked_fields = [
+    #    struct.unpack_from(ENDIAN + ff, buffer=data, offset=fo)
+    #    for ff, fo in zip(cformats, field_offsets)
+    #]
