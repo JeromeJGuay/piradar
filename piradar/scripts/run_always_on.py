@@ -98,7 +98,7 @@ def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
 
             gpio_controller.is_transmitting_led()
 
-        for _ in range(5): # tries to shutdown radar tranmsmit 5 times at 1sec interval.
+        for _ in range(5): # tries to shut down radar transmit 5 times at 1sec interval.
             if radar_controller.reports.status.status is RadarStatus.standby:
                 gpio_controller.led_off()
                 return # You want to scan to exit here !
