@@ -80,7 +80,7 @@ output_data_path = Path(output_drive).joinpath(output_data_dir)
 output_report_path = Path(output_drive).joinpath(output_report_dir)
 
 
-def scan(radar_controller: NavicoRadarController, dt: datetime.datetime):
+def scan_gain_step(radar_controller: NavicoRadarController, dt: datetime.datetime):
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
     if start_transmit(radar_controller) is True:
         for _gain in [0, 127, 255]:
@@ -169,7 +169,7 @@ def main():
     # - No data were received.
     run_scan_schedule(  # <- Watchdog for receiving data is hidden in here.
         scan_record_interval=scan_record_interval,
-        scan_func=scan,
+        scan_func=scan_gain_step,
         radar_controller=radar_controller
     )
 
