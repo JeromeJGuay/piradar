@@ -16,7 +16,7 @@ class PpiLivePlotter:
     min_range = 100
     max_range = 75_000
 
-    def __init__(self, data_directory, fading_rate=0.1, refresh_rate=1):
+    def __init__(self, data_directory, fading_rate=0.1, refresh_rate=.5):
         self.data_directory = data_directory
 
         self.fading_rate = fading_rate
@@ -134,4 +134,8 @@ class PpiLivePlotter:
 if __name__ == "__main__":
     data_directory = "\\\\capteur-desktop\\RadarDrive\\data\\"
     #data_directory = "C:\\Users\\guayj\\Desktop\\tmp"
-    plp = PpiLivePlotter(data_directory=data_directory)
+    plp = PpiLivePlotter(
+        data_directory=data_directory,
+        fading_rate=0.1,
+        refresh_rate=.5,
+    )

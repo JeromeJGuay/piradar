@@ -43,7 +43,7 @@ ENTRY_GROUP_PORT = 6878
 
 WAKE_UP_SLEEP = 0.5
 REPORT_SLEEP = 1e-3
-DATA_SLEEP = 1e-4 # 1e-5 didn't seem to be enough.
+DATA_SLEEP = 1e-4  # 1e-5 didn't seem to be enough.
 SEND_SLEEP = 1e-2
 
 
@@ -213,9 +213,10 @@ class SpokeData:
 
 
 @dataclass
-class SectorData:
+class FrameData:
     time: str = None
     number_of_spokes: int = None
+    gain: int = None
     spoke_data: list[SpokeData] = None
 
     def __post_init__(self):
@@ -238,6 +239,7 @@ class NavicoRadarController:
     FIXME add Flags (signal) to hold thread until socket are open etc
     FIXME add try -except in case error occurs when creating sockets.
     """
+
     def __init__(
             self, multicast_interfaces: MulticastInterfaces,
             report_output_dir: str,
@@ -253,8 +255,6 @@ class NavicoRadarController:
             for report_id in REPORTS_IDS
         }
 
-        self.raw_data_output_file: str = None
-
         self.send_socket = None
 
         self.data_socket = None
@@ -263,23 +263,23 @@ class NavicoRadarController:
         self.data_thread: threading.Thread = None
         self.report_thread: threading.Thread = None
         self.keep_alive_thread: threading.Thread = None
-        self.writer_thread: threading.Thread = None
-        self.writing_queue = queue.Queue()
+
+        self.data_writer = RadarDataWriter(self)
+        self.data_recorder = RadarDataRecorder(self)
 
         self.radar_was_detected = False
         self.is_connected = False
-        self.is_recording_data = False
         self.is_receiving_data = False
 
         self.stop_flag = False
 
-
-        # Data Recording
-        self.sector_first_spoke_number: int = None
-        self.current_spoke_number: int = None
-        self.last_spoke_number: int = None
-        self.sector_recorded_count = 0
-        self.number_of_sector_to_record: int = None
+        # Data Recording #--------------------------------
+        # self.is_recording_data = False
+        # self.sector_first_spoke_number: int = None
+        # self.current_spoke_number: int = None
+        # self.last_spoke_number: int = None
+        # self.sector_recorded_count = 0
+        # self.number_of_sector_to_record: int = None
 
         ### RADAR PARAMETER ###
         # Not clear how to update this at the moment. Or use it
@@ -301,19 +301,20 @@ class NavicoRadarController:
         if self.is_connected:
             return
 
+        self.stop_flag = False
         self.init_report_socket()
         self.init_data_socket()
         self.init_send_socket()
 
         self.start_report_thread()
         self.start_data_thread()
-        self.start_writer_thread()
+        self.data_writer.start_thread()
 
         logging.info("Waiting for radar ...")
         for _nct in range(int(self.connect_timeout / WAKE_UP_SLEEP)):
-            if not self.radar_was_detected: # this is unlocked in the listen report thread
+            if not self.radar_was_detected:  # this is unlocked in the listen report thread
                 logging.info(f"Waiting for radar ({_nct + 1})")
-                wake_up_navico_radar() # this might not be necessary but hey !...
+                wake_up_navico_radar()  # this might not be necessary but hey !...
                 time.sleep(WAKE_UP_SLEEP)
                 continue
 
@@ -331,11 +332,11 @@ class NavicoRadarController:
         self.stop_recording_data()
 
         logging.info("Disconnect all called.")
-        self.writing_queue.queue.clear()
+        self.data_writer.writing_queue.queue.clear()
         self.stop_flag = True
         self.report_thread.join()
         self.data_thread.join()
-        self.writer_thread.join()
+        self.data_writer.writer_thread.join()
         if self.keep_alive_thread is not None:
             self.keep_alive_thread.join()
 
@@ -385,16 +386,13 @@ class NavicoRadarController:
         self.keep_alive_thread.start()
         logging.debug("Keep alive thread started")
 
-    def start_writer_thread(self):
-        self.writer_thread = threading.Thread(name="writer",target=self.writer, daemon=True)
-        self.writer_thread.start()
-        logging.debug("Writer thread started")
-
     def send_pack_data(self, packed_data):
         try:
-            _nbytes_sent = self.send_socket.sendto(packed_data, (self.address_set.send.address, self.address_set.send.port))
+            _nbytes_sent = self.send_socket.sendto(packed_data,
+                                                   (self.address_set.send.address, self.address_set.send.port))
             if _nbytes_sent != len(packed_data):
-                logging.error(f"Failed to send command {packed_data} to {self.address_set.send.address, self.address_set.send.port}.")
+                logging.error(
+                    f"Failed to send command {packed_data} to {self.address_set.send.address, self.address_set.send.port}.")
             else:
                 logging.debug(f"Sending: {packed_data} to {self.address_set.send.address, self.address_set.send.port}")
             time.sleep(SEND_SLEEP)  # not to overwhelm. Maybe this should be handled by a thread and a queue.
@@ -408,55 +406,55 @@ class NavicoRadarController:
             self.stay_on_cmd()
             time.sleep(self.keep_alive_interval)
 
-    def start_recording_data(self, output_file: str, number_of_sector_to_record: int):
-        if self.is_recording_data:
-            logging.warning('Data recording already started')
-            return
-
-        self.raw_data_output_file = output_file
-        logging.info('Data recording started')
-        self.number_of_sector_to_record = number_of_sector_to_record
-        self.is_recording_data = True
-
-        self._reset_recording_vales() # reset value (maybe not necessary but does cost much)
-
-    def stop_recording_data(self):
-        if not self.is_recording_data:
-            logging.warning('Data recording already stopped')
-            return
-
-        logging.info('Data recording stopped')
-        self.is_recording_data = False
-
-        self._reset_recording_vales()  # reset value (maybe not necessary but does cost much)
-
-    def _reset_recording_vales(self):
-        self.sector_first_spoke_number = None
-        self.current_spoke_number = None
-        self.last_spoke_number = None
-        self.sector_recorded_count = 0
-
-    def check_data_recording_conditions(self):
-        if self.sector_first_spoke_number is None:
-            self.sector_first_spoke_number = self.current_spoke_number
-            self.last_spoke_number = -1
-
-        elif self.current_spoke_number > self.last_spoke_number:
-            self.last_spoke_number = self.current_spoke_number
-
-        elif self.current_spoke_number > self.sector_first_spoke_number:
-            self.last_spoke_number = self.current_spoke_number
-            self.sector_recorded_count += 1
-            logging.info(f"Sector recorded {self.sector_recorded_count}")
-
-            if self.sector_recorded_count >= self.number_of_sector_to_record:
-                logging.info("Sector recorded count reached.")
-                self.stop_recording_data()
+    # def start_recording_data(self, output_file: str, number_of_sector_to_record: int):
+    #     if self.is_recording_data:
+    #         logging.warning('Data recording already started')
+    #         return
+    #
+    #     self.raw_data_output_file = output_file
+    #     logging.info('Data recording started')
+    #     self.number_of_sector_to_record = number_of_sector_to_record
+    #     self.is_recording_data = True
+    #
+    #     self._reset_recording_vales()  # reset value (maybe not necessary but does cost much)
+    #
+    # def stop_recording_data(self):
+    #     if not self.is_recording_data:
+    #         logging.warning('Data recording already stopped')
+    #         return
+    #
+    #     logging.info('Data recording stopped')
+    #     self.is_recording_data = False
+    #
+    #     self._reset_recording_vales()  # reset value (maybe not necessary but does cost much)
+    #
+    # def _reset_recording_vales(self):
+    #     self.sector_first_spoke_number = None
+    #     self.current_spoke_number = None
+    #     self.last_spoke_number = None
+    #     self.sector_recorded_count = 0
+    #
+    # def check_data_recording_conditions(self):
+    #     if self.sector_first_spoke_number is None:
+    #         self.sector_first_spoke_number = self.current_spoke_number
+    #         self.last_spoke_number = -1
+    #
+    #     elif self.current_spoke_number > self.last_spoke_number:
+    #         self.last_spoke_number = self.current_spoke_number
+    #
+    #     elif self.current_spoke_number > self.sector_first_spoke_number:
+    #         self.last_spoke_number = self.current_spoke_number
+    #         self.sector_recorded_count += 1
+    #         logging.info(f"Sector recorded {self.sector_recorded_count}")
+    #
+    #         if self.sector_recorded_count >= self.number_of_sector_to_record:
+    #             logging.info("Sector recorded count reached.")
+    #             self.stop_recording_data()
 
     def report_listen(self):
         while not self.stop_flag:  # have thread specific flags as well
             try:
-                raw_packet = self.report_socket.recv(RCV_BUFF) # 1 second socket timeout
+                raw_packet = self.report_socket.recv(RCV_BUFF)  # 1 second socket timeout
             except socket.timeout:
                 continue
 
@@ -469,7 +467,7 @@ class NavicoRadarController:
     def data_listen(self):
         while not self.stop_flag:  # have thread specific flags as well
             try:
-                raw_packet = self.data_socket.recv(RCV_BUFF) # 1 second socket timeout
+                raw_packet = self.data_socket.recv(RCV_BUFF)  # 1 second socket timeout
                 self.is_receiving_data = True
             except socket.timeout:
                 continue
@@ -489,7 +487,7 @@ class NavicoRadarController:
         report_id = struct.unpack("!H", raw_packet[:2])[0]
         logging.debug(f"report received: {raw_packet[:2]}")
         if report_id in REPORTS_IDS:
-            self.writing_queue.put((self.write_raw_report_packet, report_id, raw_packet))
+            self.data_writer.write_report(output_dir = self.report_output_dir, report_id=report_id, raw_packet=raw_packet)
 
         match report_id:
             case REPORTS_IDS.r_01B2:  # '#case b'\xb2\x01':
@@ -539,7 +537,8 @@ class NavicoRadarController:
                 # TARGET EXPANSION --------------
                 if self.reports.system.radar_type is not NavicoRadarType.navicoHALO:  # G4, G3 not available on BR24 ? maybe
                     # Seems to be a special case ? maybe map to high (off, high)
-                    self.reports.setting.target_expansion = {0: 'off', 1: 'high'}[self.raw_reports.r02c4.target_expansion]
+                    self.reports.setting.target_expansion = {0: 'off', 1: 'high'}[
+                        self.raw_reports.r02c4.target_expansion]
                 else:
                     try:
                         self.reports.setting.target_expansion = OLMH_VAL2STR_MAP[
@@ -645,20 +644,22 @@ class NavicoRadarController:
 
     def process_data(self, in_data):
 
-        if self.is_recording_data:
-            raw_frame = RawFrameData(in_data) # PACKET MIGHT BE BROKEN FIXME
+        if self.data_recorder.is_recording:
+            raw_frame = RawFrameData(in_data)  # PACKET MIGHT BE BROKEN FIXME
 
             logging.debug(f"Number of spokes in sector: {raw_frame.number_of_spokes}")
-            sector_data = SectorData()
-            sector_data.time = int(datetime.datetime.now(datetime.UTC).timestamp()) # seconds "<L"
-            sector_data.number_of_spokes = raw_frame.number_of_spokes
+
+            time_stamp = datetime.datetime.now(datetime.UTC)
+
+            frame_data = FrameData()
+            frame_data.time = int(time_stamp.timestamp())  # seconds "<L"
+            frame_data.number_of_spokes = raw_frame.number_of_spokes
+            frame_data.gain = self.reports.setting.gain
 
             for raw_spoke in raw_frame.spokes:
                 spoke_data = SpokeData()
 
                 spoke_data.spoke_number = raw_spoke.spoke_number
-
-                self.current_spoke_number = raw_spoke.spoke_number
 
                 # record the raw data as is.
                 spoke_data.heading = raw_spoke.heading
@@ -679,56 +680,29 @@ class NavicoRadarController:
                         elif self.reports.system.radar_type in [NavicoRadarType.navico4G, NavicoRadarType.navico3G]:
                             spoke_data._range = raw_spoke.large_range * 64
 
-                        else:   #elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
+                        else:  #elif self.reports.system.radar_type == NavicoRadarType.navicoHALO:
                             spoke_data._range = raw_spoke.large_range * raw_spoke.small_range / 512
 
                     spoke_data._range = int(spoke_data._range)  # save as integer. meter precision is fine.
 
                     spoke_data.intensities = raw_spoke.data
 
-                    sector_data.spoke_data.append(spoke_data)
+                    frame_data.spoke_data.append(spoke_data)
                 else:
                     logging.warning("Invalid Spoke")
 
-            self.writing_queue.put((self.write_raw_sector_data, self.raw_data_output_file, sector_data))
+            last_spoke = frame_data.spoke_data[-1].spoke_number
 
-            # do it at the end to set self._data_recording_is_start ot false if need
-            self.check_data_recording_conditions()
+            if self.data_recorder.is_recording_sector:
+                self.data_recorder.check_sector_recording_conditions(spoke_number=last_spoke)
+                output_file = self.data_recorder.output_file
+            else:
+                first_spoke = frame_data.spoke_data[0].spoke_number
+                _ts = time_stamp.strftime("%Y%m%dT%H%M%S")
+                filename = f"{_ts}_{first_spoke}_{last_spoke}"
+                output_file = str(Path(self.data_recorder.output_dir) / filename)
 
-    def writer(self):
-        while not self.stop_flag:
-            try:
-                _write_task, *args = self.writing_queue.get(timeout=1)
-                _write_task(*args)
-            except queue.Empty:
-                time.sleep(0.25)
-            except Exception as e:
-                logging.error(f"Unexpected error on writer thread: {e}.")
-
-    def write_raw_sector_data(self, raw_data_output_file: str, sector_data: SectorData):
-        with open(raw_data_output_file, "ba") as f:
-            packed_frame_header = b"FH" + struct.pack(
-                "<LBHHH",
-                sector_data.time,
-                sector_data.number_of_spokes,
-                sector_data.spoke_data[0]._range,  #
-                sector_data.spoke_data[0].heading, # should not change but ok
-                self.reports.setting.gain,
-            )
-            f.write(packed_frame_header)
-            for spoke_data in sector_data.spoke_data:
-                packed_spoke_data = b"SD" + struct.pack(
-                    "<HH512B",
-                    spoke_data.spoke_number,
-                    spoke_data.angle,
-                    *spoke_data.intensities
-                )
-
-                f.write(packed_spoke_data)
-
-    def write_raw_report_packet(self, report_id: str, raw_report: bytearray):
-        with open(self.raw_reports_path[report_id], "wb") as f:
-            f.write(raw_report)
+            self.data_writer.write_frame(output_file=output_file, frame_data=frame_data)
 
     #### Belows are all the commands method ####
 
@@ -973,4 +947,141 @@ def wake_up_navico_radar():
     else:
         logging.debug("WakeUp command sent")
     send_socket.close()
+
+
+class RadarDataWriter:
+    def __init__(self, radar_controller):
+        self.radar_controller: NavicoRadarController = radar_controller
+        self.writer_thread: threading.Thread = None
+        self.writing_queue = queue.Queue()
+        self.stop_flag = False
+
+    def start_thread(self):
+        self.stop_flag = False
+        self.writer_thread = threading.Thread(name="writer", target=self.loop, daemon=True)
+        self.writer_thread.start()
+        logging.debug("Writer thread started")
+
+    def stop(self):
+        self.stop_flag = True
+
+    def loop(self):
+        while not (self.radar_controller.stop_flag or self.stop_flag):
+            try:
+                _write_task, *args = self.writing_queue.get(timeout=0.1) # this need to be short too.
+                _write_task(*args)
+            except queue.Empty:
+                time.sleep(0.01) # this need to be short
+            except Exception as e:
+                logging.error(f"Unexpected error on writer thread: {e}.")
+
+    def write_frame(self, output_file: str, sector_data: FrameData):
+        self.writing_queue.put((self._write_raw_frame_data, output_file, sector_data))
+
+    def write_report(self, output_dir: str, report_id: str, raw_packet: bytearray):
+        self.writing_queue.put((self._write_raw_report_packet, output_dir, report_id, raw_packet))
+
+    @staticmethod
+    def _write_raw_frame_data(output_file: str, sector_data: FrameData):
+        with open(output_file + ".raw", "ba") as f:
+            packed_frame_header = b"FH" + struct.pack(
+                "<LBHHH",
+                sector_data.time,
+                sector_data.number_of_spokes,
+                sector_data.spoke_data[0]._range,  #
+                sector_data.spoke_data[0].heading,
+                sector_data.gain,
+            )
+            f.write(packed_frame_header)
+            for spoke_data in sector_data.spoke_data:
+                packed_spoke_data = b"SD" + struct.pack(
+                    "<HH512B",
+                    spoke_data.spoke_number,
+                    spoke_data.angle,
+                    *spoke_data.intensities
+                )
+
+                f.write(packed_spoke_data)
+
+    @staticmethod
+    def _write_raw_report_packet(output_dir: str, report_id: str, raw_report: bytearray):
+        with open(output_dir[report_id] + ".raw", "wb") as f:
+            f.write(raw_report)
+
+
+class RecorderSpokeCounter:
+    def __init__(self):
+        self.first: int = None
+        self.current: int = None
+        self.last: int = -1
+
+    def update(self, spoke_number: int):
+        self.current = spoke_number
+
+        if self.first is None:
+            self.first = self.current
+            return 0
+
+        if self.current > self.last:
+            self.last = self.current
+            return 0
+
+        if self.current > self.first:
+            self.last = self.current
+            return 1
+
+        return 0
+
+
+class RadarDataRecorder:
+
+    def __init__(self, radar_controller: NavicoRadarController):
+        self.radar_controller = radar_controller
+
+        self.is_recording = False
+        self.is_recording_sector = False
+        self.output_dir: str = None # use for continuous
+        self.output_file: str = None # use for sector
+
+        # Sector Recording #
+        self.spoke_counter: RecorderSpokeCounter = None
+        self.sector_count: int = None
+        self.number_of_sector_to_record: int = None
+
+    def start_sector_recording(self, output_file: str, number_of_sector_to_record: int):
+        if self.is_recording:
+            logging.warning('Data recording already started')
+            return
+
+        self.output_file = output_file
+        logging.info('Data recording started')
+        self.number_of_sector_to_record = number_of_sector_to_record
+        self.sector_count = 0
+        self.is_recording = True
+
+        self.spoke_counter = RecorderSpokeCounter() # A new counter is made on each call.
+
+    def start_continuous_recording(self, output_dir: str):
+        if self.is_recording:
+            logging.warning('Data recording already started')
+            return
+        self.output_dir = output_dir
+        self.is_recording_sector = False
+        self.is_recording = True
+
+    def check_sector_recording_conditions(self, spoke_number):
+        if self.is_recording_sector is True:
+            self.sector_count += self.spoke_counter.update(spoke_number=spoke_number)
+
+            if self.sector_count >= self.number_of_sector_to_record:
+                logging.info("Sector recorded count reached.")
+                self.stop_recording_data()
+
+    def stop_recording_data(self):
+        if not self.is_recording:
+            logging.warning('Data recording already stopped')
+            return
+
+        logging.info('Data recording stopped')
+        self.is_recording = False
 

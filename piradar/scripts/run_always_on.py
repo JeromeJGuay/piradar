@@ -87,13 +87,16 @@ def scan_gain_step(radar_controller: NavicoRadarController, dt: datetime.datetim
             radar_controller.set_gain(_gain)
             time.sleep(0.1)
 
-            scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
+            scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}")
 
-            radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan,
-                                                  output_file=scan_output_path)
+            radar_controller.data_recorder.start_recording(
+                output_file=scan_output_path,
+                number_of_sector_to_record=number_of_sector_per_scan
+            )
+
             gpio_controller.is_recording_led()
 
-            while radar_controller.is_recording_data:
+            while radar_controller.data_recorder.is_recording:
                 time.sleep(.1) # this will never turn off
 
             gpio_controller.is_transmitting_led()
