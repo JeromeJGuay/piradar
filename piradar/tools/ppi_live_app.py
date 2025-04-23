@@ -117,6 +117,10 @@ class PpiLivePlotter:
 
         timestamp, azimuth, radius, data = read_raw(latest, is4bits=self.is4bits)
 
+        azi_sort = azimuth.argsort()
+        azimuth = azimuth[azi_sort]
+        data = data[azi_sort]
+
         self.max_radius = radius.max()
 
         data[data < 1] = np.nan
@@ -132,7 +136,8 @@ class PpiLivePlotter:
 
 
 if __name__ == "__main__":
-    data_directory = "\\\\capteur-desktop\\RadarDrive\\data\\"
+    #data_directory = "\\\\capteur-desktop\\RadarDrive\\data\\"
+    data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\"
     #data_directory = "C:\\Users\\guayj\\Desktop\\tmp"
     plp = PpiLivePlotter(
         data_directory=data_directory,
