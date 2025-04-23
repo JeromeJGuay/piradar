@@ -920,7 +920,11 @@ class NavicoRadarController:
         if start > stop:
             start, stop = stop, start
 
+        cmd = SetBlankingSectorCmd.pack(sector_number, 1) # may need to be enable first...
+        self.send_pack_data(cmd)
         cmd = SetBlankingSectorCmd.pack(sector_number, start * 10, stop * 10)
+        self.send_pack_data(cmd)
+        cmd = SetBlankingSectorCmd.pack(sector_number, 0)
         self.send_pack_data(cmd)
         if get_report:
             self.get_reports()
