@@ -110,9 +110,8 @@ def main():
     return radar_controller
 
 
-def scan_continuous(radar_controller: NavicoRadarController):
-
-    time_stamp = datetime.datetime.now()
+def scan_continuous(radar_controller: NavicoRadarController, dt: datetime.datetime):
+    time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
     scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_to_record}_continuous.raw")
     radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_to_record, output_file=scan_output_path)
     gpio_controller.is_recording_led()
@@ -123,7 +122,7 @@ def start_scan(radar_controller: NavicoRadarController, scan_interval=2):
     def _inner_thread():
         if start_transmit(radar_controller) is True:
 
-            gpio_controller.transmit_led()
+            gpio_controller.is_transmitting_led()
             run_scan_schedule(  # <- Watchdog for receiving data is hidden in here.
                 scan_record_interval=scan_interval,
                 scan_func=scan_continuous,
@@ -146,7 +145,7 @@ if __name__ == '__main__':
 
     rc = main()
 
-    start_scan()
+    start_scan(radar_controller=rc, scan_interval=2)
 
 
 

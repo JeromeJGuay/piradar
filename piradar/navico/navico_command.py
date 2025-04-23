@@ -368,7 +368,7 @@ class _SetBlankingSector:
 
     def pack(self, sector: int, start: int, stop: int):
         """Sector: 0..3 and start and stop are in decidegree"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, start, stop)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0,0,0, start, stop)
 
 
 class _EnableBlankingSector:
@@ -383,7 +383,7 @@ class _EnableBlankingSector:
 
     def pack(self, sector: int, value: int):
         """Sector: 0..3 and value 0-1 (enable, disable)"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, value)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0,0,0,value)
 
 
 RangeCmd = _RangeCmd()  # TODO

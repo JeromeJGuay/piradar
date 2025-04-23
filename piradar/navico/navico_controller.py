@@ -43,7 +43,7 @@ ENTRY_GROUP_PORT = 6878
 
 WAKE_UP_SLEEP = 0.5
 REPORT_SLEEP = 1e-3
-DATA_SLEEP = 1e-5
+DATA_SLEEP = 1e-4 # 1e-5 didn't seem to be enough.
 SEND_SLEEP = 1e-2
 
 
@@ -499,7 +499,7 @@ class NavicoRadarController:
                 self.raw_reports.r01c4 = RadarReport01C4(raw_packet)
                 try:  # RADAR STATUS --------------
                     self.reports.status.status = RADAR_STATUS_VAL2STR_MAP[self.raw_reports.r01c4.radar_status]
-                except ValueError:
+                except KeyError:
                     self.reports.status.status = "unknown"
                     logging.warning(f"Unknown RadarReport01C4 status: {self.raw_reports.r01c4.radar_status}")
 
@@ -946,7 +946,7 @@ class NavicoRadarController:
         if start > stop:
             start, stop = stop, start
 
-        cmd = SetBlankingSectorCmd(sector_number, start * 10, stop * 10)
+        cmd = SetBlankingSectorCmd.pack(sector_number, start * 10, stop * 10)
         self.send_pack_data(cmd)
         if get_report:
             self.get_reports()
@@ -956,7 +956,7 @@ class NavicoRadarController:
         sector_number = int(max(0, min(3, sector_number)))
         value = int(value)
 
-        cmd = SetBlankingSectorCmd(sector_number, value)
+        cmd = SetBlankingSectorCmd.pack(sector_number, value)
         self.send_pack_data(cmd)
         if get_report:
             self.get_reports()
@@ -973,3 +973,4 @@ def wake_up_navico_radar():
     else:
         logging.debug("WakeUp command sent")
     send_socket.close()
+

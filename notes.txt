@@ -120,7 +120,17 @@ piradar.scripts.script_utils.NavicoRadarError: Scan delay timeout.
 (2025-04-08 11:51:00,031) - {MainThread} - [INFO]     - Tx On commands sent
 (2025-04-08 11:51:00,088) - {report}   - [WARNING]  - report b'\t\xc4' unknown
 
-#### 2
+####
+
+Other error
+
+(2025-04-16 13:32:03,062) - {data}     - [ERROR]    - Error Raise when trying to process data: unpack_from requires a buffer of at least 1 bytes for unpacking 1 bytes at offset 0 (actual buffer size is 0)
 
 
- sudo nano -Bw /etc/fstab
+###
+
+(2025-04-16 14:03:11,069) - {MainThread} - [ERROR]    - sea_state was not set. Expected: calm, Actual: moderate
+(2025-04-16 14:03:11,070) - {MainThread} - [ERROR]    - target_expansion was not set. Expected: off, Actual: high
+(2025-04-16 14:03:11,070) - {MainThread} - [ERROR]    - target_separation was not set. Expected: off, Actual: low
+
+

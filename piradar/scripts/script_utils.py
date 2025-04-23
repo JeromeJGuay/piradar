@@ -364,11 +364,11 @@ class NavicoRadarError(Exception):
 
 class GPIOControllter:
     def __init__(self):
-        self.radar_power = RaspIoSwitch(6)
 
-        self.green_led = RaspIoLED(13) # Green
-        self.blue_led = RaspIoLED(19) # Blue
         self.red_led = RaspIoLED(26) # Red
+        self.blue_led = RaspIoLED(19)  # Blue
+        self.green_led = RaspIoLED(13)  # Green
+        self.radar_power = RaspIoSwitch(6)
 
     def program_started_led(self):
         self.led_off()

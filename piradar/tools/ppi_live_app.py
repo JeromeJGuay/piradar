@@ -16,7 +16,7 @@ class PpiLivePlotter:
     min_range = 100
     max_range = 75_000
 
-    def __init__(self, data_directory, fading_rate=0.25, refresh_rate=1):
+    def __init__(self, data_directory, fading_rate=0.1, refresh_rate=1):
         self.data_directory = data_directory
 
         self.fading_rate = fading_rate
@@ -113,7 +113,7 @@ class PpiLivePlotter:
             self.ax.set_title("Radar PPI - No PPI")
             return self.radar_plot  # No files available
 
-        latest = raw_files[-1]
+        latest = raw_files[0]
 
         timestamp, azimuth, radius, data = read_raw(latest, is4bits=self.is4bits)
 
@@ -132,5 +132,6 @@ class PpiLivePlotter:
 
 
 if __name__ == "__main__":
-    data_directory = "C:\\Users\\guayj\\Desktop\\tmp"
+    data_directory = "\\\\capteur-desktop\\RadarDrive\\data\\"
+    #data_directory = "C:\\Users\\guayj\\Desktop\\tmp"
     plp = PpiLivePlotter(data_directory=data_directory)
