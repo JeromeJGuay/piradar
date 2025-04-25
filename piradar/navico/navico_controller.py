@@ -698,7 +698,7 @@ class NavicoRadarController:
                 output_file = self.data_recorder.output_file
             else:
                 first_spoke = frame_data.spoke_data[0].spoke_number
-                _ts = time_stamp.strftime("%Y%m%dT%H%M%S")
+                _ts = time_stamp.strftime("%Y%m%dT%H%M%S%f")
                 filename = f"{_ts}_{first_spoke}_{last_spoke}"
                 output_file = str(Path(self.data_recorder.output_dir) / filename)
 
@@ -987,7 +987,7 @@ class RadarDataWriter:
 
     @staticmethod
     def _write_raw_frame_data(output_file: str, sector_data: FrameData):
-        with open(output_file + ".raw", "ba") as f:
+        with open(Path(output_file).with_suffix(".raw"), "ba") as f:
             packed_frame_header = b"FH" + struct.pack(
                 "<LBHHH",
                 sector_data.time,
@@ -997,8 +997,9 @@ class RadarDataWriter:
                 sector_data.gain,
             )
             f.write(packed_frame_header)
+            f.write(b"SD")
             for spoke_data in sector_data.spoke_data:
-                packed_spoke_data = b"SD" + struct.pack(
+                packed_spoke_data = struct.pack(
                     "<HH512B",
                     spoke_data.spoke_number,
                     spoke_data.angle,

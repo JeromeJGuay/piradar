@@ -1,3 +1,9 @@
 psutil
 lgpio
 schedule
+
+scipy
+matplotlib
+numpy
+xarray
+pandas
