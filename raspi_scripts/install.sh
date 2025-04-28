@@ -1,12 +1,12 @@
 # ssh
 cd
 echo "installing ssh"
-yes | sudo apt update
-yes | sudo apt install apache2 # (is it necessary ?)
+yes | apt update
+yes | apt install apache2 # (is it necessary ?)
 
-yes | sudo apt install openssh-server
-yes | sudo systemctl enable ssh
-yes | sudo systemctl start ssh
+yes | apt install openssh-server
+systemctl enable ssh
+systemctl start ssh
 cd
 
 
@@ -19,7 +19,7 @@ echo "Installing net-tools"
 sudo apt install net-tools
 
 echo "Installing isc-dhcp-server"
-yes | sudo apt install isc-dhcp-server
+yes | apt install isc-dhcp-server
 
 # Configuring dhcp server
 echo "configuring dhcp server"
@@ -57,30 +57,25 @@ echo '        broadcast 192.168.1.255'  >> /etc/network/interfaces.d/locals
 echo '    		gateway 192.168.1.1'  >> /etc/network/interfaces.d/locals
 
 # Apply
+ifdown eth0
+ifup eth0
 
-sudo ifdown eth0
-sudo ifup eth0
+systemctl enable isc-dhcp-server
+systemctl status isc-dhcp-server
 
-sudo systemctl status isc-dhcp-server
-sudo systemctl enable isc-dhcp-server
-
-
-#### for pin control
-cd
-echo "Installing ping control"
-yes | sudo apt install python3-lgpio
-cd
+ifdown eth0
 
 
 #### Witty shield
 cd
 echo "Install for Witty"
-sudo apt install curl # needed for witty isntall.sh
+yes | apt install curl # needed for witty isntall.sh
 
-cd mkdir witty
+cd
+mkdir witty
 cd witty
 wget https://www.uugear.com/repo/WittyPi4/install.sh
-yes | sudo sh install.sh
+yes | sh install.sh
 cd
 
 #### samba
@@ -94,22 +89,33 @@ cd
 #### drive mounting TODO check if tis ok
 cd
 echo "Installing drive related pakages"
-yes | sudo fdisk -l
+sudo fdisk -l
 yes | sudo apt install nfs-common
 yes | sudo apt install cifs-utils
-yes | sudo ntfsfix -d /dev/sdb1
+sudo ntfsfix -d /dev/sdb1
 cd
 
+
+#### for pin control
+cd
+echo "Installing ping control"
+yes | apt install python3-lgpio
+cd
 
 #### installing requirements
 cd /home/capteur/program/piradar
 python3 -m venv .venv
 .venv/bin/python3 -m pip install -r requirements.txt
+
+# install program
+.venv/bin/python3 -m pip install -e ../piradar
 cd
 
 #### Add service for radar
 cp /home/capteur/program/piradar/raspi_scripts/piradar.service /etc/systemd/system/piradar.service
 
 systemctl daemon-reload
-systemctl enable radar_startup.service
+systemctl enable piradar.service
 
+
+ifup eth0
