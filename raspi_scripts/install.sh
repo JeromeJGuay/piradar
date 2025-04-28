@@ -1,12 +1,12 @@
 # ssh
 cd
 echo "installing ssh"
-sudo apt update
-sudo apt install apache2 # (is it necessary ?)
+yes | sudo apt update
+yes | sudo apt install apache2 # (is it necessary ?)
 
-sudo apt install openssh-server
-sudo systemctl enable ssh
-sudo systemctl start ssh
+yes | sudo apt install openssh-server
+yes | sudo systemctl enable ssh
+yes | sudo systemctl start ssh
 cd
 
 
@@ -19,7 +19,7 @@ echo "Installing net-tools"
 sudo apt install net-tools
 
 echo "Installing isc-dhcp-server"
-sudo apt install isc-dhcp-server
+yes | sudo apt install isc-dhcp-server
 
 # Configuring dhcp server
 echo "configuring dhcp server"
@@ -68,7 +68,7 @@ sudo systemctl enable isc-dhcp-server
 #### for pin control
 cd
 echo "Installing ping control"
-sudo apt install python3-lgpio
+yes | sudo apt install python3-lgpio
 cd
 
 
@@ -80,13 +80,13 @@ sudo apt install curl # needed for witty isntall.sh
 cd mkdir witty
 cd witty
 wget https://www.uugear.com/repo/WittyPi4/install.sh
-sudo sh install.sh
+yes | sudo sh install.sh
 cd
 
 #### samba
 cd
 echo "Installing Samba (drive ethernet)"
-sudo apt install samba samba-common-bin smbclient cifs-utils
+yes | sudo apt install samba samba-common-bin smbclient cifs-utils
 cd
 
 
@@ -94,10 +94,17 @@ cd
 #### drive mounting TODO check if tis ok
 cd
 echo "Installing drive related pakages"
-sudo fdisk -l
-sudo apt install nfs-common
-sudo apt install cifs-utils
-sudo ntfsfix -d /dev/sdb1
+yes | sudo fdisk -l
+yes | sudo apt install nfs-common
+yes | sudo apt install cifs-utils
+yes | sudo ntfsfix -d /dev/sdb1
+cd
+
+
+#### installing requirements
+cd /home/capteur/program/piradar
+python3 -m venv .venv
+.venv/bin/python3 -m pip install -r requirements.txt
 cd
 
 #### Add service for radar
