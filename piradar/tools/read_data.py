@@ -149,7 +149,7 @@ def unpack_4bit_gray_scale(data):
 
 
 def convert_rawsector_v0_to_raw_frames(raw_file, out_dir, freq=10):
-    #to update
+    #to update TODO
     with open(raw_file, "rb") as f:
         raw_data = f.read()
 

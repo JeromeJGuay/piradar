@@ -159,6 +159,7 @@ def main():
     valide_radar_settings(radar_user_settings, radar_controller)
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
+    # Not working on HALO fix me
     set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
     # DO SOMETHING LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
 

@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/home/capteur/program/piradar
 ExecStartPre=ifup eth0
-ExecStart=/home/capteur/program/piradar/.venv/bin/python3 /home/capteur/program/piradar/piradar/scripts/run_always_on.py
+ExecStart=/home/capteur/program/piradar/.venv/bin/python3 /home/capteur/program/piradar/piradar/scripts/schedule_recording.py
 Restart=always
 
 [Install]

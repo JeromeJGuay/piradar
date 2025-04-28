@@ -9,9 +9,10 @@ from piradar.logger import init_logging
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, run_scan_schedule, startup_sequence, gpio_controller, NavicoRadarError
+    RadarUserSettings, startup_sequence, gpio_controller, NavicoRadarError
 
 startup_timeout = 60
+connect_timeout = 60
 
 number_of_sector_to_record = 1
 
@@ -92,8 +93,15 @@ def main():
     radar_controller = NavicoRadarController(
         multicast_interfaces=mcast_ifaces,
         report_output_dir=output_report_path,
-        connect_timeout=60  # the radar has 1 minutes to boot up and be available on the network
+        connect_timeout=connect_timeout  # the radar has 1 minutes to boot up and be available on the network
     )
+
+    if radar_controller.raw_reports.r01c4 is None:
+       logging.info(f"Radar status reports (01c4) was not received.")
+
+       raise Exception("Radar type not received. Communication Error")
+
+    gpio_controller.setting_radar_led()
 
     set_user_radar_settings(radar_user_settings, radar_controller)
     radar_controller.get_reports()
@@ -102,6 +110,7 @@ def main():
     valide_radar_settings(radar_user_settings, radar_controller)
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
+    # Not working on HALO fix me
     set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
 
     logging.info("Ready to record.")
@@ -139,17 +148,17 @@ def stop(radar_controller: NavicoRadarController):
     raise NavicoRadarError("Radar did not stopped transmitting.")
 
 
-if __name__ == '__main__':
+debug_level = "INFO"
 
-    debug_level = "INFO"
-    write_log = True
-    init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
+write_log = True
 
-    rc = main()
+init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
 
-    rc.data_recorder.start(output_dir=output_data_path)
+rc = main()
 
-    #rc.stop()
+rc.data_recorder.start(output_dir=output_data_path)
+
+#rc.stop()
 
 
 
