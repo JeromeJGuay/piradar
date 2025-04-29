@@ -23,6 +23,8 @@ append_with_backup() {
     echo "Operation complete."
 }
 
+script_dir=$(dirname "$(realpath "$0")")
+
 #########
 ## ssh ##
 #########
@@ -54,18 +56,18 @@ echo "configuring dhcp server"
 
 # /etc/default/isc-dhcp-server
 # todo copy backup
-sudo append_with_backup "./isc-dhcp-server" "/etc/default/isc-dhcp-server"
+sudo append_with_backup "$script_dir/isc-dhcp-server" "/etc/default/isc-dhcp-server"
 # sudo cat ./isc-dhcp-server >> /etc/default/isc-dhcp-server
 
 # /etc/dhcp/dhcpd.conf
 # todo copy backup
-sudo append_with_backup "./dhcpd.conf" "/etc/dhcp/dhcpd.conf"
+sudo append_with_backup "$script_dir/dhcpd.conf" "/etc/dhcp/dhcpd.conf"
 # sudo cat ./dhcpd.conf >> /etc/dhcp/dhcpd.conf
 
 # auto loop back
 # todo copy backup
 sudo touch  /etc/network/interfaces.d/locals
-sudo append_with_backup "./locals" "/etc/network/interfaces.d/locals"
+sudo append_with_backup "$script_dir/locals" "/etc/network/interfaces.d/locals"
 #sudo cat ./locals >> /etc/network/interfaces.d/locals
 
 # Apply
@@ -109,13 +111,13 @@ echo "Installing Samba (drive ethernet)"
 yes | sudo apt install samba samba-common-bin smbclient cifs-utils
 
 # todo copy backup
-sudo append_with_backup "./smb.conf" "/etc/samba/smb.conf"
+sudo append_with_backup "$script_dir/smb.conf" "/etc/samba/smb.conf"
 #sudo cat ./smb.conf >> /etc/samba/smb.conf
 
 sudo service smbd restart
 
 # todo copy backup
-sudo append_with_backup "./fstab" "/etc/fstab"
+sudo append_with_backup "$script_dir/fstab" "/etc/fstab"
 #sudo cat ./fstab >> /etc/fstab
 
 #####################
