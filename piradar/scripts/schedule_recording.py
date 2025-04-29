@@ -7,7 +7,7 @@ from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, run_scan_schedule, startup_sequence, gpio_controller, NavicoRadarError
+    RadarUserSettings, run_scheduled_scans, wait_for_requirements, gpio_controller, NavicoRadarError
 
 ###################################################
 #        PARAMETERS TO BE LOADED FROM INI         #
@@ -66,7 +66,7 @@ mcast_ifaces = MulticastInterfaces(
 scan_speed = "high"
 
 ### Write data ###
-output_drive = "/media/capteur/2To"
+output_drive = "/media/radar_drive"
 output_data_dir = "data"
 output_report_dir = "report"
 
@@ -87,13 +87,16 @@ def scan_gain_step(radar_controller: NavicoRadarController, dt: datetime.datetim
             radar_controller.set_gain(_gain)
             time.sleep(0.1)
 
-            scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}.raw")
+            scan_output_path = output_data_path.joinpath(f"{time_stamp}_s_{number_of_sector_per_scan}_gain_{_gain}")
 
-            radar_controller.start_recording_data(number_of_sector_to_record=number_of_sector_per_scan,
-                                                  output_file=scan_output_path)
+            radar_controller.data_recorder.start_recording(
+                output_file=scan_output_path,
+                number_of_sector_to_record=number_of_sector_per_scan
+            )
+
             gpio_controller.is_recording_led()
 
-            while radar_controller.is_recording_data:
+            while radar_controller.data_recorder.is_recording:
                 time.sleep(.1) # this will never turn off
 
             gpio_controller.is_transmitting_led()
@@ -120,7 +123,7 @@ def main():
 
     gpio_controller.program_started_led()
 
-    if not startup_sequence( # return flag
+    if not wait_for_requirements( # return flag
             output_drive=output_drive,
             output_report_path=output_report_path,
             output_data_path=output_data_path,
@@ -156,6 +159,7 @@ def main():
     valide_radar_settings(radar_user_settings, radar_controller)
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
+    # Not working on HALO fix me
     set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
     # DO SOMETHING LIKE WRITE REPORT WITH TIMESTAMPS IF IT FAILS
 
@@ -167,7 +171,7 @@ def main():
     # - Did not start to transmit
     # - Did not stop to transmit
     # - No data were received.
-    run_scan_schedule(  # <- Watchdog for receiving data is hidden in here.
+    run_scheduled_scans(  # <- Watchdog for receiving data is hidden in here.
         scan_record_interval=scan_record_interval,
         scan_func=scan_gain_step,
         radar_controller=radar_controller

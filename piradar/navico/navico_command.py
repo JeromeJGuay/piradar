@@ -359,8 +359,7 @@ class _SetBlankingSector:
     """
      CMD  | Sector  |      fill |  Start |  Stop |
      0  1 |        2|   3  4  5 |   6  7 |  8  9 |
-    0d C1 |  [00,03]|  00 00 00 |  00 00 | 00 00 |
-
+    C0 C1 |  [00,03]|  00 00 00 |  00 00 | 00 00 |
     """
     cformat = "BBB 3B HH"
     register = 0xc0
@@ -368,7 +367,7 @@ class _SetBlankingSector:
 
     def pack(self, sector: int, start: int, stop: int):
         """Sector: 0..3 and start and stop are in decidegree"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0,0,0, start, stop)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0, 0, 0, start, stop)
 
 
 class _EnableBlankingSector:
@@ -383,7 +382,7 @@ class _EnableBlankingSector:
 
     def pack(self, sector: int, value: int):
         """Sector: 0..3 and value 0-1 (enable, disable)"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0,0,0,value)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0, 0 ,0, value)
 
 
 RangeCmd = _RangeCmd()  # TODO

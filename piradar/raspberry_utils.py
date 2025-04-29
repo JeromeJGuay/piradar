@@ -3,7 +3,7 @@ import lgpio
 GPIO_CLAIM = lgpio.gpiochip_open(0)
 
 
-class RaspIoSwitch():
+class RaspIoSwitch:
     def __init__(self, io_pin: int):
         self.io_pin = io_pin
         self.is_up = False

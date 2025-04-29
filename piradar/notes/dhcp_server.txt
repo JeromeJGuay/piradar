@@ -10,7 +10,7 @@ also: ifupdown net-tools
 ```
 INTERFACESv4="eth0"
 ``
-## 2.2 In ``/etc/dhcp/dhcpd.conf` add:
+## 2.2 In `/etc/dhcp/dhcpd.conf` add:
 
 ```
 
