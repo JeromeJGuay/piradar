@@ -20,6 +20,8 @@ sudo service smbd restart
 
 # make the usb drive mount on bootup
 sudo nano -Bw /etc/fstab
+
+
 # something like
 ```
 LABEL=writable  /       ext4    discard 0       1
