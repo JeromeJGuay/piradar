@@ -5,12 +5,11 @@ import threading
 from pathlib import Path
 from dataclasses import dataclass
 
-from piradar.navico.navico_controller import NavicoRadarController, RadarStatus, RANGES_PRESETS
+from piradar.navico.navico_controller import NavicoRadarController, RadarStatus, RANGES_PRESETS, MulticastInterfaces, MulticastAddress
 
 from piradar.network import check_interface_inet_is_up
 
 from piradar.raspberry_utils import RaspIoSwitch, RaspIoLED, release_gpio
-
 
 def validate_interface(interface):
     #attempt = 10
@@ -28,7 +27,7 @@ def validate_output_drive(output_drive):
     return False
 
 
-def startup_sequence(output_drive, output_report_path, output_data_path, interface_name, timeout=60):
+def wait_for_requirements(output_drive, output_report_path, output_data_path, interface_name, timeout=60):
 
     output_drive_found = False
     interface_is_valid = False
@@ -71,6 +70,108 @@ def startup_sequence(output_drive, output_report_path, output_data_path, interfa
     gpio_controller.error_pulse_led('no_eth_drive')
     return False
 
+
+def init_sequence(config: dict):
+    startup_timeout = config['TIMEOUTS']['radar_boot_timeout']
+    connect_timeout = config['TIMEOUTS']['raspberry_boot_timeout']
+
+    radar_user_settings = RadarUserSettings(
+        _range=config['RADAR_SETTINGS']['range'],
+        antenna_height=config['RADAR_SETTINGS']['antenna_height'],
+        bearing=config['RADAR_SETTINGS']['bearing'],
+        gain=config['RADAR_SETTINGS']['gain'],
+        gain_auto=config['RADAR_SETTINGS']['gain_auto'],
+
+        sea_clutter=config['RADAR_SETTINGS']['sea_clutter'],
+        sea_clutter_auto=config['RADAR_SETTINGS']['sea_clutter_auto'],
+
+        rain_clutter=config['RADAR_SETTINGS']['rain_clutter'],
+        rain_clutter_auto=config['RADAR_SETTINGS']['rain_clutter_auto'],
+
+        side_lobe_suppression=config['RADAR_SETTINGS']['side_lobe_suppression'],
+        side_lobe_suppression_auto=config['RADAR_SETTINGS']['side_lobe_suppression_auto'],
+
+        sea_state=config['RADAR_SETTINGS']['sea_state'],
+        noise_rejection=config['RADAR_SETTINGS']['noise_rejection'],
+
+        interference_rejection=config['RADAR_SETTINGS']['interference_rejection'],
+        local_interference_filter=config['RADAR_SETTINGS']['local_interference_filter'],
+
+        target_expansion=config['RADAR_SETTINGS']['target_expansion'],
+        target_separation=config['RADAR_SETTINGS']['target_separation'],
+        target_boost=config['RADAR_SETTINGS']['target_boost'],
+    )
+
+    scan_speed = config['RADAR_SETTINGS']['scan_speed']
+
+    ### NETWORK ###
+    interface_addr = config['NETWORK']['interface_addr']
+    interface_name = config['NETWORK']['interface_name']
+
+    report_address = (config['NETWORK']['report_addr'], config['NETWORK']['report_port'])
+    data_address = (config['NETWORK']['data_addr'], config['NETWORK']['data_port'])
+    send_address = (config['NETWORK']['send_addr'], config['NETWORK']['send_port'])
+
+    mcast_ifaces = MulticastInterfaces(
+        report=MulticastAddress(*report_address),
+        data=MulticastAddress(*data_address),
+        send=MulticastAddress(*send_address),
+        interface=interface_addr
+    )
+
+    ### Write data ###
+    output_drive = config['DATA']['drive_path']
+    output_data_dir = config['DATA']['data_dir']
+    output_report_dir = config['DATA']['report_dir']
+
+    output_data_path = Path(output_drive).joinpath(output_data_dir)
+    output_report_path = Path(output_drive).joinpath(output_report_dir)
+
+    gpio_controller.program_started_led()
+
+    if not wait_for_requirements( # return flag
+            output_drive=output_drive,
+            output_report_path=output_report_path,
+            output_data_path=output_data_path,
+            interface_name=interface_name,
+            timeout=startup_timeout
+    ):
+        # Do something like  reboot pi ? send message to witty 4  etc...
+        logging.error("Failed to run the startup sequence radar scan.")
+
+        return
+
+    logging.info("Powering Up Radar")
+    gpio_controller.radar_power.on()
+    gpio_controller.waiting_for_radar_led()
+
+    radar_controller = NavicoRadarController(
+        multicast_interfaces=mcast_ifaces,
+        report_output_dir=output_report_path,
+        connect_timeout=connect_timeout  # the radar has 1 minutes to boot up and be available on the network
+    )
+
+    if radar_controller.raw_reports.r01c4 is None:
+       logging.info(f"Radar status reports (01c4) was not received.")
+
+       raise Exception("Radar type not received. Communication Error")
+
+    gpio_controller.setting_radar_led()
+
+    set_user_radar_settings(radar_user_settings, radar_controller)
+    radar_controller.get_reports()
+    time.sleep(1)  # just to be sure all reports are in and analyzed.
+
+    valide_radar_settings(radar_user_settings, radar_controller)
+    # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
+
+    # Not working on HALO fix me
+    set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
+
+    logging.info("Ready to record.")
+    gpio_controller.ready_to_record_led()
+
+    return radar_controller, output_data_path, output_report_path, gpio_controller
 
 @dataclass  #(kw_only=True)
 class RadarUserSettings:
@@ -272,7 +373,7 @@ def round_datetime(dt: datetime.datetime, rounding_to: float, offset=0.0, up=Fal
     return datetime.datetime(dt.year, dt.month, dt.day) + datetime.timedelta(seconds=rounded_seconds)
 
 
-def run_scan_schedule(scan_record_interval: int, scan_func, radar_controller: NavicoRadarController):
+def run_scheduled_scans(scan_record_interval: int, scan_func, radar_controller: NavicoRadarController):
     """
 
     :param scan_record_interval: Interval of the schedule

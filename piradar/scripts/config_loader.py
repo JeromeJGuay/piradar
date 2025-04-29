@@ -1,10 +1,10 @@
 import configparser
 
 
-def load_config(path_to_config):
+def load_config(config_path):
     config = configparser.ConfigParser()
 #    with open(path_to_config, 'r') as config_file:
-    config.read(path_to_config)
+    config.read(config_path)
 
     fconfig = config._sections
 
@@ -38,4 +38,5 @@ def load_config(path_to_config):
 if __name__ == '__main__':
     path_to_config = "halo_configuration.ini"
 
-    config = load_config(path_to_config)
+    _conf = load_config(path_to_config)
+    

@@ -7,7 +7,7 @@ from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
 from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, run_scan_schedule, startup_sequence, gpio_controller, NavicoRadarError
+    RadarUserSettings, run_scheduled_scans, wait_for_requirements, gpio_controller, NavicoRadarError
 
 ###################################################
 #        PARAMETERS TO BE LOADED FROM INI         #
@@ -66,7 +66,7 @@ mcast_ifaces = MulticastInterfaces(
 scan_speed = "high"
 
 ### Write data ###
-output_drive = "/media/capteur/2To"
+output_drive = "/media/radar_drive"
 output_data_dir = "data"
 output_report_dir = "report"
 
@@ -123,7 +123,7 @@ def main():
 
     gpio_controller.program_started_led()
 
-    if not startup_sequence( # return flag
+    if not wait_for_requirements( # return flag
             output_drive=output_drive,
             output_report_path=output_report_path,
             output_data_path=output_data_path,
@@ -171,7 +171,7 @@ def main():
     # - Did not start to transmit
     # - Did not stop to transmit
     # - No data were received.
-    run_scan_schedule(  # <- Watchdog for receiving data is hidden in here.
+    run_scheduled_scans(  # <- Watchdog for receiving data is hidden in here.
         scan_record_interval=scan_record_interval,
         scan_func=scan_gain_step,
         radar_controller=radar_controller

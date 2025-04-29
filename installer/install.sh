@@ -59,8 +59,8 @@ sudo append_with_backup "./isc-dhcp-server" "/etc/default/isc-dhcp-server"
 
 # /etc/dhcp/dhcpd.conf
 # todo copy backup
-sudo append_with_backup "dhcpd.conf" "/etc/dhcp/dhcpd.conf"
-# sudo cat dhcpd.conf >> /etc/dhcp/dhcpd.conf
+sudo append_with_backup "./dhcpd.conf" "/etc/dhcp/dhcpd.conf"
+# sudo cat ./dhcpd.conf >> /etc/dhcp/dhcpd.conf
 
 # auto loop back
 # todo copy backup
@@ -172,7 +172,6 @@ systemctl enable piradar.service
 
 
 ifup eth0
-
 
 echo "Piradar service should be up and running"
 
