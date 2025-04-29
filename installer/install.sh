@@ -173,6 +173,7 @@ systemctl enable piradar.service
 
 ifup eth0
 
-echo "Piradar service should be up and running"
-
+echo "Piradar service should be up and running ..."
 systemctl status piradar.service
+
+
