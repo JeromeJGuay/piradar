@@ -11,7 +11,7 @@ from piradar.navico.navico_controller import NavicoRadarController, RadarStatus
 
 from piradar.scripts.gpio_utils import gpio_controller
 
-from piradar.scripts.script_utils import main_init_sequence, run_scheduled_scans, NavicoRadarError, start_transmit
+from piradar.scripts.script_utils import main_init_sequence, run_scheduled_scans, NavicoRadarError, start_transmit, catch_termination_signal
 
 from configs import load_config
 
@@ -19,6 +19,7 @@ from configs import load_config
 SCAN_INTERVAL = 60
 NUMBER_OF_SECTOR=5
 
+catch_termination_signal()
 
 def scan_basic(radar_controller: NavicoRadarController, dt: datetime.datetime, output_data_path: str):
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
