@@ -1,3 +1,5 @@
+import signal
+import sys
 import logging
 import time
 import datetime
@@ -6,8 +8,10 @@ from pathlib import Path
 from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress, NavicoRadarController, RadarStatus)
-from piradar.scripts.script_utils import set_user_radar_settings, valide_radar_settings, start_transmit, set_scan_speed, \
-    RadarUserSettings, run_scheduled_scans, wait_for_requirements, gpio_controller, NavicoRadarError
+from piradar.scripts.script_utils import *
+from piradar.scripts.gpio_utils import gpio_controller
+
+catch_termination_signal()  # important to raise exceptions to run the finally code block.
 
 ###################################################
 #        PARAMETERS TO BE LOADED FROM INI         #
@@ -66,7 +70,7 @@ mcast_ifaces = MulticastInterfaces(
 scan_speed = "high"
 
 ### Write data ###
-output_drive = "/media/radar_drive"
+output_drive = "/media/capteur/2To"
 output_data_dir = "data"
 output_report_dir = "report"
 
@@ -123,7 +127,7 @@ def main():
 
     gpio_controller.program_started_led()
 
-    if not wait_for_requirements( # return flag
+    if not wait_for_rpi_boot( # return flag
             output_drive=output_drive,
             output_report_path=output_report_path,
             output_data_path=output_data_path,
@@ -172,14 +176,13 @@ def main():
     # - Did not stop to transmit
     # - No data were received.
     run_scheduled_scans(  # <- Watchdog for receiving data is hidden in here.
-        scan_record_interval=scan_record_interval,
-        scan_func=scan_gain_step,
-        radar_controller=radar_controller
+        radar_controller=radar_controller,
+        scan_interval=scan_record_interval,
+        scan_func=scan_gain_step
     )
 
 
 if __name__ == '__main__':
-
     debug_level = "INFO"
     write_log = True
     init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)

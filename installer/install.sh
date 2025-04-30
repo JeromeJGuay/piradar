@@ -23,7 +23,8 @@ append_with_backup() {
     echo "Operation complete."
 }
 
-script_dir=$(dirname "$(realpath "$0")")
+HOME=$(eval echo ~"$SUDO_USER")
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
 #########
 ## ssh ##
@@ -56,18 +57,18 @@ echo "configuring dhcp server"
 
 # /etc/default/isc-dhcp-server
 # todo copy backup
-sudo append_with_backup "$script_dir/isc-dhcp-server" "/etc/default/isc-dhcp-server"
+append_with_backup "$SCRIPT_DIR/isc-dhcp-server" "/etc/default/isc-dhcp-server"
 # sudo cat ./isc-dhcp-server >> /etc/default/isc-dhcp-server
 
 # /etc/dhcp/dhcpd.conf
 # todo copy backup
-sudo append_with_backup "$script_dir/dhcpd.conf" "/etc/dhcp/dhcpd.conf"
+append_with_backup "$SCRIPT_DIR/dhcpd.conf" "/etc/dhcp/dhcpd.conf"
 # sudo cat ./dhcpd.conf >> /etc/dhcp/dhcpd.conf
 
 # auto loop back
 # todo copy backup
 sudo touch  /etc/network/interfaces.d/locals
-sudo append_with_backup "$script_dir/locals" "/etc/network/interfaces.d/locals"
+append_with_backup "$SCRIPT_DIR/locals" "/etc/network/interfaces.d/locals"
 #sudo cat ./locals >> /etc/network/interfaces.d/locals
 
 # Apply
@@ -75,7 +76,7 @@ ifdown eth0
 ifup eth0
 
 systemctl enable isc-dhcp-server
-systemctl status isc-dhcp-server
+#systemctl status isc-dhcp-server
 
 ifdown eth0
 
@@ -93,16 +94,6 @@ wget https://www.uugear.com/repo/WittyPi4/install.sh
 yes | sh install.sh
 cd
 
-####################
-## Drive mounting ## TODO check if tis ok
-####################
-cd
-echo "Installing drive related pakages"
-sudo fdisk -l
-yes | sudo apt install nfs-common
-yes | sudo apt install cifs-utils
-sudo ntfsfix -d /dev/sdb1
-
 ###########
 ## samba ##
 ###########
@@ -110,15 +101,19 @@ cd
 echo "Installing Samba (drive ethernet)"
 yes | sudo apt install samba samba-common-bin smbclient cifs-utils
 
-# todo copy backup
-sudo append_with_backup "$script_dir/smb.conf" "/etc/samba/smb.conf"
+append_with_backup "$SCRIPT_DIR/smb.conf" "/etc/samba/smb.conf"
 #sudo cat ./smb.conf >> /etc/samba/smb.conf
 
 sudo service smbd restart
 
-# todo copy backup
-sudo append_with_backup "$script_dir/fstab" "/etc/fstab"
-#sudo cat ./fstab >> /etc/fstab
+yes | sudo apt install ufw
+
+sudo ufw allow samba
+
+append_with_backup "$SCRIPT_DIR/fstab" "/etc/fstab"
+sudo cat ./fstab >> /etc/fstab
+sudo mount -a
+#systemctl daemon-reload
 
 #####################
 ## for pin control ##
@@ -132,10 +127,12 @@ cd
 ## Installing piradar ##
 ########################
 
-mkdir "$HOME/program/piradar"
+mkdir -p "$HOME/program"
+cd "$HOME/program"
 git clone https://github.com/JeromeJGuay/piradar.git
 
-cd "$HOME/program/piradar"
+cd piradar
+
 python3 -m venv .venv
 .venv/bin/python3 -m pip install -r requirements.txt
 
@@ -167,7 +164,7 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-cp "$HOME/program/piradar/raspi_scripts/piradar.service" /etc/systemd/system/piradar.service
+cp "$SCRIPT_DIR/piradar.service" /etc/systemd/system/piradar.service
 
 systemctl daemon-reload
 systemctl enable piradar.service
@@ -175,7 +172,7 @@ systemctl enable piradar.service
 
 ifup eth0
 
-echo "Piradar service should be up and running ..."
-systemctl status piradar.service
+echo "reboot required"
+# systemctl status piradar.service
 
 

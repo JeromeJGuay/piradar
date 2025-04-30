@@ -33,10 +33,3 @@ def load_config(config_path):
     fconfig['RADAR_SETTINGS']['side_lobe_suppression_auto'] = bool(config['RADAR_SETTINGS']['side_lobe_suppression_auto'])
 
     return fconfig
-
-
-if __name__ == '__main__':
-    path_to_config = "halo_configuration.ini"
-
-    _conf = load_config(path_to_config)
-    

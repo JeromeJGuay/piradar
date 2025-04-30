@@ -730,6 +730,7 @@ class NavicoRadarController:
             self.get_reports()
 
     def set_range(self, value: int | str, get_report: bool = False):
+        """Can be a value inf meter or a prest key: ['p1', ... 'p15']"""
         if isinstance(value, str):
             value = RANGES_PRESETS[value]
         cmd = RangeCmd.pack(value=int(value * 10))

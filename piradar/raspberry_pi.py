@@ -45,11 +45,5 @@ class RaspIoLED(RaspIoSwitch):
         lgpio.tx_pulse(GPIO_CLAIM, self.io_pin, 0, 0, 0, 0)
 
 
-RADAR_POWER = RaspIoSwitch(6)
-GREEN_LED = RaspIoSwitch(13)
-BLUE_LED = RaspIoSwitch(19)
-RED_LED = RaspIoSwitch(26)
-
-
 def release_gpio():
     lgpio.gpiochip_close(GPIO_CLAIM)
