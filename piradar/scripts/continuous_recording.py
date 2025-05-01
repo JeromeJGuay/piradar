@@ -33,13 +33,14 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    init_logging(stdout_level=args.log_level, file_level=args.debug_level, write=args.write_loggins)
+    init_logging(stdout_level=args.log_level, file_level=args.log_level, write=args.write_logging)
 
     config = load_config(args.config_path)
 
     logging.info("Running Continuous Recording Script.")
     radar_controller, output_data_path, output_report_path, gpio_controller = main_init_sequence(config)
 
+    global start
     def start():
         if start_transmit(radar_controller) is True:
             radar_controller.data_recorder.start_continuous_recording(output_dir=output_data_path)
@@ -48,6 +49,7 @@ def main():
             logging.error("Failed to start radar scan")
             raise NavicoRadarError("Radar did not start transmitting.")
 
+    global stop
     def stop():
         radar_controller.data_recorder.stop_recording_data()
 
@@ -67,16 +69,14 @@ def main():
 
         raise NavicoRadarError("Radar did not stopped transmitting.")
 
-    start()
+    return radar_controller
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        logging.error(f"MAIN EXIT: {e}")
-        gpio_controller.error_pulse_led('fatal')
-        time.sleep(10)
-    finally:
-        gpio_controller.all_off()
+    rc = main()
+
+    start()
+
+
+
 

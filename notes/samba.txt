@@ -2,31 +2,22 @@
 sudo nano /etc/samba/smb.conf
 
 ```
-[RadarDrive001]
-comment = Samba Server
+[global]
+workgroup = WORKGROUP
+server string = Samba Server
+security = user
+map to guest = bad user
+
+
+[RadarDrive]
+path = /media/capteur/2To
 public = yes
 writeable = yes
 browsable = yes
-path = /media/capteur/2To
-```
-
-
-```
 create mask = 0777
-directory mask = 077
+directory mask = 0777
 ```
 #
-sudo service smbd restart
-
-# make the usb drive mount on bootup
-sudo nano -Bw /etc/fstab
-
-
-# something like
-```
-LABEL=writable  /       ext4    discard 0       1
-LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
-/dev/disk/by-id/usb-Seagate_Portable_NAA5PW6Y-0:0-part1 /media/capteur/2To auto nosuid,nodev,nofail,x-gvfs-show 0 0
-```
+sudo systemctl restart smbd nmbd
 
 sudo ufw allow samba

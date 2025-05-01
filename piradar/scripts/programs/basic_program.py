@@ -17,7 +17,7 @@ from configs import load_config
 
 ### MISSING PARAMETERS
 SCAN_INTERVAL = 60
-NUMBER_OF_SECTOR=5
+NUMBER_OF_SECTOR = 5
 
 catch_termination_signal()
 
@@ -78,12 +78,12 @@ def main():
     ### ENTRY POINT ###
     args = parse_arguments()
 
-    init_logging(stdout_level=args.log_level, file_level=args.debug_level, write=args.write_loggins)
+    init_logging(stdout_level=args.log_level, file_level=args.log_level, write=args.write_logging)
 
     config = load_config(args.config_path)
 
-    logging.info("Running Continuous Recording Script.")
-    radar_controller, output_data_path, output_report_path, gpio_controller = main_init_sequence(config)
+    logging.info("Running Basic Program Script.")
+    radar_controller, output_data_path, output_report_path = main_init_sequence(config)
 
     ## ERROR WILL BE RAISE IN HERE.
     # - Did not start to transmit

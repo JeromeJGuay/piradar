@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/home/capteur/program/piradar
 ExecStartPre=ifup eth0
-ExecStart=bash /home/capteur/program/piradar/piradar/scripts/schedule_recording.sh
+ExecStart=/bin/bash /home/capteur/program/piradar/piradar/scripts/schedule_recording.sh
 Restart=always
 
 [Install]

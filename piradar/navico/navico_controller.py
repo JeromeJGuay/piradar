@@ -288,6 +288,7 @@ class NavicoRadarController:
         ### Reports Object ###
         self.raw_reports = RawReports()
         self.reports = Reports()
+
         # Halo don't seem to send the radar type so just go with it by default.
         self.reports.system.radar_type = NavicoRadarType.navicoHALO
 
@@ -487,7 +488,10 @@ class NavicoRadarController:
         report_id = struct.unpack("!H", raw_packet[:2])[0]
         logging.debug(f"report received: {raw_packet[:2]}")
         if report_id in REPORTS_IDS:
-            self.data_writer.write_report(output_dir = self.report_output_dir, report_id=report_id, raw_packet=raw_packet)
+            self.data_writer.write_report(output_dir=self.report_output_dir, report_id=report_id, raw_packet=raw_packet)
+        else:
+            logging.warning(f"report {raw_packet[:2]} unknown")
+            return
 
         match report_id:
             case REPORTS_IDS.r_01B2:  # '#case b'\xb2\x01':
@@ -639,11 +643,11 @@ class NavicoRadarController:
             case REPORTS_IDS.r_12C4:  # SERIAL
                 self.raw_reports.r12c4 = RadarReport12C4(raw_packet)
                 # TODO
-            case _:
+            case _:  # Should (will) never get here, but I will leave it anyway.
                 logging.warning(f"report {raw_packet[:2]} unknown")
 
     def process_data(self, in_data):
-
+        # This loop should be unlocked if other processes need to unpacked data (arp)
         if self.data_recorder.is_recording:
             raw_frame = RawFrameData(in_data)  # PACKET MIGHT BE BROKEN FIXME
 
@@ -980,8 +984,8 @@ class RadarDataWriter:
             except Exception as e:
                 logging.error(f"Unexpected error on writer thread: {e}.")
 
-    def write_frame(self, output_file: str, sector_data: FrameData):
-        self.writing_queue.put((self._write_raw_frame_data, output_file, sector_data))
+    def write_frame(self, output_file: str, frame_data: FrameData):
+        self.writing_queue.put((self._write_raw_frame_data, output_file, frame_data))
 
     def write_report(self, output_dir: str, report_id: str, raw_packet: bytearray):
         self.writing_queue.put((self._write_raw_report_packet, output_dir, report_id, raw_packet))
@@ -1009,9 +1013,8 @@ class RadarDataWriter:
 
                 f.write(packed_spoke_data)
 
-    @staticmethod
-    def _write_raw_report_packet(output_dir: str, report_id: str, raw_report: bytearray):
-        with open(output_dir[report_id] + ".raw", "wb") as f:
+    def _write_raw_report_packet(self, report_id: str, raw_report: bytearray):
+        with open(self.radar_controller.raw_reports_path[report_id], "wb") as f:
             f.write(raw_report)
 
 
@@ -1040,7 +1043,7 @@ class RecorderSpokeCounter:
 
 
 class RadarDataRecorder:
-
+    # Keeps variables (flags, counters) and method relative to data recording.
     def __init__(self, radar_controller: NavicoRadarController):
         self.radar_controller = radar_controller
 
@@ -1064,8 +1067,9 @@ class RadarDataRecorder:
         self.number_of_sector_to_record = number_of_sector_to_record
         self.sector_count = 0
         self.is_recording = True
+        self.is_recording_sector = True
 
-        self.spoke_counter = RecorderSpokeCounter() # A new counter is made on each call.
+        self.spoke_counter = RecorderSpokeCounter()  # A new counter is made on each call.
 
     def start_continuous_recording(self, output_dir: str):
         if self.is_recording:
@@ -1090,4 +1094,5 @@ class RadarDataRecorder:
 
         logging.info('Data recording stopped')
         self.is_recording = False
+        self.is_recording_sector = False
 

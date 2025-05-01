@@ -8,6 +8,9 @@ def load_config(config_path):
 
     fconfig = config._sections
 
+    fconfig['TIMEOUTS']['radar_boot_timeout'] = int(fconfig['TIMEOUTS']['radar_boot_timeout'])
+    fconfig['TIMEOUTS']['raspberry_boot_timeout'] = int(fconfig['TIMEOUTS']['raspberry_boot_timeout'])
+
     fconfig['NETWORK']['report_port'] = int(config['NETWORK']['report_port'])
     fconfig['NETWORK']['data_port'] = int(config['NETWORK']['data_port'])
     fconfig['NETWORK']['send_port'] = int(config['NETWORK']['send_port'])

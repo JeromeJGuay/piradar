@@ -263,7 +263,7 @@ def main_init_sequence(config: dict):
         # Do something like  reboot pi ? send message to witty 4  etc...
         logging.error("Failed to run the startup sequence radar scan.")
 
-        return
+        raise NavicoRadarError("error in rasberry pi booting sequence.")
 
     logging.info("Powering Up Radar")
     gpio_controller.radar_power.on()
@@ -295,7 +295,7 @@ def main_init_sequence(config: dict):
     logging.info("Ready to record.")
     gpio_controller.ready_to_record_led()
 
-    return radar_controller, output_data_path, output_report_path, gpio_controller
+    return radar_controller, output_data_path, output_report_path
 
 
 def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, standby=False, max_try=20):
@@ -460,6 +460,7 @@ def catch_termination_signal():
     """Raise Exceptions if a signal.SIGTERM signal is receive.d"""
     def handle_sigterm(signum, frame):
         logging.error("Received SIGTERM, cleaning up...")
+        gpio_controller.all_off() # this sould work instead of try:except:finally:
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, handle_sigterm)
