@@ -1,3 +1,5 @@
+import sys
+import signal
 import logging
 import time
 import argparse
@@ -8,10 +10,19 @@ from piradar.navico.navico_controller import RadarStatus
 
 from piradar.scripts.gpio_utils import gpio_controller
 
-from piradar.scripts.script_utils import main_init_sequence, NavicoRadarError, start_transmit
+from piradar.scripts.script_utils import main_init_sequence, NavicoRadarError, start_transmit,  catch_termination_signal
 
-from configs import load_config
+from piradar.scripts.configs import load_config
 
+
+def handle_keyboard_interrupt(signum, frame):
+    gpio_controller.all_off()
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, handle_keyboard_interrupt)
+
+catch_termination_signal()
 
 def parse_arguments():
     parser = argparse.ArgumentParser(prog='Halo Radar Continuous Recording')
@@ -38,7 +49,7 @@ def main():
     config = load_config(args.config_path)
 
     logging.info("Running Continuous Recording Script.")
-    radar_controller, output_data_path, output_report_path, gpio_controller = main_init_sequence(config)
+    radar_controller, output_data_path, output_report_path = main_init_sequence(config)
 
     global start
     def start():

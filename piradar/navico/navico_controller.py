@@ -488,7 +488,7 @@ class NavicoRadarController:
         report_id = struct.unpack("!H", raw_packet[:2])[0]
         logging.debug(f"report received: {raw_packet[:2]}")
         if report_id in REPORTS_IDS:
-            self.data_writer.write_report(output_dir=self.report_output_dir, report_id=report_id, raw_packet=raw_packet)
+            self.data_writer.write_report(report_id=report_id, raw_packet=raw_packet)
         else:
             logging.warning(f"report {raw_packet[:2]} unknown")
             return
@@ -987,8 +987,8 @@ class RadarDataWriter:
     def write_frame(self, output_file: str, frame_data: FrameData):
         self.writing_queue.put((self._write_raw_frame_data, output_file, frame_data))
 
-    def write_report(self, output_dir: str, report_id: str, raw_packet: bytearray):
-        self.writing_queue.put((self._write_raw_report_packet, output_dir, report_id, raw_packet))
+    def write_report(self, report_id: str, raw_packet: bytearray):
+        self.writing_queue.put((self._write_raw_report_packet, report_id, raw_packet))
 
     @staticmethod
     def _write_raw_frame_data(output_file: str, sector_data: FrameData):

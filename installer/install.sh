@@ -94,21 +94,27 @@ cd
 ###########
 ## samba ##
 ###########
-cd
-echo "Installing Samba (drive ethernet)"
+# samba not working on raspian for some reason.
+
+#echo "Installing Samba (drive ethernet)"
 yes | sudo apt install samba samba-common-bin smbclient cifs-utils
 
-append_with_backup "$SCRIPT_DIR/smb.conf" "/etc/samba/smb.conf"
+yes | sudo apt install exfat-fuse exfat-utils
 
-sudo systemctl restart smbd nmbd
-
-yes | sudo apt install ufw
-
-sudo ufw allow samba
+# add back if necessary
+#yes | apt install ufw
+#
+#sudo ufw allow samba
 
 append_with_backup "$SCRIPT_DIR/fstab" "/etc/fstab"
 sudo cat ./fstab >> /etc/fstab
 sudo mount -a
+
+### To allow other drive format.
+
+# yes | apt install exfat-fuse exfat-utils
+###
+
 #systemctl daemon-reload
 
 #####################
@@ -139,10 +145,8 @@ cd
 #####################
 ## Piradar Service ##
 #####################
-
-# will overwrite the piradar.service file pulled from github for proper paths.
-
-cat > "$HOME/program/piradar/raspi_scripts/piradar.service" << EOF
+# To test FIXME
+cat > /etc/systemd/system/piradar.service << EOF
 [Unit]
 Description=Start radar run app
 After=multi-user.target
@@ -153,14 +157,13 @@ Type=simple
 User=root
 WorkingDirectory=$HOME/program/piradar
 ExecStartPre=ifup eth0
-ExecStart=$HOME/program/piradar/.venv/bin/python3 $HOME/program/piradar/piradar/scripts/schedule_recording.py
+ExecStart=/bin/bash $HOME/program/piradar/piradar/scripts/schedule_recording.sh
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-cp "$SCRIPT_DIR/piradar.service" /etc/systemd/system/piradar.service
 
 systemctl daemon-reload
 systemctl enable piradar.service

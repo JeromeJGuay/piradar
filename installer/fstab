@@ -1,3 +1,1 @@
-LABEL=writable  /       ext4    discard 0       1
-LABEL=system-boot       /boot/firmware  vfat    defaults        0       1
-/dev/disk/by-id/usb-Seagate_Portable_NAA5PW6Y-0:0-part1 auto nosuid,nodev,nofail,x-gvfs-show 0 0
+/dev/disk/by-uuid/<uuid> media/capteur/2To auto defaults,nofail,umask=000,noatime 0 2

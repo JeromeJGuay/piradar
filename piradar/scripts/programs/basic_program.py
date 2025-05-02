@@ -13,7 +13,7 @@ from piradar.scripts.gpio_utils import gpio_controller
 
 from piradar.scripts.script_utils import main_init_sequence, run_scheduled_scans, NavicoRadarError, start_transmit, catch_termination_signal
 
-from configs import load_config
+from piradar.scripts.configs import load_config
 
 ### MISSING PARAMETERS
 SCAN_INTERVAL = 60
