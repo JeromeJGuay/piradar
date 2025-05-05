@@ -17,6 +17,12 @@
 
 
 
+[2025-05-05]
++ auto-rain-clutter cannot be checked.. set it to false to be sure
++ blanking should be set to false since i<m unable to change it.
+
+
+
 
 
 UBUNTU INSTALL
@@ -121,11 +127,6 @@ piradar.scripts.script_utils.NavicoRadarError: Scan delay timeout.
 (2025-04-08 11:51:00,088) - {report}   - [WARNING]  - report b'\t\xc4' unknown
 
 ####
-
-Other error
-
-(2025-04-16 13:32:03,062) - {data}     - [ERROR]    - Error Raise when trying to process data: unpack_from requires a buffer of at least 1 bytes for unpacking 1 bytes at offset 0 (actual buffer size is 0)
-
 
 ###
 

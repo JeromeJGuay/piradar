@@ -599,7 +599,7 @@ class NavicoRadarController:
                         1: self.reports.blanking.sector_1,
                         2: self.reports.blanking.sector_2,
                         3: self.reports.blanking.sector_3,
-                    }
+                    }[si]
                     _blanking_sector.enable = bool(self.raw_reports.r06c4.blanking[si].enable)
                     _blanking_sector.start = self.raw_reports.r06c4.blanking[si].start / 10
                     _blanking_sector.stop = self.raw_reports.r06c4.blanking[si].stop / 10
@@ -946,11 +946,11 @@ class NavicoRadarController:
         if start > stop:
             start, stop = stop, start
 
-        cmd = SetBlankingSectorCmd.pack(sector_number, 1) # may need to be enable first...
+        cmd = EnableBlankingSectorCmd.pack(sector_number, 1) # may need to be enable first...
         self.send_pack_data(cmd)
         cmd = SetBlankingSectorCmd.pack(sector_number, start * 10, stop * 10)
         self.send_pack_data(cmd)
-        cmd = SetBlankingSectorCmd.pack(sector_number, 0)
+        cmd = EnableBlankingSectorCmd.pack(sector_number, 0)
         self.send_pack_data(cmd)
         if get_report:
             self.get_reports()
@@ -960,7 +960,7 @@ class NavicoRadarController:
         sector_number = int(max(0, min(3, sector_number)))
         value = int(value)
 
-        cmd = SetBlankingSectorCmd.pack(sector_number, value)
+        cmd = EnableBlankingSectorCmd.pack(sector_number, value)
         self.send_pack_data(cmd)
         if get_report:
             self.get_reports()

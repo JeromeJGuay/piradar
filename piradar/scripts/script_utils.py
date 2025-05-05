@@ -263,7 +263,7 @@ def main_init_sequence(config: dict):
         # Do something like  reboot pi ? send message to witty 4  etc...
         logging.error("Failed to run the startup sequence radar scan.")
 
-        raise NavicoRadarError("error in rasberry pi booting sequence.")
+        raise NavicoRadarError("error in raspberry pi booting sequence.")
 
     logging.info("Powering Up Radar")
     gpio_controller.radar_power.on()
@@ -290,7 +290,14 @@ def main_init_sequence(config: dict):
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
     # Not working on HALO fix me
-    set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
+    # set_scan_speed(radar_controller=radar_controller, scan_speed=scan_speed, standby=True)
+
+    # disable since we are unable to set it yet...
+    for si in range(4):
+        radar_controller.enable_sector_blanking(si, False)
+
+    # this shoud be put in config. FIXME
+    radar_controller.set_mode("custom")
 
     logging.info("Ready to record.")
     gpio_controller.ready_to_record_led()

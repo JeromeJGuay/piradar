@@ -121,7 +121,7 @@ for v in rain_clutter:
     time.sleep(report_sleep)
     navico_radar.get_reports()
     time.sleep(report_sleep)
-    print("rain_clutter", v, navico_radar.reports.setting.rain_clutter)
+# print("rain_clutter", v, navico_radar.reports.setting.rain_clutter)
 
 sea_clutter = [0, 127, 255]
 for v in sea_clutter:
@@ -306,14 +306,14 @@ if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
             1: navico_radar.reports.blanking.sector_1,
             2: navico_radar.reports.blanking.sector_2,
             3: navico_radar.reports.blanking.sector_3,
-        }
+        }[sn]
         print(f"Sector {sn}")
         print("   enable", False, sb.enable)
         print("   start", start, sb.start)
         print("   stop", stop, sb.stop)
         navico_radar.enable_sector_blanking(sector_number=sn, value=True, get_report=True)
         print(f"Sector {sn}")
-        print("   enable", False, sb.enable)
+        print("   enable", True, sb.enable)
         print("   start", start, sb.start)
         print("   stop", stop, sb.stop)
 
