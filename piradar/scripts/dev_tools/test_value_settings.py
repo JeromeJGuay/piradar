@@ -301,7 +301,16 @@ if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
             stop=stop,
             get_report=True
         )
-        navico_radar.reports.blanking
+        sb = navico_radar.reports.blanking.__dict__[f'sector_{sn}']
+        print(f"Sector {sn}")
+        print("   enable", False, sb.enable)
+        print("   start", start, sb.start)
+        print("   stop", stop, sb.stop)
+        navico_radar.enable_sector_blanking(sector_number=sn, value=True, get_report=True)
+        print(f"Sector {sn}")
+        print("   enable", False, sb.enable)
+        print("   start", start, sb.start)
+        print("   stop", stop, sb.stop)
 
 
 navico_radar.disconnect()

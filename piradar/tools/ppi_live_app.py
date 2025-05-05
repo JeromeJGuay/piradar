@@ -159,7 +159,6 @@ class PpiLivePlotter:
 
             self.ax.set_title(f"Radar PPI - {frame['time'][-1].values}")
 
-
             self.move_processed_file(latest)
 
         return radar_plot
