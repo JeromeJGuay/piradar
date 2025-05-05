@@ -15,9 +15,6 @@ def load_config(config_path):
     fconfig['NETWORK']['data_port'] = int(config['NETWORK']['data_port'])
     fconfig['NETWORK']['send_port'] = int(config['NETWORK']['send_port'])
 
-    fconfig['TIMEOUTS']['radar_boot_timeout'] = float(config['TIMEOUTS']['radar_boot_timeout'])
-    fconfig['TIMEOUTS']['raspberry_boot_timeout'] = float(config['TIMEOUTS']['raspberry_boot_timeout'])
-
     fconfig['RADAR_SETTINGS']['range'] = int(config['RADAR_SETTINGS']['range'])
     fconfig['RADAR_SETTINGS']['antenna_height'] = float(config['RADAR_SETTINGS']['antenna_height'])
 

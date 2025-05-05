@@ -111,6 +111,8 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
 
     # add light fixme
     # add nudge fixme
+
+    radar_controller.set_bearing(settings.bearing)
     radar_controller.set_range(settings._range)
 
     radar_controller.set_antenna_height(settings.antenna_height)
@@ -137,6 +139,11 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
     radar_controller.set_target_expansion(settings.target_expansion)
     radar_controller.set_target_separation(settings.target_separation)
     radar_controller.set_target_boost(settings.target_boost)
+
+    ###
+    radar_controller.set_sea_state(settings.sea_state)
+    radar_controller.set_target_separation(settings.target_separation)
+    radar_controller.set_noise_rejection(settings.noise_rejection)
 
 
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
