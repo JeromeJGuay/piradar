@@ -143,8 +143,8 @@ for v in sea_clutter_auto:
 
 rain_clutter_auto = [True, False]
 for v in rain_clutter_auto:
-    navico_radar.radar_user_config.rain_clutter_auto = v
-    navico_radar.commands('rain_clutter', 10)
+    navico_radar.auto_settings.rain_clutter_auto = v
+    navico_radar.set_rain_clutter_auto(v)
     time.sleep(report_sleep)
     navico_radar.get_reports()
     time.sleep(report_sleep)
@@ -183,7 +183,7 @@ for v in side_lobe_suppression_auto:
     time.sleep(report_sleep)
     navico_radar.get_reports()
     time.sleep(report_sleep)
-    print("side_lobe_suppression_auto", v, navico_radar.reports.filter.side_lobe_suppression_auto)
+    print("side_lobe_suppression_auto", v, navico_radar.reports.filter.setting.side_lobe_suppression_auto)
 
 if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
     print("unsure if this should work at all.")
@@ -253,7 +253,6 @@ if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
         time.sleep(report_sleep)
         print("doppler_mode", v, navico_radar.reports.filter.doppler_mode)
 
-
     doppler_speed = [0, 5, 10]
     for v in doppler_speed:
         navico_radar.set_doppler_speed(v)
@@ -302,7 +301,12 @@ if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
             stop=stop,
             get_report=True
         )
-        sb = navico_radar.reports.blanking.__dict__[f'sector_{sn}']
+        sb = {
+            0: navico_radar.reports.blanking.sector_0,
+            1: navico_radar.reports.blanking.sector_1,
+            2: navico_radar.reports.blanking.sector_2,
+            3: navico_radar.reports.blanking.sector_3,
+        }
         print(f"Sector {sn}")
         print("   enable", False, sb.enable)
         print("   start", start, sb.start)
