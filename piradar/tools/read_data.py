@@ -114,7 +114,7 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
 
     time = ["nat"] * frame_data['azimuth'].shape[0]
     time[-1] = datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S")
-    time = np.array(time, dtype=np.datetime64)
+    time = np.array(time, dtype='datetime64[ns]')
 
     dataset = xr.Dataset(
         {

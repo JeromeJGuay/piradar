@@ -75,7 +75,7 @@ class PpiLivePlotter:
         plt.show(block=True)
 
     def get_new_files(self):
-        return sorted(list(glob(os.path.join(data_directory, "*.raw"))))
+        return sorted(list(glob(os.path.join(self.data_directory, "*.raw"))))
 
     def move_processed_file(self, _file):
         shutil.move(_file, os.path.join(self.processed_path, os.path.basename(_file)))
@@ -140,7 +140,7 @@ class PpiLivePlotter:
 
                 data = frame['intensity'].values.astype(float)
                 data[data < 1] = np.nan
-
+                print(data.min(), data.max())
                 if self.is_polar:
                     radar_plot = self.ax.contourf(
                         frame['azimuth'], frame['radius'], data.T,
@@ -159,19 +159,20 @@ class PpiLivePlotter:
 
             self.ax.set_title(f"Radar PPI - {frame['time'][-1].values}")
 
+
             self.move_processed_file(latest)
 
         return radar_plot
 
 
 if __name__ == "__main__":
-    data_directory = "\\\\capteur-desktop\\RadarDrive\\data\\"
+    #data_directory = "\\\\capteur-desktop\\RadarDrive\\data\\"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
-    #data_directory = "C:\\Users\\guayj\\Desktop\\tmp"
+    data_directory = "C:\\Users\\guayj\\Desktop\\tmp"
     plp = PpiLivePlotter(
         data_directory=data_directory,
-        fading_time=4,
-        refresh_rate=.05,
+        fading_time=4.5,
+        refresh_rate=.1,
         is_polar=False
     )
