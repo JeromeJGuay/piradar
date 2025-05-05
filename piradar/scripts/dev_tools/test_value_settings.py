@@ -183,7 +183,7 @@ for v in side_lobe_suppression_auto:
     time.sleep(report_sleep)
     navico_radar.get_reports()
     time.sleep(report_sleep)
-    print("side_lobe_suppression_auto", v, navico_radar.reports.filter.setting.side_lobe_suppression_auto)
+    print("side_lobe_suppression_auto", v, navico_radar.reports.filter.side_lobe_suppression_auto)
 
 if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
     print("unsure if this should work at all.")

@@ -593,8 +593,13 @@ class NavicoRadarController:
 
             case REPORTS_IDS.r_06C4:  # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
-                for si in range(3):
-                    _blanking_sector = self.reports.blanking.__dict__[f'sector_{si}']
+                for si in range(4):
+                    _blanking_sector = {
+                        0: self.reports.blanking.sector_0,
+                        1: self.reports.blanking.sector_1,
+                        2: self.reports.blanking.sector_2,
+                        3: self.reports.blanking.sector_3,
+                    }
                     _blanking_sector.enable = bool(self.raw_reports.r06c4.blanking[si].enable)
                     _blanking_sector.start = self.raw_reports.r06c4.blanking[si].start / 10
                     _blanking_sector.stop = self.raw_reports.r06c4.blanking[si].stop / 10
