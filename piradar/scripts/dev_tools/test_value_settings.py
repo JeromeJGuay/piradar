@@ -14,7 +14,7 @@ write_log = False
 init_logging(stdout_level=debug_level, file_level=debug_level, write=write_log)
 
 ### NETWORK ###
-interface = "192.168.1.228"
+interface = "192.168.1.100"
 
 report_address = ('236.6.7.9', 6679)
 data_address = ('236.6.7.8', 6678)
@@ -43,6 +43,7 @@ wake_up_navico_radar()
 navico_radar = NavicoRadarController(
     multicast_interfaces=mcast_ifaces,
     report_output_dir=output_dir,
+    connect_timeout=60,
 )
 
 time.sleep(1)
@@ -182,7 +183,7 @@ for v in side_lobe_suppression_auto:
     time.sleep(report_sleep)
     navico_radar.get_reports()
     time.sleep(report_sleep)
-    print("side_lobe_suppression_auto", v, navico_radar.reports.filter.setting.side_lobe_suppression_auto)
+    print("side_lobe_suppression_auto", v, navico_radar.reports.filter.side_lobe_suppression_auto)
 
 if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
     print("unsure if this should work at all.")

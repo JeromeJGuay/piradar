@@ -340,7 +340,7 @@ class NavicoRadarController:
         if not self.is_connected:
             return
 
-        self.stop_recording_data()
+        self.data_recorder.stop_recording_data()
 
         logging.info("Disconnect all called.")
         self.data_writer.writing_queue.queue.clear()
@@ -751,6 +751,8 @@ class NavicoRadarController:
         """Can be a value inf meter or a prest key: ['p1', ... 'p15']"""
         if isinstance(value, str):
             value = RANGES_PRESETS[value]
+        else:
+            value = max(50, value) # min value is 50 meters
         cmd = RangeCmd.pack(value=int(value * 10))
         self.send_pack_data(cmd)
         if get_report:
