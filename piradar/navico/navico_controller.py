@@ -165,9 +165,19 @@ class SystemReport:
 
 
 @dataclass
+class SectorBlanking:
+    enable: bool = None
+    start: float = None
+    stop: float = None
+
+
+@dataclass
 class BlankingReport:
     """Report 06c4"""
-    pass
+    sector_1 = SectorBlanking()
+    sector_2 = SectorBlanking()
+    sector_3 = SectorBlanking()
+    sector_4 = SectorBlanking()
 
 
 @dataclass
@@ -583,7 +593,11 @@ class NavicoRadarController:
 
             case REPORTS_IDS.r_06C4:  # BLANKING
                 self.raw_reports.r06c4 = RadarReport06C4(raw_packet)
-                # TODO
+                for si in range(3):
+                    _blanking_sector = self.reports.blanking.__dict__[f'sector_{si+1}']
+                    _blanking_sector.enable = bool(self.raw_reports.r06c4.blanking[si].enable)
+                    _blanking_sector.enable.start = self.raw_reports.r06c4.blanking[si].start / 10
+                    _blanking_sector.enable.stop = self.raw_reports.r06c4.blanking[si].stop / 10
 
             case REPORTS_IDS.r_08C4:  # FILTERS
                 self.raw_reports.r08c4 = RadarReport08C4(raw_packet)

@@ -140,15 +140,14 @@ for v in sea_clutter_auto:
     print("sea_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
 
 
-# No flag ... G4 at least
-# rain_clutter_auto = [True, False]
-# for v in rain_clutter_auto:
-#     navico_radar.radar_user_config.rain_clutter_auto = v
-#     navico_radar.commands('rain_clutter', 10)
-#     time.sleep(sleep)
-#     navico_radar.get_reports()
-#     time.sleep(sleep)
-#     print("rain_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
+rain_clutter_auto = [True, False]
+for v in rain_clutter_auto:
+    navico_radar.radar_user_config.rain_clutter_auto = v
+    navico_radar.commands('rain_clutter', 10)
+    time.sleep(report_sleep)
+    navico_radar.get_reports()
+    time.sleep(report_sleep)
+    print("rain_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
 
 interference_rejection = ['off', 'low', 'medium', 'high']
 for v in interference_rejection:
@@ -293,6 +292,16 @@ if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
         print("Sea clutter 08c4 [manual]", v, navico_radar.reports.filter.sea_clutter_08c4)
         print("Sea clutter nudge [manual]", v, navico_radar.reports.filter.sea_clutter_nudge)
 
+
+    blanking_start_stop = ([0, 90], [90, 180], [180, 270], [270, 360])
+    for sn, [start, stop] in enumerate(blanking_start_stop):
+        navico_radar.set_sector_blanking(
+            sector_number=sn,
+            start=start,
+            stop=stop,
+            get_report=True
+        )
+        navico_radar.reports.blanking
 
 
 navico_radar.disconnect()
