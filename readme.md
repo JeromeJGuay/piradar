@@ -13,28 +13,9 @@ En construction...
  - fstab: /dev/disk/by-id/...
 
 
++ Modifier smb.conf pour les bon noms de disque dur. (/media/capteur/2To)
+
 + Lancer `install.sh`
 
 + Dans le repertoire `~/program/piradar/piradar/scripts/` verifier que le path HOME est le bon.
 
-
-+ SAMBA (file sharing on network, ne semble pas fonctionner sur raspianOS) 
-  + Modifier le ficiher `/etc/samba/smb.conf`
-    + Changer les lignes correspondantes :
-      ```
-      create mask = 0777
-      directory mask = 0777
-      ```
-
-    + Ajouter ces lignes à la fin.
-      ```
-      [2To]
-      public = yes
-      writeable = yes
-      browsable = yes
-      path = /media/capteur/2To
-      ```
-    + Type
-      ```
-      >>     sudo systemctl restart smbd nmbd
-      ```

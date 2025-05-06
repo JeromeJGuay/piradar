@@ -1,3 +1,4 @@
+import os
 import sys
 import signal
 import logging
@@ -12,8 +13,6 @@ from piradar.navico.navico_controller import NavicoRadarController, RadarStatus,
 from piradar.network import check_interface_inet_is_up
 
 from piradar.scripts.gpio_utils import gpio_controller
-
-
 
 
 def validate_interface(interface):
@@ -447,7 +446,8 @@ class BaseWatchDog:
         if self.stand_down_flag:
             return
 
-        raise NavicoRadarError("Scan delay timeout.")
+        os.kill(os.getpid(), signal.SIGKILL)
+#        raise NavicoRadarError("Scan delay timeout.")
 
     def stand_down(self):
         self.stand_down_flag = True
@@ -467,7 +467,8 @@ class DataWatchDog(BaseWatchDog):
         if self.stand_down_flag:
             return
 
-        raise NavicoRadarError("No Data received.")
+        os.kill(os.getpid(), signal.SIGKILL)
+        #raise NavicoRadarError("No Data received.")
 
 
 def catch_termination_signal():

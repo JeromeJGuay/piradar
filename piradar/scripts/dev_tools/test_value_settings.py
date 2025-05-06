@@ -51,50 +51,50 @@ navico_radar.get_reports()
 time.sleep(1)
 
 
-report_sleep = .25
+report_sleep = .05
 #### value to test
 
-ranges = [10, 100, 1000, 10_000]
-for v in ranges:
-    navico_radar.set_range(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("range", v, navico_radar.reports.setting._range)
-
-
-bearing = [0, 90, 180, 270, 360]
-for v in bearing:
-    navico_radar.set_bearing(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("bearing", v, navico_radar.reports.spatial.bearing)
-
-gain = [0, 127, 255]
-for v in gain:
-    navico_radar.set_gain(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("gain", v, navico_radar.reports.setting.gain)
-
-gain_auto = [True, False]
-for v in gain_auto:
-    navico_radar.set_gain_auto(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("gain_auto", v, navico_radar.reports.setting.gain_auto)
-
-
-antenna_height = [0, 1, 10, 50]
-for v in antenna_height:
-    navico_radar.set_antenna_height(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("antenna_height", v, navico_radar.reports.spatial.antenna_height)
+# ranges = [10, 100, 1000, 10_000]
+# for v in ranges:
+#     navico_radar.set_range(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("range", v, navico_radar.reports.setting._range)
+#
+#
+# bearing = [0, 90, 180, 270, 360]
+# for v in bearing:
+#     navico_radar.set_bearing(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("bearing", v, navico_radar.reports.spatial.bearing)
+#
+# gain = [0, 127, 255]
+# for v in gain:
+#     navico_radar.set_gain(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("gain", v, navico_radar.reports.setting.gain)
+#
+# gain_auto = [True, False]
+# for v in gain_auto:
+#     navico_radar.set_gain_auto(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("gain_auto", v, navico_radar.reports.setting.gain_auto)
+#
+#
+# antenna_height = [0, 1, 10, 50]
+# for v in antenna_height:
+#     navico_radar.set_antenna_height(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("antenna_height", v, navico_radar.reports.spatial.antenna_height)
 
 
 # can only be test while the radar is transmitting.
@@ -115,40 +115,40 @@ for v in sea_state:
     print("sea_state", v, navico_radar.reports.filter.sea_state)
 
 
-rain_clutter = [0, 127, 255]
-for v in rain_clutter:
-    navico_radar.set_rain_clutter(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-# print("rain_clutter", v, navico_radar.reports.setting.rain_clutter)
-
-sea_clutter = [0, 127, 255]
-for v in sea_clutter:
-    navico_radar.set_sea_clutter(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("sea_clutter", v, navico_radar.reports.setting.sea_clutter)
-
-
-sea_clutter_auto = [True, False]
-for v in sea_clutter_auto:
-    navico_radar.set_sea_clutter_auto(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("sea_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
-
-
-rain_clutter_auto = [True, False]
-for v in rain_clutter_auto:
-    navico_radar.auto_settings.rain_clutter_auto = v
-    navico_radar.set_rain_clutter_auto(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
-    time.sleep(report_sleep)
-    print("rain_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
+# rain_clutter = [0, 127, 255]
+# for v in rain_clutter:
+#     navico_radar.set_rain_clutter(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+# # print("rain_clutter", v, navico_radar.reports.setting.rain_clutter)
+#
+# sea_clutter = [0, 127, 255]
+# for v in sea_clutter:
+#     navico_radar.set_sea_clutter(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("sea_clutter", v, navico_radar.reports.setting.sea_clutter)
+#
+#
+# sea_clutter_auto = [True, False]
+# for v in sea_clutter_auto:
+#     navico_radar.set_sea_clutter_auto(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("sea_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
+#
+#
+# rain_clutter_auto = [True, False]
+# for v in rain_clutter_auto:
+#     navico_radar.auto_settings.rain_clutter_auto = v
+#     navico_radar.set_rain_clutter_auto(v)
+#     time.sleep(report_sleep)
+#     navico_radar.get_reports()
+#     time.sleep(report_sleep)
+#     print("rain_state_auto", v, navico_radar.reports.setting.sea_clutter_auto)
 
 interference_rejection = ['off', 'low', 'medium', 'high']
 for v in interference_rejection:
@@ -243,54 +243,54 @@ for v in noise_rejection:
     time.sleep(report_sleep)
     print("noise_rejection", v, navico_radar.reports.filter.noise_rejection)
 
+# if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
+#     # maybe unsure
+#     doppler_mode = ['off', 'normal', 'approaching_only']
+#     for v in doppler_mode:
+#         navico_radar.set_doppler_mode(v)
+#         time.sleep(report_sleep)
+#         navico_radar.get_reports()
+#         time.sleep(report_sleep)
+#         print("doppler_mode", v, navico_radar.reports.filter.doppler_mode)
+#
+#     doppler_speed = [0, 5, 10]
+#     for v in doppler_speed:
+#         navico_radar.set_doppler_speed(v)
+#         time.sleep(report_sleep)
+#         navico_radar.get_reports()
+#         time.sleep(report_sleep)
+#         print("doppler_speed", v, navico_radar.reports.filter.doppler_speed)
+
+
 if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
-    # maybe unsure
-    doppler_mode = ['off', 'normal', 'approaching_only']
-    for v in doppler_mode:
-        navico_radar.set_doppler_mode(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
-        time.sleep(report_sleep)
-        print("doppler_mode", v, navico_radar.reports.filter.doppler_mode)
-
-    doppler_speed = [0, 5, 10]
-    for v in doppler_speed:
-        navico_radar.set_doppler_speed(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
-        time.sleep(report_sleep)
-        print("doppler_speed", v, navico_radar.reports.filter.doppler_speed)
-
-
-if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
-    light = ["off", "low", "medium", "high"]
-    for v in light:
-        navico_radar.set_light(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
-        time.sleep(report_sleep)
-        print("light", v, navico_radar.reports.spatial.light)
-
-    sea_clutter_nudge = [-100,0,100]
-    for v in sea_clutter_nudge:
-        navico_radar.auto_settings.sea_clutter_auto = True
-        navico_radar.sea_clutter_nudge(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
-        time.sleep(report_sleep)
-        print("Sea clutter 08c4 [auto]", v, navico_radar.reports.filter.sea_clutter_08c4)
-        print("Sea clutter nudge [auto]", v, navico_radar.reports.filter.sea_clutter_nudge)
-
-
-    sea_clutter_nudge = [-100,0,100]
-    for v in sea_clutter_nudge:
-        navico_radar.auto_settings.sea_clutter_auto = False
-        navico_radar.sea_clutter_nudge(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
-        time.sleep(report_sleep)
-        print("Sea clutter 08c4 [manual]", v, navico_radar.reports.filter.sea_clutter_08c4)
-        print("Sea clutter nudge [manual]", v, navico_radar.reports.filter.sea_clutter_nudge)
+    # light = ["off", "low", "medium", "high"]
+    # for v in light:
+    #     navico_radar.set_light(v)
+    #     time.sleep(report_sleep)
+    #     navico_radar.get_reports()
+    #     time.sleep(report_sleep)
+    #     print("light", v, navico_radar.reports.spatial.light)
+    #
+    # sea_clutter_nudge = [-100,0,100]
+    # for v in sea_clutter_nudge:
+    #     navico_radar.auto_settings.sea_clutter_auto = True
+    #     navico_radar.sea_clutter_nudge(v)
+    #     time.sleep(report_sleep)
+    #     navico_radar.get_reports()
+    #     time.sleep(report_sleep)
+    #     print("Sea clutter 08c4 [auto]", v, navico_radar.reports.filter.sea_clutter_08c4)
+    #     print("Sea clutter nudge [auto]", v, navico_radar.reports.filter.sea_clutter_nudge)
+    #
+    #
+    # sea_clutter_nudge = [-100,0,100]
+    # for v in sea_clutter_nudge:
+    #     navico_radar.auto_settings.sea_clutter_auto = False
+    #     navico_radar.sea_clutter_nudge(v)
+    #     time.sleep(report_sleep)
+    #     navico_radar.get_reports()
+    #     time.sleep(report_sleep)
+    #     print("Sea clutter 08c4 [manual]", v, navico_radar.reports.filter.sea_clutter_08c4)
+    #     print("Sea clutter nudge [manual]", v, navico_radar.reports.filter.sea_clutter_nudge)
 
 
     blanking_start_stop = ([0, 90], [90, 180], [180, 270], [270, 360])

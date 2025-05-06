@@ -18,3 +18,10 @@ S'assurer que le serveur dhcp et l'interface eth0 sont montés correctement lors
 Tester sur un OS plus lège et sans GUI.
 Hardware.
 Tester que le système ne surchauffe pas.
+
+
+#################################
+
+LES EXCEPTIONS DANS LES THREADS NE SE RENDENT PAS AU MAIN THREAD... raise signal ?
+
+################################

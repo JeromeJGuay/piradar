@@ -21,6 +21,7 @@ NUMBER_OF_SECTOR = 5
 
 catch_termination_signal()
 
+
 def scan_basic(radar_controller: NavicoRadarController, dt: datetime.datetime, output_data_path: str):
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
 

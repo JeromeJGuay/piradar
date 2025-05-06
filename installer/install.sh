@@ -101,10 +101,16 @@ yes | sudo apt install samba samba-common-bin smbclient cifs-utils
 
 yes | sudo apt install exfat-fuse exfat-utils
 
-# add back if necessary
-#yes | apt install ufw
-#
-#sudo ufw allow samba
+# making a bakup of smb.conf if none exist.
+if [ ! -f /etc/samba/smb.conf.bak ]; then
+  sudo mv /etc/samba/smb.conf /etc/samba/smb.conf.bak
+fi
+
+sudo cp "$SCRIPT_DIR/smb.conf" /etc/samba/smb.conf
+
+yes | apt install ufw
+
+sudo ufw allow samba
 
 append_with_backup "$SCRIPT_DIR/fstab" "/etc/fstab"
 sudo cat ./fstab >> /etc/fstab
@@ -112,8 +118,6 @@ sudo mount -a
 
 ### To allow other drive format.
 
-# yes | apt install exfat-fuse exfat-utils
-###
 
 #systemctl daemon-reload
 
