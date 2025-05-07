@@ -79,14 +79,31 @@ def polar_ppi(frames):
 
 
 if __name__ == '__main__':
-    data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\"
-    out_data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
-    Path(out_data_directory).mkdir(parents=True, exist_ok=True)
-    rawfiles = list(Path(data_directory).glob('*.raw'))
+    from piradar.tools.read_data import read_raw
+    # in_dir = Path("D:\\data\\continuous")
+    in_dir = Path("D:\\data")
+    fnames = sorted(list(in_dir.glob("*.raw")))
 
-    from piradar.tools.read_data import convert_rawsector_v0_to_raw_frames
-    import time
+    _rf = fnames[0]
 
-    for raw_file in rawfiles:
-        convert_rawsector_v0_to_raw_frames(raw_file, out_dir=out_data_directory, freq=10)
+    dss = read_raw(_rf, is4bits=False)
+
+    #ds = dss[0]
+    for ds in dss:
+        plt.pcolor(ds.spoke_number, ds.radius, ds.intensity.T)
+    plt.show(block=True)
+
+    #time_array = np.array([ds.time.values for ds in dss])
+    #time_vector = time_array.reshape(time_array.shape[0] * time_array.shape[1])
+
+    #t0 = np.datetime64('2025-01-01')
+    #time_seconds = (time_vector -t0).astype("datetime64[ns]").astype('float')
+
+    #x = np.arange(time_vector.size)
+    #mask = np.isfinite(time_vector)
+    #xp = x[mask]
+    #yp = time_seconds[mask]
+
+    #y = np.interp(x, xp, yp)
+    #interpolated_time = y.astype("timedelta64[ns]") + t0
 
