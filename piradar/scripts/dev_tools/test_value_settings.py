@@ -29,8 +29,6 @@ Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 ### APP ###
 
-#logging.error(traceback.format_exc(), exc_info=True) ## for critical error
-
 mcast_ifaces = MulticastInterfaces(
     report=MulticastAddress(*report_address),
     data=MulticastAddress(*data_address),
@@ -189,9 +187,7 @@ if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
     print("unsure if this should work at all.")
     mode = ["custom", 'harbor', 'offshore', 'weather', 'bird']
     for v in mode:
-        navico_radar.set_mode(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
+        navico_radar.set_mode(v, get_report=True)
         time.sleep(report_sleep)
         print("mode", v, navico_radar.reports.setting.mode)
 
@@ -200,88 +196,59 @@ print("Unsure about this one.")
 if navico_radar.reports.system.radar_type == NavicoRadarType.navico4G:
     target_expansion = [True, False]
     for v in target_expansion:
-        navico_radar.set_target_expansion(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
+        navico_radar.set_target_expansion(v, get_report=True)
         time.sleep(report_sleep)
         print("target_expansion", v, navico_radar.reports.setting.target_expansion)
 
 elif navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
-
     target_expansion = ["off", "low", "medium", "high"]
     for v in target_expansion:
-        navico_radar.set_target_expansion(v)
-        time.sleep(report_sleep)
-        navico_radar.get_reports()
+        navico_radar.set_target_expansion(v, get_report=True)
         time.sleep(report_sleep)
         print("target_expansion", v, navico_radar.reports.setting.target_expansion)
 
 
 target_separation = ["off", "low", "high"]
 for v in target_separation:
-    navico_radar.set_target_separation(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
+    navico_radar.set_target_separation(v, get_report=True)
     time.sleep(report_sleep)
     print("target_separation", v, navico_radar.reports.filter.target_separation)
 
 
 target_boost = ["off", "low", "high"]
 for v in target_boost:
-    navico_radar.set_target_boost(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
+    navico_radar.set_target_boost(v, get_report=True)
     time.sleep(report_sleep)
     print("target_boost", v, navico_radar.reports.setting.target_boost)
 
 
 noise_rejection = ["off", "low", "medium", "high"]
 for v in noise_rejection:
-    navico_radar.set_noise_rejection(v)
-    time.sleep(report_sleep)
-    navico_radar.get_reports()
+    navico_radar.set_noise_rejection(v, get_report=True)
     time.sleep(report_sleep)
     print("noise_rejection", v, navico_radar.reports.filter.noise_rejection)
 
-# if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
-#     # maybe unsure
-#     doppler_mode = ['off', 'normal', 'approaching_only']
-#     for v in doppler_mode:
-#         navico_radar.set_doppler_mode(v)
-#         time.sleep(report_sleep)
-#         navico_radar.get_reports()
-#         time.sleep(report_sleep)
-#         print("doppler_mode", v, navico_radar.reports.filter.doppler_mode)
-#
-#     doppler_speed = [0, 5, 10]
-#     for v in doppler_speed:
-#         navico_radar.set_doppler_speed(v)
-#         time.sleep(report_sleep)
-#         navico_radar.get_reports()
-#         time.sleep(report_sleep)
-#         print("doppler_speed", v, navico_radar.reports.filter.doppler_speed)
-
 
 if navico_radar.reports.system.radar_type == NavicoRadarType.navicoHALO:
-    # light = ["off", "low", "medium", "high"]
-    # for v in light:
-    #     navico_radar.set_light(v)
-    #     time.sleep(report_sleep)
-    #     navico_radar.get_reports()
-    #     time.sleep(report_sleep)
-    #     print("light", v, navico_radar.reports.spatial.light)
-    #
-    # sea_clutter_nudge = [-100,0,100]
-    # for v in sea_clutter_nudge:
-    #     navico_radar.auto_settings.sea_clutter_auto = True
-    #     navico_radar.sea_clutter_nudge(v)
-    #     time.sleep(report_sleep)
-    #     navico_radar.get_reports()
-    #     time.sleep(report_sleep)
-    #     print("Sea clutter 08c4 [auto]", v, navico_radar.reports.filter.sea_clutter_08c4)
-    #     print("Sea clutter nudge [auto]", v, navico_radar.reports.filter.sea_clutter_nudge)
-    #
-    #
+    light = ["off", "low", "medium", "high"]
+    for v in light:
+        navico_radar.set_light(v)
+        time.sleep(report_sleep)
+        navico_radar.get_reports()
+        time.sleep(report_sleep)
+        print("light", v, navico_radar.reports.spatial.light)
+
+    #sea_clutter_nudge = [-100,0,100]
+    #for v in sea_clutter_nudge:
+    #    navico_radar.auto_settings.sea_clutter_auto = True
+    #    navico_radar.sea_clutter_nudge(v)
+    #    time.sleep(report_sleep)
+    #    navico_radar.get_reports()
+    #    time.sleep(report_sleep)
+    #    print("Sea clutter 08c4 [auto]", v, navico_radar.reports.filter.sea_clutter_08c4)
+    #    print("Sea clutter nudge [auto]", v, navico_radar.reports.filter.sea_clutter_nudge)
+
+
     # sea_clutter_nudge = [-100,0,100]
     # for v in sea_clutter_nudge:
     #     navico_radar.auto_settings.sea_clutter_auto = False

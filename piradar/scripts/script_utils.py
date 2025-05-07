@@ -1,6 +1,7 @@
 import os
 import sys
 import signal
+import atexit
 import logging
 import time
 import datetime
@@ -419,7 +420,10 @@ def run_scheduled_scans(radar_controller: NavicoRadarController, scan_interval: 
 
 
 class NavicoRadarError(Exception):
-    pass
+    """ Raise this error in a thread to be caught
+     in the main by the cleanup functions. """
+    def __init__(self):
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 class BaseWatchDog:
@@ -446,8 +450,7 @@ class BaseWatchDog:
         if self.stand_down_flag:
             return
 
-        os.kill(os.getpid(), signal.SIGKILL)
-#        raise NavicoRadarError("Scan delay timeout.")
+        raise NavicoRadarError()
 
     def stand_down(self):
         self.stand_down_flag = True
@@ -467,15 +470,37 @@ class DataWatchDog(BaseWatchDog):
         if self.stand_down_flag:
             return
 
-        os.kill(os.getpid(), signal.SIGKILL)
-        #raise NavicoRadarError("No Data received.")
+        raise NavicoRadarError()
+
+
+### EXIT HANDLING AND CLEANUP ###
+def exit_cleanup():
+    gpio_controller.all_off()  # this sould work instead of try:except:finally:
+    # could happen more cleanup here.
 
 
 def catch_termination_signal():
     """Raise Exceptions if a signal.SIGTERM signal is receive.d"""
     def handle_sigterm(signum, frame):
         logging.error("Received SIGTERM, cleaning up...")
-        gpio_controller.all_off() # this sould work instead of try:except:finally:
+        exit_cleanup()
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, handle_sigterm)
+
+
+def catch_interrupt_signal():
+    """Like Keyboard Interrupt"""
+    def handle_sigint(signum, frame):
+        logging.error("Received SIGTINT, cleaning up...")
+        exit_cleanup()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_sigint)
+
+
+def configure_exit_handling():
+    atexit.register(exit_cleanup)  # Ensures cleanup on normal exit
+    catch_termination_signal()  # Handles SIGTERM
+    catch_interrupt_signal()  # Handles SIGINT
+

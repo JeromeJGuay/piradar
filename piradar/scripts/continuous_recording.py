@@ -10,19 +10,13 @@ from piradar.navico.navico_controller import RadarStatus
 
 from piradar.scripts.gpio_utils import gpio_controller
 
-from piradar.scripts.script_utils import main_init_sequence, NavicoRadarError, start_transmit,  catch_termination_signal
+from piradar.scripts.script_utils import main_init_sequence, NavicoRadarError, start_transmit,  configure_exit_handling
 
 from piradar.scripts.configs import load_config
 
 
-def handle_keyboard_interrupt(signum, frame):
-    gpio_controller.all_off()
-    sys.exit(0)
+configure_exit_handling()
 
-
-signal.signal(signal.SIGINT, handle_keyboard_interrupt)
-
-catch_termination_signal()
 
 def parse_arguments():
     parser = argparse.ArgumentParser(prog='Halo Radar Continuous Recording')
