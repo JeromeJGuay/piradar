@@ -204,7 +204,7 @@ if tests_flag['target_expansion']:
         print("target_expansion", v, navico_radar.reports.setting.target_expansion)
 
 if tests_flag['target_separation']:
-    target_separation = ["off", "low", "high"]
+    target_separation = ["off", "low", "medium", "high"]
     for v in target_separation:
         navico_radar.set_target_separation(v, get_report=True)
         time.sleep(report_sleep)
@@ -239,16 +239,13 @@ if tests_flag['blanking']:
     for sn, [start, stop] in enumerate(blanking_start_stop):
         navico_radar.set_sector_blanking(
             sector_number=sn,
+            enable=True,
             start=start,
             stop=stop,
             get_report=True
         )
-        sb = {
-            0: navico_radar.reports.blanking.sector_0,
-            1: navico_radar.reports.blanking.sector_1,
-            2: navico_radar.reports.blanking.sector_2,
-            3: navico_radar.reports.blanking.sector_3,
-        }[sn]
+        sb = navico_radar.sector_blanking_sector_map[sn]
+
         print(f"Sector {sn}")
         print("   enable", False, sb.enable)
         print("   start", start, sb.start)

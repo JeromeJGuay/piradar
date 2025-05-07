@@ -357,22 +357,22 @@ class _LightCmd:
 
 class _SetBlankingSector:
     """
-     CMD  | Sector  |      fill |  Start |  Stop |
-     0  1 |        2|   3  4  5 |   6  7 |  8  9 |
-    C0 C1 |  [00,03]|  00 00 00 |  00 00 | 00 00 |
+     CMD  | Sector  |      fill | Enable  | Start |  Stop |
+     0  1 |       2 |   3  4  5 |      6  |  7  8 |  9  10 |
+    C0 C1 |  [00,03]|  00 00 00 | [00,01] | 00 00 | 00 00 |
     """
     cformat = "BBB 3B HH"
     register = 0xc0
     cmd = 0xc1
 
-    def pack(self, sector: int, start: int, stop: int):
+    def pack(self, sector: int, enable: int, start: int, stop: int):
         """Sector: 0..3 and start and stop are in decidegree"""
-        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0, 0, 0, start, stop)
+        return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, sector, 0, 0, 0, enable, start, stop)
 
 
 class _EnableBlankingSector:
     """
-     CMD  | Sector  |      fill |  On/off |
+     CMD  | Sector  |      fill |  Enable |
      0  1 |        2|   3  4  5 |       6 |
     0d C1 |  [00,03]|  00 00 00 | [00,01] |
     """

@@ -83,7 +83,8 @@ For automatic settings.
 | Local Interference Filter |       0e |      C1 |    XX |
 | Scan Speed                |       0f |      C1 |    XX |
 | Mode                      |       10 |      C1 |    XX |
-| Target Expansion          |       12 |      C1 |    XX |
+| Target Expansion          |       09 |      C1 |    XX |
+| Target Expansion (Halo)   |       12 |      C1 |    XX |
 | Noise Rejection           |       21 |      C1 |    XX |
 | Target Separation         |       22 |      C1 |    XX |
 | Doppler Mode              |       23 |      C1 |    XX |
@@ -91,20 +92,21 @@ For automatic settings.
 
 Value mapping
 
-|                                    |     00 |       01 |               02 | 03      | 05   |
-|:-----------------------------------|-------:|---------:|-----------------:|---------|------|
-| Interference Rejections            |    off |      low |           medium | high    | -    |
-| Target Boost                       |    off |      low |             high | -       | -    |
-| Sea State                          |   calm | moderate |            rough | -       | -    |
-| Local Interference Filter          |    off |      low |           medium | high    | -    |
-| Scan Speed  (unsure, BR24 ?)       | normal |     fast |                - | -       | -    |
-| Scan Speed  (unsure, G and Halo ?) |   slow |   normal |             fast | -       | -    |
+|                                    |     00 |       01 |               02 | 03 | 05   |
+|:-----------------------------------|-------:|---------:|-----------------:|----|------|
+| Interference Rejections            |    off |      low |           medium | high | -    |
+| Target Boost                       |    off |      low |             high | -  | -    |
+| Sea State                          |   calm | moderate |            rough | -  | -    |
+| Local Interference Filter          |    off |      low |           medium | high | -    |
+| Scan Speed  (unsure, BR24 ?)       | normal |     fast |                - | -  | -    |
+| Scan Speed  (unsure, G and Halo ?) |   slow |   normal |             fast | -  | -    |
 | Mode                               | custom |   harbor |         offshore | weather | bird |
-| Target Expansion                   |    off |      low |           medium | high    | -    |
-| Noise Rejection                    |    off |      low |           medium | high    | -    |
-| Target Separation                  |    off |      low |           medium | high    | -    |
-| Doppler Mode                       |    off |   normal | approaching_only | -       | -    |
-| Light                              |    off |      low |           medium | high    | -    |
+| Target Expansion                   |    off |     high |                  |    | -    |
+| Target Expansion (Halo)            |    off |      low |           medium | high | -    |
+| Noise Rejection                    |    off |      low |           medium | high | -    |
+| Target Separation                  |    off |      low |           medium | high | -    |
+| Doppler Mode                       |    off |   normal | approaching_only | -  | -    |
+| Light                              |    off |      low |           medium | high | -    |
 
 
 ### Sector Blanking

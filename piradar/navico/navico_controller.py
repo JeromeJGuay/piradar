@@ -97,7 +97,6 @@ DOPPLER_MODE_STR2VAL_MAP = {"off": 0, "normal": 1, "approaching_only": 2}
 SCAN_SPEED_VAL2STR_MAP = {0: "low", 1: "medium", 2: "high"}
 SCAN_SPEED_STR2VAL_MAP = {"low": 0, "medium": 1, "high": 2}
 
-
 @dataclass
 class MulticastAddress:
     address: str | int
@@ -241,6 +240,14 @@ class NavicoRadarAutoSettings:
     side_lobe_suppression_auto: bool = False
 
 
+@dataclass
+class NavicoBlankingSettings:
+    sector_0 = False
+    sector_1 = False
+    sector_2 = False
+    sector_3 = False
+
+
 class NavicoRadarController:
     """
     Radar models default is HALO since it doesnt seem to the the system report. However 4G does ...
@@ -283,17 +290,10 @@ class NavicoRadarController:
 
         self.stop_flag = False
 
-        # Data Recording #--------------------------------
-        # self.is_recording_data = False
-        # self.sector_first_spoke_number: int = None
-        # self.current_spoke_number: int = None
-        # self.last_spoke_number: int = None
-        # self.sector_recorded_count = 0
-        # self.number_of_sector_to_record: int = None
-
         ### RADAR PARAMETER ###
         # Not clear how to update this at the moment. Or use it
         self.auto_settings = NavicoRadarAutoSettings()
+        self.blanking_setting = NavicoBlankingSettings()
 
         ### Reports Object ###
         self.raw_reports = RawReports()
@@ -301,6 +301,13 @@ class NavicoRadarController:
 
         # Halo don't seem to send the radar type so just go with it by default.
         self.reports.system.radar_type = NavicoRadarType.navicoHALO
+
+        self.sector_blanking_sector_map = {
+            0: self.reports.blanking.sector_0,
+            1: self.reports.blanking.sector_1,
+            2: self.reports.blanking.sector_2,
+            3: self.reports.blanking.sector_3,
+        }
 
         self.connect()
         if self.is_connected:
@@ -945,20 +952,31 @@ class NavicoRadarController:
         stop = int(max(0, min(360, stop)))
         if start > stop:
             start, stop = stop, start
+        enable = self.sector_blanking_sector_map[sector_number]
 
-        cmd = EnableBlankingSectorCmd.pack(sector_number, 1) # may need to be enable first...
+        #cmd = EnableBlankingSectorCmd.pack(sector_number, 1) # may need to be enable first...
+        #self.send_pack_data(cmd)
+
+        cmd = SetBlankingSectorCmd.pack(
+            sector=sector_number,
+            enbale=enable,
+            start=start*10,
+            stop=stop*10
+        )
         self.send_pack_data(cmd)
-        cmd = SetBlankingSectorCmd.pack(sector_number, start * 10, stop * 10)
-        self.send_pack_data(cmd)
-        cmd = EnableBlankingSectorCmd.pack(sector_number, 0)
-        self.send_pack_data(cmd)
+
+        #cmd = EnableBlankingSectorCmd.pack(sector_number, 0)
+        #self.send_pack_data(cmd)
         if get_report:
             self.get_reports()
 
     def enable_sector_blanking(self, sector_number: int, value: bool, get_report: bool = False):
         # maybe only for halo but unsure.
         sector_number = int(max(0, min(3, sector_number)))
+
         value = int(value)
+
+        self.sector_blanking_sector_map[sector_number] = bool(value)
 
         cmd = EnableBlankingSectorCmd.pack(sector_number, value)
         self.send_pack_data(cmd)
