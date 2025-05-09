@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root"
+  exit 1
+fi
+
+
 # Function to append file1 to file2 with backup handling (.bak naming convention)
 append_with_backup() {
     local file1="$1"
@@ -31,10 +37,10 @@ SCRIPT_DIR=$(dirname "$(realpath "$0")")
 #########
 cd
 echo "installing ssh"
-yes | apt update
-yes | apt install apache2 # (is it necessary ?)
+apt update
+apt install -y apache2 # (is it necessary ?)
 
-yes | apt install openssh-server
+apt install -y openssh-server
 systemctl enable ssh
 systemctl start ssh
 cd
@@ -44,36 +50,36 @@ cd
 #################
 cd
 echo "Installing ifup-ifdown"
-sudo apt install ifupdown
+apt install ifupdown
 
 echo "Installing net-tools"
-sudo apt install net-tools
+apt install net-tools
 
 echo "Installing isc-dhcp-server"
-yes | apt install isc-dhcp-server
+apt install -y isc-dhcp-server
 
 # Configuring dhcp server
 echo "configuring dhcp server"
 
 # /etc/default/isc-dhcp-server
 append_with_backup "$SCRIPT_DIR/isc-dhcp-server" "/etc/default/isc-dhcp-server"
-# sudo cat ./isc-dhcp-server >> /etc/default/isc-dhcp-server
 
-# /etc/dhcp/dhcpd.conf
-append_with_backup "$SCRIPT_DIR/dhcpd.conf" "/etc/dhcp/dhcpd.conf"
-# sudo cat ./dhcpd.conf >> /etc/dhcp/dhcpd.conf
+systemctl disable dhcpcd
+systemctl stop dhcpcd
+
+
+# /etc/dhcpcd.conf
+append_with_backup "$SCRIPT_DIR/dhcpcd.conf" "/etc/dhcpcd.conf"
 
 # auto loop back
-sudo touch  /etc/network/interfaces.d/locals
+touch  /etc/network/interfaces.d/locals
 append_with_backup "$SCRIPT_DIR/locals" "/etc/network/interfaces.d/locals"
-#sudo cat ./locals >> /etc/network/interfaces.d/locals
 
 # Apply
 ifdown eth0
 ifup eth0
 
 systemctl enable isc-dhcp-server
-#systemctl status isc-dhcp-server
 
 ifdown eth0
 
@@ -82,7 +88,7 @@ ifdown eth0
 ##################
 cd
 echo "Install for Witty"
-yes | apt install curl # needed for witty isntall.sh
+apt install -y curl # needed for witty isntall.sh
 
 cd
 mkdir witty
@@ -97,24 +103,24 @@ cd
 # samba not working on raspian for some reason.
 
 #echo "Installing Samba (drive ethernet)"
-yes | sudo apt install samba samba-common-bin smbclient cifs-utils
+apt install -y samba samba-common-bin smbclient cifs-utils
 
-yes | sudo apt install exfat-fuse exfat-utils
+apt install -y exfat-fuse exfat-utils
 
 # making a bakup of smb.conf if none exist.
 if [ ! -f /etc/samba/smb.conf.bak ]; then
-  sudo mv /etc/samba/smb.conf /etc/samba/smb.conf.bak
+  mv /etc/samba/smb.conf /etc/samba/smb.conf.bak
 fi
 
-sudo cp "$SCRIPT_DIR/smb.conf" /etc/samba/smb.conf
+cp "$SCRIPT_DIR/smb.conf" /etc/samba/smb.conf
 
-yes | apt install ufw
+apt install -y ufw
 
-sudo ufw allow samba
+ufw allow samba
 
 append_with_backup "$SCRIPT_DIR/fstab" "/etc/fstab"
-sudo cat ./fstab >> /etc/fstab
-sudo mount -a
+cat ./fstab >> /etc/fstab
+mount -a
 
 ### To allow other drive format.
 
@@ -126,7 +132,7 @@ sudo mount -a
 #####################
 cd
 echo "Installing ping control"
-yes | apt install python3-lgpio
+apt install -y python3-lgpio
 cd
 
 ########################
@@ -175,7 +181,7 @@ systemctl enable piradar.service
 
 ifup eth0
 
-echo "reboot required"
+echo "\n\n --- reboot required ---"
 # systemctl status piradar.service
 
 
