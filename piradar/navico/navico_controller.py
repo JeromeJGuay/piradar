@@ -1101,7 +1101,7 @@ class RadarDataRecorder:
             logging.warning('Data recording already started')
             return
 
-        self.output_file = output_file
+        self.output_file = format_path_with_dt_subdir(output_file)
         logging.info('Data recording started')
         self.number_of_sector_to_record = number_of_sector_to_record
         self.sector_count = 0
@@ -1114,7 +1114,7 @@ class RadarDataRecorder:
         if self.is_recording:
             logging.warning('Data recording already started')
             return
-        self.output_dir = output_dir
+        self.output_dir = format_path_with_dt_subdir(output_dir)
         self.is_recording_sector = False
         self.is_recording = True
 
@@ -1135,3 +1135,16 @@ class RadarDataRecorder:
         self.is_recording = False
         self.is_recording_sector = False
 
+
+def format_path_with_dt_subdir(file_path: str) -> str:
+    ts = datetime.datetime.now(datetime.UTC)
+    day = ts.strftime("%Y%m%d")
+    hour = ts.strftime("%H")
+
+    root_dir = Path(file_path).parent
+    filename = Path(file_path).name
+
+    outdir = root_dir.joinpath(day, hour)
+    outdir.mkdir(exist_ok=True, parents=True)
+
+    return outdir.joinpath(filename)
