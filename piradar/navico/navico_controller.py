@@ -165,7 +165,7 @@ class SystemReport:
 
 @dataclass
 class SectorBlanking:
-    enable: bool = None
+    enable: bool = False
     start: float = None
     stop: float = None
 
@@ -507,7 +507,7 @@ class NavicoRadarController:
         if report_id in REPORTS_IDS:
             self.data_writer.write_report(report_id=report_id, raw_packet=raw_packet)
         else:
-            logging.warning(f"report {raw_packet[:2]} unknown")
+            logging.debug(f"report {raw_packet[:2]} unknown")
             return
 
         match report_id:
@@ -952,14 +952,14 @@ class NavicoRadarController:
         stop = int(max(0, min(360, stop)))
         if start > stop:
             start, stop = stop, start
-        enable = self.sector_blanking_sector_map[sector_number]
+        enable = self.sector_blanking_sector_map[sector_number].enable
 
         #cmd = EnableBlankingSectorCmd.pack(sector_number, 1) # may need to be enable first...
         #self.send_pack_data(cmd)
 
         cmd = SetBlankingSectorCmd.pack(
             sector=sector_number,
-            enbale=enable,
+            enable=enable,
             start=start*10,
             stop=stop*10
         )

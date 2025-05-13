@@ -361,7 +361,7 @@ class _SetBlankingSector:
      0  1 |       2 |   3  4  5 |      6  |  7  8 |  9  10 |
     C0 C1 |  [00,03]|  00 00 00 | [00,01] | 00 00 | 00 00 |
     """
-    cformat = "BBB 3B HH"
+    cformat = "BBB 3B B HH"
     register = 0xc0
     cmd = 0xc1
 

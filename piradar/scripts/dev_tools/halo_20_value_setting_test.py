@@ -8,7 +8,7 @@ from piradar.logger import init_logging
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress,
                                               NavicoRadarController, wake_up_navico_radar, NavicoRadarType)
 
-debug_level = "DEBUG"
+debug_level = "ERROR"
 write_log = False
 ##################################################
 
@@ -239,13 +239,12 @@ if tests_flag['blanking']:
     for sn, [start, stop] in enumerate(blanking_start_stop):
         navico_radar.set_sector_blanking(
             sector_number=sn,
-            enable=True,
             start=start,
             stop=stop,
             get_report=True
         )
         sb = navico_radar.sector_blanking_sector_map[sn]
-
+        navico_radar.enable_sector_blanking(sector_number=sn, value=False, get_report=True)
         print(f"Sector {sn}")
         print("   enable", False, sb.enable)
         print("   start", start, sb.start)

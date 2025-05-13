@@ -175,6 +175,10 @@ systemctl enable piradar.service
 
 ifup eth0
 
+# Optionnal but setting the time zone to utc
+sudo timedatectl set-timezone UTC
+
+
 echo "reboot required"
 # systemctl status piradar.service
 

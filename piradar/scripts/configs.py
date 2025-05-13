@@ -32,4 +32,9 @@ def load_config(config_path):
     fconfig['RADAR_SETTINGS']['side_lobe_suppression'] = int(config['RADAR_SETTINGS']['side_lobe_suppression'])
     fconfig['RADAR_SETTINGS']['side_lobe_suppression_auto'] = bool(config['RADAR_SETTINGS']['side_lobe_suppression_auto'])
 
+    for i in range(4):
+        fconfig[f'SECTOR_BLANKING_{i}']['enable'] = bool(config['SECTOR_BLANKING_{i}']['enable'])
+        fconfig[f'SECTOR_BLANKING_{i}']['start'] = float(config['SECTOR_BLANKING_{i}']['start'])
+        fconfig[f'SECTOR_BLANKING_{i}']['stop'] = float(config['SECTOR_BLANKING_{i}']['stop'])
+
     return fconfig
