@@ -156,7 +156,8 @@ class PpiLivePlotter:
 
 
 if __name__ == "__main__":
-    data_directory = "\\\\capteur-desktop\\2To\\data"
+    #data_directory = "\\\\capteur-desktop\\2To\\data\\20250512"
+    data_directory = "D:\\data\\20250512"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05\\processed"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05"

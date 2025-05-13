@@ -408,7 +408,7 @@ def run_scheduled_scans(radar_controller: NavicoRadarController, scan_interval: 
 
     while True:
         logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
-        scan_watchdog.watch(interval=scan_interval)  # if the scan never stopped
+        scan_watchdog.watch(interval=2*scan_interval)  # if the scan never stopped
         data_watchdog.watch(interval=10)  # this raise an error if data are not received after the interval.
 
         scan_func(radar_controller, dt=dt_next, **func_kwargs)

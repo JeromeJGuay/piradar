@@ -19,3 +19,4 @@ En construction...
 
 + Dans le repertoire `~/program/piradar/piradar/scripts/` verifier que le path HOME est le bon.
 
++ SYNC SYSTEM TIME AND SET TO UTC
