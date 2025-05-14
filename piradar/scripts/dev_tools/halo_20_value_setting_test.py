@@ -8,6 +8,11 @@ from piradar.logger import init_logging
 from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddress,
                                               NavicoRadarController, wake_up_navico_radar, NavicoRadarType)
 
+from piradar.scripts.script_utils import gpio_controller, configure_exit_handling
+
+configure_exit_handling()
+
+
 debug_level = "ERROR"
 write_log = False
 ##################################################
@@ -32,6 +37,8 @@ mcast_ifaces = MulticastInterfaces(
     send=MulticastAddress(*send_address),
     interface=interface
 )
+
+gpio_controller.radar_power.on()
 
 wake_up_navico_radar()
 

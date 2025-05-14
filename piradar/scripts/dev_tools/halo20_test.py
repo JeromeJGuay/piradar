@@ -10,6 +10,10 @@ from piradar.navico.navico_controller import (MulticastInterfaces, MulticastAddr
 
 from piradar.navico.navico_command import *
 
+from piradar.scripts.script_utils import gpio_controller, configure_exit_handling
+
+configure_exit_handling()
+
 debug_level = "DEBUG"
 write_log = False
 ##################################################
@@ -39,6 +43,7 @@ mcast_ifaces = MulticastInterfaces(
     interface=interface
 )
 
+gpio_controller.radar_power.on()
 wake_up_navico_radar()
 
 nr = NavicoRadarController(
