@@ -299,7 +299,7 @@ class _NoiseRejectionCmd:
         return struct.pack(ENDIAN + self.cformat, self.register, self.cmd, value)
 
 
-class _TargetSeparationCmd:
+class _TargetSeparationCmd: # maybe not on HALO (+ amd 24 maybe)
     cformat = "BBB"
     register=0x22
     cmd = 0xc1

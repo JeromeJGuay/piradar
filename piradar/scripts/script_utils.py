@@ -9,7 +9,8 @@ import threading
 from pathlib import Path
 from dataclasses import dataclass
 
-from piradar.navico.navico_controller import NavicoRadarController, RadarStatus, RANGES_PRESETS, MulticastInterfaces, MulticastAddress
+from piradar.navico.navico_controller import NavicoRadarController, RadarStatus, RANGES_PRESETS, MulticastInterfaces, \
+    MulticastAddress
 
 from piradar.network import check_interface_inet_is_up
 
@@ -29,7 +30,6 @@ def validate_output_drive(output_drive):
 
 
 def wait_for_rpi_boot(output_drive, output_report_path, output_data_path, interface_name, timeout=60):
-
     output_drive_found = False
     interface_is_valid = False
 
@@ -63,6 +63,7 @@ def wait_for_rpi_boot(output_drive, output_report_path, output_data_path, interf
 
     gpio_controller.error_pulse_led('no_eth_drive')
     return False
+
 
 @dataclass  #(kw_only=True)
 class RadarUserSettings:
@@ -164,18 +165,21 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
     radar_controller.set_target_separation(settings.target_separation)
     radar_controller.set_noise_rejection(settings.noise_rejection)
 
-    radar_controller.set_sector_blanking(sector_number=0, start=settings.blanking_s0_start, stop=settings.blanking_s0_stop)
+    radar_controller.set_sector_blanking(sector_number=0, start=settings.blanking_s0_start,
+                                         stop=settings.blanking_s0_stop)
     radar_controller.enable_sector_blanking(sector_number=0, value=settings.blanking_s0_enable)
 
-    radar_controller.set_sector_blanking(sector_number=1, start=settings.blanking_s1_start, stop=settings.blanking_s1_stop)
+    radar_controller.set_sector_blanking(sector_number=1, start=settings.blanking_s1_start,
+                                         stop=settings.blanking_s1_stop)
     radar_controller.enable_sector_blanking(sector_number=1, value=settings.blanking_s1_enable)
 
-    radar_controller.set_sector_blanking(sector_number=2, start=settings.blanking_s2_start, stop=settings.blanking_s2_stop)
+    radar_controller.set_sector_blanking(sector_number=2, start=settings.blanking_s2_start,
+                                         stop=settings.blanking_s2_stop)
     radar_controller.enable_sector_blanking(sector_number=2, value=settings.blanking_s2_enable)
 
-    radar_controller.set_sector_blanking(sector_number=3, start=settings.blanking_s3_start, stop=settings.blanking_s3_stop)
+    radar_controller.set_sector_blanking(sector_number=3, start=settings.blanking_s3_start,
+                                         stop=settings.blanking_s3_stop)
     radar_controller.enable_sector_blanking(sector_number=3, value=settings.blanking_s3_enable)
-
 
 
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
@@ -267,20 +271,20 @@ def main_init_sequence(config: dict):
         mode=config['RADAR_SETTINGS']['mode'],
 
         blanking_s0_enable=config['SECTOR_BLANKING_0']['enable'],
-        blanking_s0_start = config['SECTOR_BLANKING_0']['start'],
-        blanking_s0_stop = config['SECTOR_BLANKING_0']['stop'],
+        blanking_s0_start=config['SECTOR_BLANKING_0']['start'],
+        blanking_s0_stop=config['SECTOR_BLANKING_0']['stop'],
 
-        blanking_s1_enable = config['SECTOR_BLANKING_1']['enable'],
-        blanking_s1_start = config['SECTOR_BLANKING_1']['start'],
-        blanking_s1_stop = config['SECTOR_BLANKING_1']['stop'],
+        blanking_s1_enable=config['SECTOR_BLANKING_1']['enable'],
+        blanking_s1_start=config['SECTOR_BLANKING_1']['start'],
+        blanking_s1_stop=config['SECTOR_BLANKING_1']['stop'],
 
-        blanking_s2_enable = config['SECTOR_BLANKING_2']['enable'],
-        blanking_s2_start = config['SECTOR_BLANKING_2']['start'],
-        blanking_s2_stop = config['SECTOR_BLANKING_2']['stop'],
+        blanking_s2_enable=config['SECTOR_BLANKING_2']['enable'],
+        blanking_s2_start=config['SECTOR_BLANKING_2']['start'],
+        blanking_s2_stop=config['SECTOR_BLANKING_2']['stop'],
 
-        blanking_s3_enable = config['SECTOR_BLANKING_3']['enable'],
-        blanking_s3_start = config['SECTOR_BLANKING_3']['start'],
-        blanking_s3_stop = config['SECTOR_BLANKING_3']['stop'],
+        blanking_s3_enable=config['SECTOR_BLANKING_3']['enable'],
+        blanking_s3_start=config['SECTOR_BLANKING_3']['start'],
+        blanking_s3_stop=config['SECTOR_BLANKING_3']['stop'],
     )
 
     scan_speed = config['RADAR_SETTINGS']['scan_speed']
@@ -310,7 +314,7 @@ def main_init_sequence(config: dict):
 
     gpio_controller.program_started_led()
 
-    if not wait_for_rpi_boot( # return flag
+    if not wait_for_rpi_boot(  # return flag
             output_drive=output_drive,
             output_report_path=output_report_path,
             output_data_path=output_data_path,
@@ -333,9 +337,9 @@ def main_init_sequence(config: dict):
     )
 
     if radar_controller.raw_reports.r01c4 is None:
-       logging.info(f"Radar status reports (01c4) was not received.")
+        logging.info(f"Radar status reports (01c4) was not received.")
 
-       raise Exception("Radar type not received. Communication Error")
+        raise Exception("Radar type not received. Communication Error")
 
     gpio_controller.setting_radar_led()
 
@@ -417,9 +421,6 @@ def round_datetime(dt: datetime.datetime, rounding_to: float, offset=0.0, up=Fal
     """
     total_seconds = dt.hour * 3600 + dt.minute * 60 + dt.second - offset
 
-#    if up:
-#        total_seconds -= 1
-
     reminder = total_seconds % rounding_to
     rounded_seconds = total_seconds - reminder + offset
 
@@ -458,12 +459,12 @@ def run_scheduled_scans(radar_controller: NavicoRadarController, scan_interval: 
 
     while True:
         logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
-        scan_watchdog.watch(interval=2*scan_interval)  # if the scan never stopped
+        scan_watchdog.watch(interval=2 * scan_interval)  # if the scan never stopped
         data_watchdog.watch(interval=10)  # this raise an error if data are not received after the interval.
 
         scan_func(radar_controller, dt=dt_next, **func_kwargs)
 
-        scan_watchdog.stand_down() # test if is ok FIXME
+        scan_watchdog.stand_down()  # test if is ok FIXME
         data_watchdog.stand_down()
 
         dt_next = wait_for_next_scan(scan_interval)
@@ -472,12 +473,14 @@ def run_scheduled_scans(radar_controller: NavicoRadarController, scan_interval: 
 class NavicoRadarError(Exception):
     """ Raise this error in a thread to be caught
      in the main by the cleanup functions. """
+
     def __init__(self):
         os.kill(os.getpid(), signal.SIGTERM)
 
 
 class BaseWatchDog:
     """Raises Error if no data self.stand_down() is not called before the timeout."""
+
     def __init__(self, radar_controller: NavicoRadarController, name="BaseWatchDog"):
         self.radar_controller = radar_controller
         self.interval = None
@@ -508,6 +511,7 @@ class BaseWatchDog:
 
 class DataWatchDog(BaseWatchDog):
     """Raises error if data was not received before timeout and self.stand_down() was not called."""
+
     def __init__(self, radar_controller: NavicoRadarController, name="DataWatchDog"):
         BaseWatchDog.__init__(self, radar_controller=radar_controller, name=name)
 
@@ -531,6 +535,7 @@ def exit_cleanup():
 
 def catch_termination_signal():
     """Raise Exceptions if a signal.SIGTERM signal is receive.d"""
+
     def handle_sigterm(signum, frame):
         logging.error("Received SIGTERM, cleaning up...")
         exit_cleanup()
@@ -541,6 +546,7 @@ def catch_termination_signal():
 
 def catch_interrupt_signal():
     """Like Keyboard Interrupt"""
+
     def handle_sigint(signum, frame):
         logging.error("Received SIGTINT, cleaning up...")
         exit_cleanup()
@@ -553,4 +559,3 @@ def configure_exit_handling():
     atexit.register(exit_cleanup)  # Ensures cleanup on normal exit
     catch_termination_signal()  # Handles SIGTERM
     catch_interrupt_signal()  # Handles SIGINT
-
