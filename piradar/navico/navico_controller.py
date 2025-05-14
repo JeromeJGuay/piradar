@@ -876,7 +876,6 @@ class NavicoRadarController:
                 logging.warning("target expansion is not available on BR24 (I think).")
                 return
 
-        cmd = TargetExpansionCmd.pack(value=bool(value))
         self.send_pack_data(cmd)
         if get_report:
             self.get_reports()

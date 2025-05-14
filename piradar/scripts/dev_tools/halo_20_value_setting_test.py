@@ -74,7 +74,7 @@ tests_flag= {
     "target_separation": 1,
     "target_boost": 1,
     "noise_rejection": 1,
-    "light": 1,
+    "light": 0, # not available on 20 model
     "blanking": 1,
 
 }
