@@ -1114,7 +1114,7 @@ class RadarDataRecorder:
         if self.is_recording:
             logging.warning('Data recording already started')
             return
-        self.output_dir = format_path_with_dt_subdir(output_dir)
+        self.output_dir = output_dir
         self.is_recording_sector = False
         self.is_recording = True
 

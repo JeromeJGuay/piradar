@@ -36,7 +36,7 @@ class PpiLivePlotter:
         self.auto_range = True
         self.max_radius = None
 
-        self.file_id = 100# put back at 0
+        self.file_id = 0# put back at 0
         self.files_list = self.get_new_files()
 
         ### PLOT ###
@@ -73,6 +73,8 @@ class PpiLivePlotter:
 
     def get_new_files(self):
         return sorted(list(glob(os.path.join(self.data_directory, "*0.raw")))) #fixme
+
+        #return sorted(list(glob(os.path.join(self.data_directory, "*.raw"))))  # fixme
 
     def fade_radar_plot(self):
         for plot in self.previous_radar_plots:
@@ -157,13 +159,13 @@ class PpiLivePlotter:
 
 if __name__ == "__main__":
     #data_directory = "\\\\capteur-desktop\\2To\\data\\20250512"
-    data_directory = "D:\\data\\20250512"
+    data_directory = "D:\\data\\20250513\\19"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05\\processed"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05"
     plp = PpiLivePlotter(
         data_directory=data_directory,
         fading_time=2,
-        refresh_rate=.5,
+        refresh_rate=1,
         is_polar=False
     )

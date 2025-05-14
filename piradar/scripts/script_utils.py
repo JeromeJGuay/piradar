@@ -263,6 +263,24 @@ def main_init_sequence(config: dict):
         target_expansion=config['RADAR_SETTINGS']['target_expansion'],
         target_separation=config['RADAR_SETTINGS']['target_separation'],
         target_boost=config['RADAR_SETTINGS']['target_boost'],
+
+        mode=config['RADAR_SETTINGS']['mode'],
+
+        blanking_s0_enable=config['SECTOR_BLANKING_0']['enable'],
+        blanking_s0_start = config['SECTOR_BLANKING_0']['start'],
+        blanking_s0_stop = config['SECTOR_BLANKING_0']['stop'],
+
+        blanking_s1_enable = config['SECTOR_BLANKING_1']['enable'],
+        blanking_s1_start = config['SECTOR_BLANKING_1']['start'],
+        blanking_s1_stop = config['SECTOR_BLANKING_1']['stop'],
+
+        blanking_s2_enable = config['SECTOR_BLANKING_2']['enable'],
+        blanking_s2_start = config['SECTOR_BLANKING_2']['start'],
+        blanking_s2_stop = config['SECTOR_BLANKING_2']['stop'],
+
+        blanking_s3_enable = config['SECTOR_BLANKING_3']['enable'],
+        blanking_s3_start = config['SECTOR_BLANKING_3']['start'],
+        blanking_s3_stop = config['SECTOR_BLANKING_3']['stop'],
     )
 
     scan_speed = config['RADAR_SETTINGS']['scan_speed']

@@ -3,7 +3,8 @@ from pathlib import Path
 
 from piradar.navico.navico_structure import *
 
-path = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\report"
+#path = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\report"
+path= "D:\\report"
 
 raw_reports = list(Path(path).glob("*.raw"))
 

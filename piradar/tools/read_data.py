@@ -84,7 +84,7 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
 
     #frame_header = struct.unpack(FRAME_HEADER, raw_frame[:FRAME_HEADER_SIZE])  # Size of <lBHHH is 11
 
-    raw_header, raw_spokes = raw_frame.split(SPOKE_DATA_DELIMITER)
+    raw_header, raw_spokes = raw_frame.split(SPOKE_DATA_DELIMITER)[:2]
 
     unpacked_header = struct.unpack(FRAME_HEADER_FORMAT, raw_header)
 

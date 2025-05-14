@@ -170,13 +170,15 @@ class PpiLivePlotter:
 
 
 if __name__ == "__main__":
-    data_directory = "\\\\capteur-desktop\\2To\\data\\continuous"
+    #data_directory = "\\\\capteur-desktop\\2To\\data"
+    data_directory = "D:\\data\\continuous"
+    #data_directory = "\\\\capteur-desktop\\4To\\data\\202505013\\12"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05"
     plp = PpiLivePlotter(
         data_directory=data_directory,
         fading_time=4.5,
-        refresh_rate=0.1,
+        refresh_rate=.05,
         is_polar=False
     )
