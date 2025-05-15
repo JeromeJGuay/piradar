@@ -29,7 +29,13 @@ def validate_output_drive(output_drive):
     return False
 
 
-def wait_for_rpi_boot(output_drive, output_report_path, output_data_path, interface_name, timeout=60):
+def wait_for_rpi_boot(
+        output_drive,
+        output_report_path,
+        output_data_path,
+        interface_name,
+        timeout=60
+):
     output_drive_found = False
     interface_is_valid = False
 
@@ -43,9 +49,6 @@ def wait_for_rpi_boot(output_drive, output_report_path, output_data_path, interf
             else:
                 logging.info(f"{output_drive} directory found.")
                 output_drive_found = True
-                # this once raised an error FIXME
-                Path(output_data_path).mkdir(parents=True, exist_ok=True)
-                Path(output_report_path).mkdir(parents=True, exist_ok=True)
 
         # MAKE SURE THE INTERFACE IS UP
         if not interface_is_valid:
@@ -375,6 +378,11 @@ def main_init_sequence(config: dict):
         logging.error("Failed to run the startup sequence radar scan.")
 
         raise NavicoRadarError("error in raspberry pi booting sequence.")
+    # make required directory
+
+    Path(output_data_path).mkdir(parents=True, exist_ok=True)
+    Path(output_report_path).mkdir(parents=True, exist_ok=True)
+    Path(output_radar_settings_path).mkdir(parents=True, exist_ok=True)
 
     logging.info("Powering Up Radar")
     gpio_controller.radar_power.on()
