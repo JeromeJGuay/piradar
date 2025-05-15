@@ -214,10 +214,10 @@ def write_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRa
     ts=datetime.datetime.now().astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
     filename = f"radar_settings_{ts}.txt"
     with open(Path(outpath) / filename, "w") as _f:
-        _f.write(f"{'SETTING':<30}:{'RADAR':>10} |{'CONFIG':>10}")
-        _f.write(f"-"*53) #53 is length of the header change if needed
+        _f.write(f"{'SETTING':<30}:{'RADAR':>10} |{'CONFIG':>10}\n")
+        _f.write(f"-"*53+"\n")  #53 is length of the header change if needed
         for key, v1, v2 in check_list:
-            _f.write(f"{key:<30}:{v1:>10} |{v1:>10}")
+            _f.write(f"{key:<30}:{v1:>10} |{v1:>10}\n")
 
 
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
