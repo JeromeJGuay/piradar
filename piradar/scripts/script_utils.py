@@ -75,7 +75,7 @@ class RadarUserSettings:
     gain: int
     gain_auto: bool
 
-    mode: str
+
 
     sea_clutter: int
     sea_clutter_auto: bool
@@ -85,17 +85,18 @@ class RadarUserSettings:
 
     side_lobe_suppression: int
     side_lobe_suppression_auto: bool
-    # add mode
+
     sea_state: str
+    mode: str
 
     noise_rejection: str
 
     interference_rejection: str
-    local_interference_filter: str
+    # local_interference_filter: str
 
     target_expansion: str
-    target_separation: str
-    target_boost: str
+    # target_separation: str
+    # target_boost: str
 
     blanking_s0_enable: bool
     blanking_s0_start: float
