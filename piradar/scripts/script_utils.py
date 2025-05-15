@@ -211,8 +211,8 @@ def write_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRa
         # ['doppler_speed' , settings.doppler_speed, radar_controller.reports.filter.doppler_speed],
         # ['light', settings.light, radar_controller.reports.spatial.light],
     ]
-    ts=datetime.datetime.now().astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
-    filename = f"radar_settings_{ts}.txt"
+    #ts=datetime.datetime.now().astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
+    filename = f"radar_vs_user_settings.txt"
     with open(Path(outpath) / filename, "w") as _f:
         _f.write(f"{'SETTING':<30}:{'RADAR':>10} |{'CONFIG':>10}\n")
         _f.write(f"-"*53+"\n")  #53 is length of the header change if needed
@@ -363,7 +363,6 @@ def main_init_sequence(config: dict):
 
     output_data_path = Path(output_drive).joinpath(output_data_dir)
     output_report_path = Path(output_drive).joinpath(output_report_dir)
-    output_radar_settings_path = output_report_path.joinpath("radar_settings")
 
     gpio_controller.program_started_led()
 
@@ -378,11 +377,10 @@ def main_init_sequence(config: dict):
         logging.error("Failed to run the startup sequence radar scan.")
 
         raise NavicoRadarError("error in raspberry pi booting sequence.")
-    # make required directory
 
+    # make required directory
     Path(output_data_path).mkdir(parents=True, exist_ok=True)
     Path(output_report_path).mkdir(parents=True, exist_ok=True)
-    Path(output_radar_settings_path).mkdir(parents=True, exist_ok=True)
 
     logging.info("Powering Up Radar")
     gpio_controller.radar_power.on()
@@ -406,7 +404,7 @@ def main_init_sequence(config: dict):
     time.sleep(1)  # just to be sure all reports are in and analyzed.
 
     valide_radar_settings(radar_user_settings, radar_controller)
-    write_radar_settings(radar_user_settings, radar_controller, output_radar_settings_path)
+    write_radar_settings(radar_user_settings, radar_controller, output_report_path)
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
     # Not working on HALO fix me
