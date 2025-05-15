@@ -197,7 +197,7 @@ if tests_flag['side_lobe_suppression_auto']:
         print("side_lobe_suppression_auto", v, navico_radar.reports.filter.side_lobe_suppression_auto)
 
 if tests_flag['mode']:
-    mode = ["custom", 'harbor', 'offshore', 'weather', 'bird']
+    mode = ['harbor', 'offshore', 'weather', 'bird', 'custom']
     for v in mode:
         navico_radar.set_mode(v, get_report=True)
         time.sleep(report_sleep)
