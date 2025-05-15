@@ -184,27 +184,48 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
 
 def write_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController, outpath: str):
     check_list = [
+        ['range', settings._range, radar_controller.reports.setting._range],
+
         ['bearing', settings.bearing, radar_controller.reports.spatial.bearing],
         ['antenna_height', settings.antenna_height, radar_controller.reports.spatial.antenna_height],
 
-        ['sea_gain', settings.gain, radar_controller.reports.setting.gain],
-        ['sea_gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
+        ['gain', settings.gain, radar_controller.reports.setting.gain],
+        ['gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
         ['sea_clutter', settings.sea_clutter, radar_controller.reports.setting.sea_clutter],
         ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],
 
         ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
+        # radar doesn't have a value for rain_clutter_auto in any reports, apparently.
 
-        ['side_lobe_suppression', settings.side_lobe_suppression, radar_controller.reports.filter.side_lobe_suppression],
-        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto, radar_controller.reports.filter.side_lobe_suppression_auto],
+        ['side_lobe_suppression', settings.side_lobe_suppression,
+         radar_controller.reports.filter.side_lobe_suppression],
+        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto,
+         radar_controller.reports.filter.side_lobe_suppression_auto],
 
         ['sea_state', settings.sea_state, radar_controller.reports.filter.sea_state],
+        ['mode', settings.mode, radar_controller.reports.setting.mode],
 
         ['noise_rejection', settings.noise_rejection, radar_controller.reports.filter.noise_rejection],
-        ['interference_rejection', settings.interference_rejection, radar_controller.reports.setting.interference_rejection],
+        ['interference_rejection', settings.interference_rejection,
+         radar_controller.reports.setting.interference_rejection],
 
-
-        ['mode', settings.mode, radar_controller.reports.setting.mode],
         ['target_expansion', settings.target_expansion, radar_controller.reports.setting.target_expansion],
+
+        ['blanking_s0_enable', settings.blanking_s0_enable, radar_controller.reports.blanking.sector_0.enable],
+        ['blanking_s0_start', settings.blanking_s0_start, radar_controller.reports.blanking.sector_0.start],
+        ['blanking_s0_stop', settings.blanking_s0_stop, radar_controller.reports.blanking.sector_0.stop],
+
+        ['blanking_s1_enable', settings.blanking_s1_enable, radar_controller.reports.blanking.sector_1.enable],
+        ['blanking_s1_start', settings.blanking_s1_start, radar_controller.reports.blanking.sector_1.start],
+        ['blanking_s1_stop', settings.blanking_s1_stop, radar_controller.reports.blanking.sector_1.stop],
+
+        ['blanking_s2_enable', settings.blanking_s2_enable, radar_controller.reports.blanking.sector_2.enable],
+        ['blanking_s2_start', settings.blanking_s2_start, radar_controller.reports.blanking.sector_2.start],
+        ['blanking_s2_stop', settings.blanking_s2_stop, radar_controller.reports.blanking.sector_2.stop],
+
+        ['blanking_s3_enable', settings.blanking_s3_enable, radar_controller.reports.blanking.sector_3.enable],
+        ['blanking_s3_start', settings.blanking_s3_start, radar_controller.reports.blanking.sector_3.start],
+        ['blanking_s3_stop', settings.blanking_s3_stop, radar_controller.reports.blanking.sector_3.stop],
 
         # bellow are not available on halo 20.
         # ['local_interference_filter', settings.local_interference_filter, radar_controller.reports.filter.local_interference_filter],
@@ -225,27 +246,45 @@ def write_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRa
 
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
     check_list = [
+        ['range', settings._range, radar_controller.reports.setting._range],
+
         ['bearing', settings.bearing, radar_controller.reports.spatial.bearing],
         ['antenna_height', settings.antenna_height, radar_controller.reports.spatial.antenna_height],
 
-        ['sea_gain', settings.gain, radar_controller.reports.setting.gain],
-        ['sea_gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
+        ['gain', settings.gain, radar_controller.reports.setting.gain],
+        ['gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
         ['sea_clutter', settings.sea_clutter, radar_controller.reports.setting.sea_clutter],
         ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],
 
         ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
+        # radar doesn't have a value for rain_clutter_auto in any reports, apparently.
 
         ['side_lobe_suppression', settings.side_lobe_suppression, radar_controller.reports.filter.side_lobe_suppression],
         ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto, radar_controller.reports.filter.side_lobe_suppression_auto],
 
         ['sea_state', settings.sea_state, radar_controller.reports.filter.sea_state],
+        ['mode', settings.mode, radar_controller.reports.setting.mode],
 
         ['noise_rejection', settings.noise_rejection, radar_controller.reports.filter.noise_rejection],
         ['interference_rejection', settings.interference_rejection, radar_controller.reports.setting.interference_rejection],
 
-
-        ['mode', settings.mode, radar_controller.reports.setting.mode],
         ['target_expansion', settings.target_expansion, radar_controller.reports.setting.target_expansion],
+
+        ['blanking_s0_enable', settings.blanking_s0_enable, radar_controller.reports.blanking.sector_0.enable],
+        ['blanking_s0_start', settings.blanking_s0_start, radar_controller.reports.blanking.sector_0.start],
+        ['blanking_s0_stop', settings.blanking_s0_stop, radar_controller.reports.blanking.sector_0.stop],
+
+        ['blanking_s1_enable', settings.blanking_s1_enable, radar_controller.reports.blanking.sector_1.enable],
+        ['blanking_s1_start', settings.blanking_s1_start, radar_controller.reports.blanking.sector_1.start],
+        ['blanking_s1_stop', settings.blanking_s1_stop, radar_controller.reports.blanking.sector_1.stop],
+
+        ['blanking_s2_enable', settings.blanking_s2_enable, radar_controller.reports.blanking.sector_2.enable],
+        ['blanking_s2_start', settings.blanking_s2_start, radar_controller.reports.blanking.sector_2.start],
+        ['blanking_s2_stop', settings.blanking_s2_stop, radar_controller.reports.blanking.sector_2.stop],
+
+        ['blanking_s3_enable', settings.blanking_s3_enable, radar_controller.reports.blanking.sector_3.enable],
+        ['blanking_s3_start', settings.blanking_s3_start, radar_controller.reports.blanking.sector_3.start],
+        ['blanking_s3_stop', settings.blanking_s3_stop, radar_controller.reports.blanking.sector_3.stop],
 
         # bellow are not available on halo 20.
         # ['local_interference_filter', settings.local_interference_filter, radar_controller.reports.filter.local_interference_filter],
@@ -279,8 +318,10 @@ def main_init_sequence(config: dict):
 
     radar_user_settings = RadarUserSettings(
         _range=config['RADAR_SETTINGS']['range'],
-        antenna_height=config['RADAR_SETTINGS']['antenna_height'],
+
         bearing=config['RADAR_SETTINGS']['bearing'],
+        antenna_height=config['RADAR_SETTINGS']['antenna_height'],
+
         gain=config['RADAR_SETTINGS']['gain'],
         gain_auto=config['RADAR_SETTINGS']['gain_auto'],
 
@@ -294,6 +335,8 @@ def main_init_sequence(config: dict):
         side_lobe_suppression_auto=config['RADAR_SETTINGS']['side_lobe_suppression_auto'],
 
         sea_state=config['RADAR_SETTINGS']['sea_state'],
+        mode=config['RADAR_SETTINGS']['mode'],
+
         noise_rejection=config['RADAR_SETTINGS']['noise_rejection'],
 
         interference_rejection=config['RADAR_SETTINGS']['interference_rejection'],
@@ -302,8 +345,6 @@ def main_init_sequence(config: dict):
         target_expansion=config['RADAR_SETTINGS']['target_expansion'],
         # target_separation=config['RADAR_SETTINGS']['target_separation'], # CANT BE SET IN HALO
         # target_boost=config['RADAR_SETTINGS']['target_boost'],  # CANT BE SET IN HALO
-
-        mode=config['RADAR_SETTINGS']['mode'],
 
         blanking_s0_enable=config['SECTOR_BLANKING_0']['enable'],
         blanking_s0_start=config['SECTOR_BLANKING_0']['start'],
