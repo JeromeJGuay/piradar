@@ -69,13 +69,10 @@ def wait_for_rpi_boot(output_drive, output_report_path, output_data_path, interf
 class RadarUserSettings:
     _range: int | str
     antenna_height: float
-
     bearing: float
 
     gain: int
     gain_auto: bool
-
-
 
     sea_clutter: int
     sea_clutter_auto: bool
@@ -114,32 +111,15 @@ class RadarUserSettings:
     blanking_s3_start: float
     blanking_s3_stop: float
 
-    # doppler_speed = 0
-    # doppler_mode = "off"
-
-    # add light fixme
-    # add nudge fixme
-
 
 def set_user_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
-    #    add mode
-    #    radar_controller.set_doppler_speed(settings.doppler_speed)
-    #    radar_controller.set_doppler_mode(settings.doppler_mode)
 
-    #    radar_controller.set_doppler_mode(settings.doppler_mode)
-
-    # add light fixme
-    # add nudge fixme
-
-    radar_controller.set_bearing(settings.bearing)
     radar_controller.set_range(settings._range)
-
+    radar_controller.set_bearing(settings.bearing)
     radar_controller.set_antenna_height(settings.antenna_height)
 
     radar_controller.set_gain(settings.gain)
     radar_controller.set_gain_auto(settings.gain_auto)
-
-    radar_controller.set_mode(settings.mode)
 
     radar_controller.set_sea_clutter(settings.sea_clutter)
     radar_controller.set_sea_clutter_auto(settings.sea_clutter_auto)
@@ -150,36 +130,28 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
     radar_controller.set_side_lobe_suppression(settings.side_lobe_suppression)
     radar_controller.set_side_lobe_suppression_auto(settings.side_lobe_suppression_auto)
 
-    radar_controller.set_noise_rejection(settings.noise_rejection)
+    radar_controller.set_sea_state(settings.sea_state)
+    radar_controller.set_mode(settings.mode)
 
     radar_controller.set_noise_rejection(settings.noise_rejection)
 
     radar_controller.set_interference_rejection(settings.interference_rejection)
-    radar_controller.set_local_interference_filter(settings.local_interference_filter)
+    # radar_controller.set_local_interference_filter(settings.local_interference_filter)
 
     radar_controller.set_target_expansion(settings.target_expansion)
-    radar_controller.set_target_separation(settings.target_separation)
-    radar_controller.set_target_boost(settings.target_boost)
+    # radar_controller.set_target_separation(settings.target_separation)
+    # radar_controller.set_target_boost(settings.target_boost)
 
-    ###
-    radar_controller.set_sea_state(settings.sea_state)
-    radar_controller.set_target_separation(settings.target_separation)
-    radar_controller.set_noise_rejection(settings.noise_rejection)
-
-    radar_controller.set_sector_blanking(sector_number=0, start=settings.blanking_s0_start,
-                                         stop=settings.blanking_s0_stop)
+    radar_controller.set_sector_blanking(sector_number=0, start=settings.blanking_s0_start, stop=settings.blanking_s0_stop)
     radar_controller.enable_sector_blanking(sector_number=0, value=settings.blanking_s0_enable)
 
-    radar_controller.set_sector_blanking(sector_number=1, start=settings.blanking_s1_start,
-                                         stop=settings.blanking_s1_stop)
+    radar_controller.set_sector_blanking(sector_number=1, start=settings.blanking_s1_start, stop=settings.blanking_s1_stop)
     radar_controller.enable_sector_blanking(sector_number=1, value=settings.blanking_s1_enable)
 
-    radar_controller.set_sector_blanking(sector_number=2, start=settings.blanking_s2_start,
-                                         stop=settings.blanking_s2_stop)
+    radar_controller.set_sector_blanking(sector_number=2, start=settings.blanking_s2_start, stop=settings.blanking_s2_stop)
     radar_controller.enable_sector_blanking(sector_number=2, value=settings.blanking_s2_enable)
 
-    radar_controller.set_sector_blanking(sector_number=3, start=settings.blanking_s3_start,
-                                         stop=settings.blanking_s3_stop)
+    radar_controller.set_sector_blanking(sector_number=3, start=settings.blanking_s3_start, stop=settings.blanking_s3_stop)
     radar_controller.enable_sector_blanking(sector_number=3, value=settings.blanking_s3_enable)
 
 
