@@ -182,6 +182,47 @@ def set_user_radar_settings(settings: RadarUserSettings, radar_controller: Navic
     radar_controller.enable_sector_blanking(sector_number=3, value=settings.blanking_s3_enable)
 
 
+def write_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController, outpath: str):
+    check_list = [
+        ['bearing', settings.bearing, radar_controller.reports.spatial.bearing],
+        ['antenna_height', settings.antenna_height, radar_controller.reports.spatial.antenna_height],
+
+        ['sea_gain', settings.gain, radar_controller.reports.setting.gain],
+        ['sea_gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
+        ['sea_clutter', settings.sea_clutter, radar_controller.reports.setting.sea_clutter],
+        ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],
+
+        ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
+
+        ['side_lobe_suppression', settings.side_lobe_suppression, radar_controller.reports.filter.side_lobe_suppression],
+        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto, radar_controller.reports.filter.side_lobe_suppression_auto],
+
+        ['sea_state', settings.sea_state, radar_controller.reports.filter.sea_state],
+
+        ['noise_rejection', settings.noise_rejection, radar_controller.reports.filter.noise_rejection],
+        ['interference_rejection', settings.interference_rejection, radar_controller.reports.setting.interference_rejection],
+
+
+        ['mode', settings.mode, radar_controller.reports.setting.mode],
+        ['target_expansion', settings.target_expansion, radar_controller.reports.setting.target_expansion],
+
+        # bellow are not available on halo 20.
+        # ['local_interference_filter', settings.local_interference_filter, radar_controller.reports.filter.local_interference_filter],
+        # ['target_separation', settings.target_separation, radar_controller.reports.filter.target_separation],
+        # ['target_boost', settings.target_boost, radar_controller.reports.setting.target_boost],
+        # ['doppler_mode', doppler_mode, radar_controller.reports.filter.doppler_mode],
+        # ['doppler_speed' , settings.doppler_speed, radar_controller.reports.filter.doppler_speed],
+        # ['light', settings.light, radar_controller.reports.spatial.light],
+    ]
+    ts=datetime.datetime.now().astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
+    filename = f"radar_settings_{ts}.txt"
+    with open(Path(outpath) / filename, "w") as _f:
+        _f.write(f"{'SETTING':<30}:{'RADAR':>10} |{'CONFIG':>10}")
+        _f.write(f"-"*53) #53 is length of the header change if needed
+        for key, v1, v2 in check_list:
+            _f.write(f"{key:<30}:{v1:>10} |{v1:>10}")
+
+
 def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoRadarController):
     check_list = [
         ['bearing', settings.bearing, radar_controller.reports.spatial.bearing],
@@ -191,34 +232,28 @@ def valide_radar_settings(settings: RadarUserSettings, radar_controller: NavicoR
         ['sea_gain_auto', settings.gain_auto, radar_controller.reports.setting.gain_auto],
         ['sea_clutter', settings.sea_clutter, radar_controller.reports.setting.sea_clutter],
         ['sea_clutter_auto', settings.sea_clutter_auto, radar_controller.reports.setting.sea_clutter_auto],
-        # I think it might be it #unsure
-        ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
-        ['side_lobe_suppression', settings.side_lobe_suppression,
-         radar_controller.reports.filter.side_lobe_suppression],
 
-        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto,
-         radar_controller.reports.filter.side_lobe_suppression_auto],
+        ['rain_clutter', settings.rain_clutter, radar_controller.reports.setting.rain_clutter],
+
+        ['side_lobe_suppression', settings.side_lobe_suppression, radar_controller.reports.filter.side_lobe_suppression],
+        ['side_lobe_suppression_auto', settings.side_lobe_suppression_auto, radar_controller.reports.filter.side_lobe_suppression_auto],
 
         ['sea_state', settings.sea_state, radar_controller.reports.filter.sea_state],
 
         ['noise_rejection', settings.noise_rejection, radar_controller.reports.filter.noise_rejection],
-        ['interference_rejction', settings.interference_rejection,
-         radar_controller.reports.setting.interference_rejection],
-        ['local_interference_filter', settings.local_interference_filter,
-         radar_controller.reports.filter.local_interference_filter],
+        ['interference_rejection', settings.interference_rejection, radar_controller.reports.setting.interference_rejection],
 
-        #assert settings.mode, radar_controller.reports.setting.mode
+
+        ['mode', settings.mode, radar_controller.reports.setting.mode],
         ['target_expansion', settings.target_expansion, radar_controller.reports.setting.target_expansion],
-        ['target_separation', settings.target_separation, radar_controller.reports.filter.target_separation],
-        ['target_boost', settings.target_boost, radar_controller.reports.setting.target_boost],
-        #assert settings.doppler_mode, radar_controller.reports.filter.doppler_mode
-        #assert settings.doppler_speed, radar_controller.reports.filter.doppler_speed
 
-        #settings.light = radar_controller.reports.spatial.light
-
-        #settings.sea_clutter_08c4 = radar_controller.reports.filter.sea_clutter_08c4
-        #settings.sea_clutter_nudge = radar_controller.reports.filter.sea_clutter_nudge
-
+        # bellow are not available on halo 20.
+        # ['local_interference_filter', settings.local_interference_filter, radar_controller.reports.filter.local_interference_filter],
+        # ['target_separation', settings.target_separation, radar_controller.reports.filter.target_separation],
+        # ['target_boost', settings.target_boost, radar_controller.reports.setting.target_boost],
+        # ['doppler_mode', doppler_mode, radar_controller.reports.filter.doppler_mode],
+        # ['doppler_speed' , settings.doppler_speed, radar_controller.reports.filter.doppler_speed],
+        # ['light', settings.light, radar_controller.reports.spatial.light],
     ]
     for key, v1, v2 in check_list:
         try:
@@ -262,11 +297,11 @@ def main_init_sequence(config: dict):
         noise_rejection=config['RADAR_SETTINGS']['noise_rejection'],
 
         interference_rejection=config['RADAR_SETTINGS']['interference_rejection'],
-        local_interference_filter=config['RADAR_SETTINGS']['local_interference_filter'],
+        # local_interference_filter=config['RADAR_SETTINGS']['local_interference_filter'],  # CANT BE SET IN HALO
 
         target_expansion=config['RADAR_SETTINGS']['target_expansion'],
-        target_separation=config['RADAR_SETTINGS']['target_separation'],
-        target_boost=config['RADAR_SETTINGS']['target_boost'],
+        # target_separation=config['RADAR_SETTINGS']['target_separation'], # CANT BE SET IN HALO
+        # target_boost=config['RADAR_SETTINGS']['target_boost'],  # CANT BE SET IN HALO
 
         mode=config['RADAR_SETTINGS']['mode'],
 
@@ -287,7 +322,7 @@ def main_init_sequence(config: dict):
         blanking_s3_stop=config['SECTOR_BLANKING_3']['stop'],
     )
 
-    scan_speed = config['RADAR_SETTINGS']['scan_speed']
+    # scan_speed = config['RADAR_SETTINGS']['scan_speed'] # NOT USE FOR HALO
 
     ### NETWORK ###
     interface_addr = config['NETWORK']['interface_addr']
@@ -311,6 +346,7 @@ def main_init_sequence(config: dict):
 
     output_data_path = Path(output_drive).joinpath(output_data_dir)
     output_report_path = Path(output_drive).joinpath(output_report_dir)
+    output_radar_settings_path = output_report_path.joinpath("radar_settings")
 
     gpio_controller.program_started_led()
 
@@ -348,6 +384,7 @@ def main_init_sequence(config: dict):
     time.sleep(1)  # just to be sure all reports are in and analyzed.
 
     valide_radar_settings(radar_user_settings, radar_controller)
+    write_radar_settings(radar_user_settings, radar_controller, output_radar_settings_path)
     # DO SOMETHING LIKE PRINT REPORT WITH TIMESTAMP IF IT FAILS
 
     # Not working on HALO fix me

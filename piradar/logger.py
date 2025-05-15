@@ -8,7 +8,7 @@ from pathlib import Path
 
 logging.getLogger('asyncio').setLevel(logging.WARNING)
 
-LOG_FILES_PATH = Path("/home/capteur/logs/piradar") #FIXME to be set by user I guess. OR put somwhere else
+LOG_FILES_PATH = Path("/home/capteur/logs/piradar")
 LOG_FILES_PATH.mkdir(exist_ok=True, parents=True)
 
 MAX_COUNT_LOG_FILES = 20

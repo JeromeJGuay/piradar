@@ -4,7 +4,8 @@ from pathlib import Path
 from piradar.navico.navico_structure import *
 
 #path = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\report"
-path= "D:\\report"
+#path= "D:\\report"
+path= "D:\\2025-05-13-bk\\report"
 
 raw_reports = list(Path(path).glob("*.raw"))
 

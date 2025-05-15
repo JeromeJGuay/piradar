@@ -29,3 +29,11 @@ En construction...
   + run the witty/wittypi/wittyPI.sh
     + Sync time with network (opt. 3)
     + chose the schedule_daily_reboot schedule. (opt. 6)
+
+
++ Halo 20 none-available settings (or no directly):
+    + side lobe suppression
+    + local interference filter
+    + target separation
+    + target boost
+    + scan speed
