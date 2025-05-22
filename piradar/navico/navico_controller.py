@@ -1063,10 +1063,10 @@ class RecorderSpokeCounter:
         self.current: int = None
         self.last: int = -1
 
-    def reset(self):
-        self.first = None
-        self.current = None
-        self.last = -1
+    # def reset(self):
+    #     self.first = None
+    #     self.current = None
+    #     self.last = -1
 
     def update(self, spoke_number: int):
         self.current = spoke_number
@@ -1136,7 +1136,7 @@ class RadarDataRecorder:
         if self.spoke_counter.update(spoke_number=spoke_number) == 1:
             self.sector_count += 1
             self.update_filename(self.sector_count)
-            self.spoke_counter.reset()
+            #self.spoke_counter.reset()
             # this means that the file name need to be incremented.
 
         # >= since its start to record at index=0.

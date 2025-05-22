@@ -72,7 +72,7 @@ class PpiLivePlotter:
         plt.show(block=True)
 
     def get_new_files(self):
-        return sorted(list(glob(os.path.join(self.data_directory, "*0.raw")))) #fixme
+        return sorted(list(glob(os.path.join(self.data_directory, "*.raw")))) #fixme
 
         #return sorted(list(glob(os.path.join(self.data_directory, "*.raw"))))  # fixme
 
@@ -159,7 +159,7 @@ class PpiLivePlotter:
 
 if __name__ == "__main__":
     #data_directory = "\\\\capteur-desktop\\2To\\data\\20250512"
-    data_directory = "D:\\data\\20250517\\14"
+    data_directory = "D:\\data\\20250522\\18"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05\\processed"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05"
