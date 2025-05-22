@@ -1079,7 +1079,7 @@ class RecorderSpokeCounter:
             self.last = self.current
             return 0
 
-        if self.current > self.first:
+        if self.current >= self.first:
             self.last = self.current
             return 1
 

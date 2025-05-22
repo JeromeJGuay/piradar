@@ -18,8 +18,8 @@ from piradar.scripts.configs import load_config
 configure_exit_handling()
 
 ### MISSING PARAMETERS
-SCAN_INTERVAL = 30
-NUMBER_OF_SECTOR = 3
+SCAN_INTERVAL = 60
+NUMBER_OF_SECTOR = 5
 
 
 def scan_basic(radar_controller: NavicoRadarController, dt: datetime.datetime, output_data_path: str):

@@ -185,7 +185,7 @@ def unpack_4bit_gray_scale(data):
 
 
 if __name__ == "__main__":
-    path = "D:\\data\\20250517\\01"
+    path = "D:\\data\\20250522\\18"
 
     raw_files = list(Path(path).glob("*.raw"))
 
