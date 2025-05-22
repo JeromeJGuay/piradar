@@ -18,29 +18,27 @@ from piradar.scripts.configs import load_config
 configure_exit_handling()
 
 ### MISSING PARAMETERS
-SCAN_INTERVAL = 60
-NUMBER_OF_SECTOR = 4
+SCAN_INTERVAL = 30
+NUMBER_OF_SECTOR = 3
 
 
 def scan_basic(radar_controller: NavicoRadarController, dt: datetime.datetime, output_data_path: str):
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
 
     if start_transmit(radar_controller) is True:
-        for si in range(NUMBER_OF_SECTOR):
+        output_file = Path(output_data_path).joinpath(f"{time_stamp}")
 
-            scan_output_path = Path(output_data_path).joinpath(f"{time_stamp}_s_{si}")
+        radar_controller.data_recorder.start_sector_recording(
+            output_file=output_file,
+            number_of_sector_to_record=NUMBER_OF_SECTOR,
+        )
 
-            radar_controller.data_recorder.start_sector_recording(
-                output_file=scan_output_path,
-                number_of_sector_to_record=1
-            )
+        gpio_controller.is_recording_led()
 
-            gpio_controller.is_recording_led()
+        while radar_controller.data_recorder.is_recording:
+            time.sleep(.1)  # this will never turn off
 
-            while radar_controller.data_recorder.is_recording:
-                time.sleep(.1)  # this will never turn off
-
-            gpio_controller.is_transmitting_led()
+        gpio_controller.is_transmitting_led()
 
         for _ in range(5):  # tries to shut down radar transmit 5 times at 1sec interval.
             if radar_controller.reports.status.status is RadarStatus.standby:
