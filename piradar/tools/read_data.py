@@ -61,11 +61,16 @@ SPOKE_DATA_FORMAT = "<HH512B"
 SPOKE_DATA_SIZE = struct.calcsize(SPOKE_DATA_FORMAT)
 
 
-def read_raw(raw_file: str, is4bits: bool) -> tuple[np.array, np.array, np.array, np.array]:
+def read_raw(raw_file: str, is4bits: bool, merge=False) -> tuple[np.array, np.array, np.array, np.array]:
     with open(raw_file, "rb") as f:
         raw_data = f.read()
 
-    return load_raw_data(raw_data, is4bits=is4bits)
+    frames_ds = load_raw_data(raw_data, is4bits=is4bits)
+
+    if merge is True:
+        return xr.concat(frames_ds, dim="spoke_number")
+
+    return frames_ds
 
 
 def load_raw_data(raw_data: bytes, is4bits=True):
@@ -148,32 +153,41 @@ def unpack_4bit_gray_scale(data):
     return data_4bit
 
 
-def convert_rawsector_v0_to_raw_frames(raw_file, out_dir, freq=10):
-    #to update TODO
-    with open(raw_file, "rb") as f:
-        raw_data = f.read()
+# def convert_rawsector_v0_to_raw_frames(raw_file, out_dir, freq=10):
+#     #to update TODO
+#     with open(raw_file, "rb") as f:
+#         raw_data = f.read()
+#
+#     frame_counter = 0
+#     for rf in raw_data.split(FRAME_DELIMITER)[1:]:
+#         frame_counter += 1
+#
+#         frame_header = rf[:11]
+#         raw_spoke = b"".join(rf[11:].split(SPOKE_DATA_DELIMITER))
+#
+#         _ts = datetime.datetime.fromtimestamp(struct.unpack(FRAME_HEADER_FORMAT, frame_header)[0], datetime.UTC).strftime("%Y%m%dT%H%M%S%f")
+#         print(_ts, frame_counter, struct.unpack(FRAME_HEADER_FORMAT, frame_header)[0])
+#
+#         _spokes_number = []
+#
+#         for rs in rf[11:].split(SPOKE_DATA_DELIMITER)[1:]:
+#             _spokes_number.append(struct.unpack(SPOKE_DATA_FORMAT, rs)[0])
+#
+#         first_spoke = _spokes_number[0]
+#         last_spoke = _spokes_number[-1]
+#
+#         filename = f"{_ts}_{first_spoke}_{last_spoke}"
+#
+#         with open(Path(out_dir).joinpath(filename).with_suffix(".raw"), "wb") as f:
+#             f.write(FRAME_DELIMITER + frame_header + SPOKE_DATA_DELIMITER + raw_spoke)
+#
+#         time.sleep(1/freq)
 
-    frame_counter = 0
-    for rf in raw_data.split(FRAME_DELIMITER)[1:]:
-        frame_counter += 1
 
-        frame_header = rf[:11]
-        raw_spoke = b"".join(rf[11:].split(SPOKE_DATA_DELIMITER))
+if __name__ == "__main__":
+    path = "D:\\data\\20250522\\18"
 
-        _ts = datetime.datetime.fromtimestamp(struct.unpack(FRAME_HEADER_FORMAT, frame_header)[0], datetime.UTC).strftime("%Y%m%dT%H%M%S%f")
-        print(_ts, frame_counter, struct.unpack(FRAME_HEADER_FORMAT, frame_header)[0])
+    raw_files = list(Path(path).glob("*.raw"))
 
-        _spokes_number = []
+    dss = [read_raw(rf, is4bits=True, merge=True) for rf in raw_files[:4]]
 
-        for rs in rf[11:].split(SPOKE_DATA_DELIMITER)[1:]:
-            _spokes_number.append(struct.unpack(SPOKE_DATA_FORMAT, rs)[0])
-
-        first_spoke = _spokes_number[0]
-        last_spoke = _spokes_number[-1]
-
-        filename = f"{_ts}_{first_spoke}_{last_spoke}"
-
-        with open(Path(out_dir).joinpath(filename).with_suffix(".raw"), "wb") as f:
-            f.write(FRAME_DELIMITER + frame_header + SPOKE_DATA_DELIMITER + raw_spoke)
-
-        time.sleep(1/freq)

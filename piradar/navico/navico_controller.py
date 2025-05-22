@@ -732,7 +732,8 @@ class NavicoRadarController:
                 filename = f"{_ts}_{first_spoke}_{last_spoke}"
                 output_file = str(Path(self.data_recorder.output_dir) / filename)
 
-            self.data_writer.write_frame(output_file=output_file, frame_data=frame_data)
+            if self.data_recorder.is_recording: # check again since it could be stop by check sector recording.
+                self.data_writer.write_frame(output_file=output_file, frame_data=frame_data)
 
     #### Belows are all the commands method ####
 
@@ -1062,6 +1063,11 @@ class RecorderSpokeCounter:
         self.current: int = None
         self.last: int = -1
 
+    # def reset(self):
+    #     self.first = None
+    #     self.current = None
+    #     self.last = -1
+
     def update(self, spoke_number: int):
         self.current = spoke_number
 
@@ -1073,7 +1079,7 @@ class RecorderSpokeCounter:
             self.last = self.current
             return 0
 
-        if self.current > self.first:
+        if self.current >= self.first:
             self.last = self.current
             return 1
 
@@ -1088,6 +1094,7 @@ class RadarDataRecorder:
         self.is_recording = False
         self.is_recording_sector = False
         self.output_dir: str = None # use for continuous
+        self._filename0: str = None
         self.output_file: str = None # use for sector
 
         # Sector Recording #
@@ -1100,12 +1107,17 @@ class RadarDataRecorder:
             logging.warning('Data recording already started')
             return
 
-        self.output_file = format_path_with_dt_subdir(output_file)
         logging.info('Data recording started')
         self.number_of_sector_to_record = number_of_sector_to_record
         self.sector_count = 0
         self.is_recording = True
         self.is_recording_sector = True
+
+        _output_filename = format_path_with_dt_subdir(output_file)
+        self.output_dir = Path(_output_filename).parent
+        self._filename0 = Path(output_file).name
+
+        self.update_filename(self.sector_count)
 
         self.spoke_counter = RecorderSpokeCounter()  # A new counter is made on each call.
 
@@ -1117,11 +1129,18 @@ class RadarDataRecorder:
         self.is_recording_sector = False
         self.is_recording = True
 
-    def check_sector_recording_conditions(self, spoke_number):
-        if self.is_recording_sector is True:
-            self.sector_count += self.spoke_counter.update(spoke_number=spoke_number)
+    def update_filename(self, counter: int):
+        self.output_file = Path(self.output_dir).joinpath(self._filename0 + f"_s{counter:02d}")
 
-            if self.sector_count >= self.number_of_sector_to_record:
+    def check_sector_recording_conditions(self, spoke_number):
+        if self.spoke_counter.update(spoke_number=spoke_number) == 1:
+            self.sector_count += 1
+            self.update_filename(self.sector_count)
+            #self.spoke_counter.reset()
+            # this means that the file name need to be incremented.
+
+        # >= since its start to record at index=0.
+        if self.sector_count >= self.number_of_sector_to_record:
                 logging.info("Sector recorded count reached.")
                 self.stop_recording_data()
 
