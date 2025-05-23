@@ -26,6 +26,12 @@ append_with_backup() {
 HOME=$(eval echo ~"$SUDO_USER")
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
+
+
+# important to do before setting up the wittyPi. So doing it first.
+sudo timedatectl set-timezone UTC
+
+
 #########
 ## ssh ##
 #########
@@ -75,6 +81,7 @@ ifup eth0
 systemctl enable isc-dhcp-server
 #systemctl status isc-dhcp-server
 
+# setting it down for the rest of the isntall
 ifdown eth0
 
 ##################
@@ -89,6 +96,22 @@ mkdir witty
 cd witty
 wget https://www.uugear.com/repo/WittyPi4/install.sh
 yes | sh install.sh
+cd
+
+# program witty
+cd witty
+# copy the schdule file
+cp "$SCRIPT_DIR/schedule_daily_reboot.wpi" "wittypi/schedule.wpi"
+
+# syncing internet time to system and system to rtc (using subshell)
+(
+  source wittypi/utilities.sh
+  net_to_system
+  system_to_rtc
+)
+
+yes | sh wittypi/runScript.sh
+
 cd
 
 ###########
@@ -174,9 +197,6 @@ systemctl enable piradar.service
 
 
 ifup eth0
-
-# Optionnal but setting the time zone to utc
-sudo timedatectl set-timezone UTC
 
 
 echo "reboot required"
