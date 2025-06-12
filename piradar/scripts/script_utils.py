@@ -415,7 +415,7 @@ def main_init_sequence(config: dict):
         radar_controller.enable_sector_blanking(si, False)
 
     # this shoud be put in config. FIXME
-    radar_controller.set_mode("custom")
+    # radar_controller.set_mode("custom")
 
     logging.info("Ready to record.")
     gpio_controller.ready_to_record_led()
@@ -508,15 +508,16 @@ def run_scheduled_scans(radar_controller: NavicoRadarController, scan_interval: 
 
     :return:
     """
-
     scan_watchdog = BaseWatchDog(radar_controller, name="ScanWatchDog")
-    data_watchdog = DataWatchDog(radar_controller)
-
+    data_watchdog = DataWatchDog(radar_controller, name="DataWatchDog")
     dt_next = wait_for_next_scan(scan_interval)
 
     while True:
+
         logging.info(f"Scan Time: {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}")
-        scan_watchdog.watch(interval=2 * scan_interval)  # if the scan never stopped
+        scan_watchdog.watch(interval=scan_interval)  # if the scan never stopped
+        # scan_watchdog needs to be smaller than the scan_interval. Otherwise it could be set up again before the its
+        # sleep time is over.
         data_watchdog.watch(interval=10)  # this raise an error if data are not received after the interval.
 
         scan_func(radar_controller, dt=dt_next, **func_kwargs)
@@ -554,12 +555,22 @@ class BaseWatchDog:
         self.thread = threading.Thread(name=self.name, target=self.duty, daemon=True)
         self.thread.start()
 
+    def wait(self):
+        time_0 = time.time()
+
+        while time.time() - time_0 >= self.interval:
+            if self.stand_down_flag:
+                break
+
+            time.sleep(1)
+
     def duty(self):
-        time.sleep(self.interval)
+        self.wait()
 
         if self.stand_down_flag:
             return
 
+        logging.error(f"Base Watchdog raised.")
         raise NavicoRadarError()
 
     def stand_down(self):
@@ -573,13 +584,16 @@ class DataWatchDog(BaseWatchDog):
         BaseWatchDog.__init__(self, radar_controller=radar_controller, name=name)
 
     def duty(self):
-        time.sleep(self.interval)
+        self.wait()
+
         if self.radar_controller.is_receiving_data:
             self.radar_controller.is_receiving_data = False
             return
 
         if self.stand_down_flag:
             return
+
+        logging.error(f"Data Watchdog raised.")
 
         raise NavicoRadarError()
 

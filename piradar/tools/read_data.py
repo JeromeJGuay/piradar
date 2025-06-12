@@ -96,6 +96,7 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
     frame_data = {
         "spoke_number": [],
         "azimuth": [],
+        "raw_azimuth": [],
         "radius": np.linspace(0, unpacked_header[2], 1024 if is4bits else 512),
         "intensity": []
     }
@@ -108,6 +109,7 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
 
         frame_data["spoke_number"].append(unpacked_spoke[0])
         frame_data["azimuth"].append(unpacked_spoke[1] * 360 / 4096)
+        frame_data["raw_azimuth"].append(unpacked_spoke[1])
 
         if is4bits:
             frame_data["intensity"].append(unpack_4bit_gray_scale(unpacked_spoke[2:]))
@@ -124,7 +126,8 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
     dataset = xr.Dataset(
         {
             "intensity": (["spoke_number", "radius"], frame_data["intensity"]),
-            "time": (["spoke_number"], time)
+            "time": (["spoke_number"], time),
+            "raw_azimuth": (["spoke_number"], frame_data["raw_azimuth"]),
         },
         coords={
             "spoke_number": frame_data["spoke_number"],
@@ -185,9 +188,27 @@ def unpack_4bit_gray_scale(data):
 
 
 if __name__ == "__main__":
-    path = "D:\\data\\20250522\\18"
+    import matplotlib
 
-    raw_files = list(Path(path).glob("*.raw"))
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
 
-    dss = [read_raw(rf, is4bits=True, merge=True) for rf in raw_files[:4]]
+    data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_terrain\\iap\\data\\20250606"
+    raw_files = list(Path(data_directory).rglob("*.raw"))
+
+    i=11
+    dss = [read_raw(rf, is4bits=True, merge=True) for rf in raw_files[i*4:i*4+4]]
+
+    # i:3 -> ra 2398
+    # i:5 -> ra 2398
+
+    plt.figure()
+    plt.plot(dss[0].spoke_number, dss[0].raw_azimuth,'.')
+    #plt.plot(dss[0].spoke_number, dss[0].raw_azimuth)
+    plt.plot(dss[1].spoke_number, dss[1].raw_azimuth, '--')
+    plt.plot(dss[2].spoke_number, dss[2].raw_azimuth, '--')
+    # xr.merge(dss[2]).raw_azimuth.plot()
+    plt.legend()
+    plt.show(block=True)
+    #
 

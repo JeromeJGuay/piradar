@@ -72,8 +72,8 @@ class PpiLivePlotter:
         plt.show(block=True)
 
     def get_new_files(self):
-        return sorted(list(glob(os.path.join(self.data_directory, "*.raw")))) #fixme
-
+        return sorted(list(Path(self.data_directory).rglob("*.raw")))
+        #return sorted(list(Path(self.data_directory).rglob("*[1-3].raw")))
         #return sorted(list(glob(os.path.join(self.data_directory, "*.raw"))))  # fixme
 
     def fade_radar_plot(self):
@@ -129,6 +129,7 @@ class PpiLivePlotter:
         self.ax.set_title(f"Radar PPI - {Path(raw_file).name}")
 
         frames = read_raw(raw_file, is4bits=self.is4bits)
+
         if not frames:
             return None
 
@@ -159,13 +160,15 @@ class PpiLivePlotter:
 
 if __name__ == "__main__":
     #data_directory = "\\\\capteur-desktop\\2To\\data\\20250512"
-    data_directory = "D:\\data\\20250522\\18"
+    #data_directory = "D:\\data\\20250522\\18"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05\\processed"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05"
+    data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_terrain\\iap\\data\\20250606"
     plp = PpiLivePlotter(
         data_directory=data_directory,
         fading_time=.5,
         refresh_rate=.1,
         is_polar=False
     )
+
