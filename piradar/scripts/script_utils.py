@@ -558,7 +558,7 @@ class BaseWatchDog:
     def wait(self):
         time_0 = time.time()
 
-        while time.time() - time_0 >= self.interval:
+        while time.time() - time_0 < self.interval:
             if self.stand_down_flag:
                 break
 
