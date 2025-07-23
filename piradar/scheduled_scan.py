@@ -9,20 +9,21 @@ from piradar.logger import init_logging
 
 from piradar.navico.navico_controller import NavicoRadarController, RadarStatus
 
-from piradar.scripts.gpio_utils import gpio_controller
+from piradar.gpio_utils import gpio_controller
 
-from piradar.scripts.script_utils import main_init_sequence, run_scheduled_scans, NavicoRadarError, start_transmit, configure_exit_handling
+from piradar.scheduled_scan_utils import main_init_sequence, run_scheduled_scans, NavicoRadarError, start_transmit, configure_exit_handling
 
-from piradar.scripts.configs import load_config
+from piradar.configs_utils import load_configs
 
 configure_exit_handling()
 
-### MISSING PARAMETERS
-SCAN_INTERVAL = 60
-NUMBER_OF_SECTOR = 5
 
-
-def scan_basic(radar_controller: NavicoRadarController, dt: datetime.datetime, output_data_path: str):
+def basic_scan(
+        radar_controller: NavicoRadarController,
+        dt: datetime.datetime,
+        output_data_path: str,
+        number_of_sector_to_record: int
+):
     time_stamp = dt.astimezone(datetime.UTC).strftime("%Y%m%dT%H%M%S")
 
     if start_transmit(radar_controller) is True:
@@ -30,7 +31,7 @@ def scan_basic(radar_controller: NavicoRadarController, dt: datetime.datetime, o
 
         radar_controller.data_recorder.start_sector_recording(
             output_file=output_file,
-            number_of_sector_to_record=NUMBER_OF_SECTOR,
+            number_of_sector_to_record=number_of_sector_to_record,
         )
 
         gpio_controller.is_recording_led()
@@ -60,7 +61,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(prog='Halo Radar Continuous Recording')
 
     # Positional argument
-    parser.add_argument("config_path", type=str, help="Path to configuration file")
+    parser.add_argument("configs_dir", type=str, help="Directory path for configurations files")
 
     # Optional argument with specific values and default
     parser.add_argument("-L", "--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -79,7 +80,7 @@ def main():
 
     init_logging(stdout_level=args.log_level, file_level=args.log_level, write=args.write_logging)
 
-    config = load_config(args.config_path)
+    config = load_configs(args.configs_dir)
 
     logging.info("Running Basic Program Script.")
     radar_controller, output_data_path, output_report_path = main_init_sequence(config)
@@ -90,9 +91,10 @@ def main():
     # - No data were received.
     run_scheduled_scans(  # <- Watchdog for receiving data is hidden in here.
         radar_controller=radar_controller,
-        scan_interval=SCAN_INTERVAL,
-        scan_func=scan_basic,
-        output_data_path=output_data_path
+        scan_interval=config['scan_interval'],
+        scan_func=basic_scan,
+        output_data_path=output_data_path,
+        number_of_sector_to_record=config['scan_count'],
     )
 
 

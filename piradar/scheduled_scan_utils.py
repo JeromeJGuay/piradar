@@ -14,7 +14,7 @@ from piradar.navico.navico_controller import NavicoRadarController, RadarStatus,
 
 from piradar.network import check_interface_inet_is_up
 
-from piradar.scripts.gpio_utils import gpio_controller
+from piradar.gpio_utils import gpio_controller
 
 
 def validate_interface(interface):
@@ -31,8 +31,6 @@ def validate_output_drive(output_drive):
 
 def wait_for_rpi_boot(
         output_drive,
-        output_report_path,
-        output_data_path,
         interface_name,
         timeout=60
 ):
@@ -368,8 +366,6 @@ def main_init_sequence(config: dict):
 
     if not wait_for_rpi_boot(  # return flag
             output_drive=output_drive,
-            output_report_path=output_report_path,
-            output_data_path=output_data_path,
             interface_name=interface_name,
             timeout=startup_timeout
     ):
@@ -421,32 +417,6 @@ def main_init_sequence(config: dict):
     gpio_controller.ready_to_record_led()
 
     return radar_controller, output_data_path, output_report_path
-
-
-def set_scan_speed(radar_controller: NavicoRadarController, scan_speed: str, standby=False, max_try=20):
-    # Set proper Scan speed
-    _count = 0
-    if start_transmit(radar_controller) is True:
-        #tries for 1 seconds
-        for _ in range(max_try):
-            if radar_controller.reports.filter.scan_speed != scan_speed:
-                radar_controller.set_scan_speed(scan_speed)
-                time.sleep(1)
-                radar_controller.get_reports()
-
-            else:
-                logging.info(f"Scan Speed set to {scan_speed}")
-                break
-
-        if radar_controller.reports.filter.scan_speed != scan_speed:
-            logging.warning(
-                f"Unable to change scan speed to {scan_speed} from {radar_controller.reports.filter.scan_speed}")
-
-    else:
-        logging.error(f"Unable to change scan speed from {scan_speed}. Radar did not start to transmit.")
-
-    if standby:
-        radar_controller.standby()
 
 
 def start_transmit(radar_controller: NavicoRadarController, max_try=20):

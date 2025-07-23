@@ -1,4 +1,3 @@
-import struct
 from pathlib import Path
 
 from piradar.navico.navico_structure import *

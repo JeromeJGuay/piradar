@@ -1,3 +1,4 @@
+from pathlib import Path
 import configparser
 
 bool_map = {'True': True, 'False': False}
@@ -7,19 +8,21 @@ def as_bool(value):
     return bool_map[value]
 
 
-def load_config(config_path):
+def load_configs(configs_dir):
+
+    navico_config = load_navico_config(Path(configs_dir).joinpath('navico_config.ini'))
+    network_config = load_network_config(Path(configs_dir).joinpath('network_config.ini'))
+    piradar_config = load_piradar_config(Path(configs_dir).joinpath('piradar_config.ini'))
+
+    return {**navico_config, **network_config, **piradar_config}
+
+
+def load_navico_config(config_path):
     config = configparser.ConfigParser()
-#    with open(path_to_config, 'r') as config_file:
+
     config.read(config_path)
 
     fconfig = config._sections
-
-    fconfig['TIMEOUTS']['radar_boot_timeout'] = int(fconfig['TIMEOUTS']['radar_boot_timeout'])
-    fconfig['TIMEOUTS']['raspberry_boot_timeout'] = int(fconfig['TIMEOUTS']['raspberry_boot_timeout'])
-
-    fconfig['NETWORK']['report_port'] = int(config['NETWORK']['report_port'])
-    fconfig['NETWORK']['data_port'] = int(config['NETWORK']['data_port'])
-    fconfig['NETWORK']['send_port'] = int(config['NETWORK']['send_port'])
 
     fconfig['RADAR_SETTINGS']['range'] = int(config['RADAR_SETTINGS']['range'])
     fconfig['RADAR_SETTINGS']['antenna_height'] = float(config['RADAR_SETTINGS']['antenna_height'])
@@ -46,8 +49,39 @@ def load_config(config_path):
     return fconfig
 
 
+def load_network_config(config_path):
+    config = configparser.ConfigParser()
+
+    config.read(config_path)
+
+    fconfig = config._sections
+
+    fconfig['NETWORK']['report_port'] = int(config['NETWORK']['report_port'])
+    fconfig['NETWORK']['data_port'] = int(config['NETWORK']['data_port'])
+    fconfig['NETWORK']['send_port'] = int(config['NETWORK']['send_port'])
+
+    return fconfig
+
+
+def load_piradar_config(config_path):
+    config = configparser.ConfigParser()
+
+    config.read(config_path)
+
+    fconfig = config._sections
+
+    fconfig['TIMEOUTS']['radar_boot_timeout'] = int(config['TIMEOUTS']['radar_boot_timeout'])
+    fconfig['TIMEOUTS']['raspberry_boot_timeout'] = int(config['TIMEOUTS']['raspberry_boot_timeout'])
+
+    fconfig['SCAN']['scan_interval'] = int(config['SCAN']['scan_interval'])
+    fconfig['SCAN']['scan_count'] = int(config['SCAN']['scan_count'])
+
+    return fconfig
+
+
 if __name__ == "__main__":
-    c=load_config("configs/auto_halo_20_configuration.ini")
+    c=load_configs("configs/")
+
     for k, v in c.items():
         for kk, vv in v.items():
             print(k, kk, vv)

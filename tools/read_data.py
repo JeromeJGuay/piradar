@@ -43,8 +43,6 @@ void NavicoReceive::InitializeLookupData() {
   }
 }
 """
-import time
-import random
 from pathlib import Path
 import struct
 import datetime

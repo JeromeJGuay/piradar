@@ -1,6 +1,3 @@
-import datetime
-import os
-from glob import glob
 from pathlib import Path
 
 
@@ -13,7 +10,7 @@ from matplotlib.widgets import Button
 
 from matplotlib.animation import FuncAnimation
 
-from piradar.tools.read_data import read_raw
+from tools.read_data import read_raw
 
 class PpiLivePlotter:
     min_range = 100
