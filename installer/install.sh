@@ -148,7 +148,7 @@ cd
 
 # making local configs file directory
 mkdir "$HOME/.piradar"
-cp "$HOME/program/piradar/piradar/program/configs/" "$HOME/.piradar/"
+cp "$HOME/program/piradar/piradar/configs/*" "$HOME/.piradar/"
 
 
 #####################
@@ -166,7 +166,7 @@ Type=simple
 User=root
 WorkingDirectory=$HOME/program/piradar
 ExecStartPre=ifup eth0
-ExecStart=/bin/bash $HOME/program/piradar/piradar/program/schedule_recording.sh
+ExecStart=/bin/bash $HOME/program/piradar/piradar/scheduled_recording.sh
 Restart=always
 
 [Install]
