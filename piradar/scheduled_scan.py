@@ -58,7 +58,7 @@ def basic_scan(
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(prog='Halo Radar Continuous Recording')
+    parser = argparse.ArgumentParser(prog='Halo Radar Scheduled Scan')
 
     # Positional argument
     parser.add_argument("configs_dir", type=str, help="Directory path for configurations files")

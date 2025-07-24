@@ -148,7 +148,7 @@ cd
 
 # making local configs file directory
 mkdir "$HOME/.piradar"
-cp "$HOME/program/piradar/piradar/configs/*" "$HOME/.piradar/"
+cp "$HOME/program/piradar/piradar/configs/"* "$HOME/.piradar/"
 
 
 #####################

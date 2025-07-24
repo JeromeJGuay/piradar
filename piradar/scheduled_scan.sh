@@ -1,8 +1,6 @@
 #!/bin/bash
 
-#HOME="/home/capteur/"
-
-HOME=$(eval echo ~"$SUDO_USER")
+HOME="/home/capteur/"
 
 PTYHON_INTERPRETER="$HOME/program/piradar/.venv/bin/python3"
 PTYHON_SCRIPT="$HOME/program/piradar/piradar/scheduled_scan.py"
