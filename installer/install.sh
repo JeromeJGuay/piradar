@@ -154,7 +154,9 @@ cp "$HOME/program/piradar/piradar/configs/*" "$HOME/.piradar/"
 #####################
 ## Piradar Service ##
 #####################
-# To test FIXME
+
+PIRADAR_START_SCRIPT="$HOME/program/piradar/piradar/scheduled_scan.sh"
+
 cat > /etc/systemd/system/piradar.service << EOF
 [Unit]
 Description=Start radar run app
@@ -166,7 +168,7 @@ Type=simple
 User=root
 WorkingDirectory=$HOME/program/piradar
 ExecStartPre=ifup eth0
-ExecStart=/bin/bash $HOME/program/piradar/piradar/scheduled_recording.sh
+ExecStart=/bin/bash $PIRADAR_START_SCRIPT
 Restart=always
 
 [Install]

@@ -355,9 +355,9 @@ def main_init_sequence(config: dict):
     )
 
     ### Write data ###
-    output_drive = config['DATA']['drive_path']
-    output_data_dir = config['DATA']['data_dir']
-    output_report_dir = config['DATA']['report_dir']
+    output_drive = config['DRIVES']['drive_path']
+    output_data_dir = config['DRIVES']['data_dir']
+    output_report_dir = config['DRIVES']['report_dir']
 
     output_data_path = Path(output_drive).joinpath(output_data_dir)
     output_report_path = Path(output_drive).joinpath(output_report_dir)
