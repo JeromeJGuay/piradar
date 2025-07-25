@@ -135,7 +135,9 @@ cd
 
 mkdir -p "$HOME/program"
 cd "$HOME/program"
-git clone https://github.com/JeromeJGuay/piradar.git
+#git clone https://github.com/JeromeJGuay/piradar.git
+git clone -b main-v2.0.0 https://github.com/JeromeJGuay/piradar.git
+
 
 cd piradar
 
