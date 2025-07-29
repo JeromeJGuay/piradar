@@ -91,10 +91,10 @@ def main():
     # - No data were received.
     run_scheduled_scans(  # <- Watchdog for receiving data is hidden in here.
         radar_controller=radar_controller,
-        scan_interval=config['scan_interval'],
+        scan_interval=config['SCAN']['scan_interval'],
         scan_func=basic_scan,
         output_data_path=output_data_path,
-        number_of_sector_to_record=config['scan_count'],
+        number_of_sector_to_record=config['SCAN']['scan_count'],
     )
 
 
