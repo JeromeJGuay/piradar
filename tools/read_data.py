@@ -191,22 +191,8 @@ if __name__ == "__main__":
     matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
 
-    data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_terrain\\iap\\data\\20250606"
+    data_directory = r"D:\data\20250606\14"
     raw_files = list(Path(data_directory).rglob("*.raw"))
 
     i=11
-    dss = [read_raw(rf, is4bits=True, merge=True) for rf in raw_files[i*4:i*4+4]]
-
-    # i:3 -> ra 2398
-    # i:5 -> ra 2398
-
-    plt.figure()
-    plt.plot(dss[0].spoke_number, dss[0].raw_azimuth,'.')
-    #plt.plot(dss[0].spoke_number, dss[0].raw_azimuth)
-    plt.plot(dss[1].spoke_number, dss[1].raw_azimuth, '--')
-    plt.plot(dss[2].spoke_number, dss[2].raw_azimuth, '--')
-    # xr.merge(dss[2]).raw_azimuth.plot()
-    plt.legend()
-    plt.show(block=True)
-    #
-
+    ds = read_raw(raw_files[i], is4bits=True, merge=True)

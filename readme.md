@@ -1,26 +1,45 @@
 En construction...
 
-+ Installation sur un rasberry pi4.
+### Raspberry Pi 4
+  + (TODO) Plan de l'électronique de contrôle du radar/gpio 
+  + WittyPi
+ 
 
-+ Mettre à jour raspian OS.
+  + Installation de RaspberryPi OS (64).
+    + Nommé l'utilisateur `capteur`
+    + Nommé l'ordinateur: `capteur-desktop`
+    
++ Mettre à jour de RaspberryPi OS
 
-+ Télécharger l'installateur dans les releases.
++ Télécharger l'installateur dans les releases (v3.0.0).
 
-+ Brancher un disque dur externe
+### Avant l'installation de piradar.
+  + Brancher un disque dur externe.
 
-+ Modifier les fichiers `fstab`.
- - Type the following for UUID: lsblk -o "NAME,UUID,SIZE,LABEL,PATH"
- - fstab: /dev/disk/by-id/...
+  + Modifier les fichiers `fstab` pour ajouter.
+    + Utiliser la commande: lsblk -o "NAME,UUID,SIZE,LABEL,PATH"
+    + Mettre le bon <uuid> ainsi que le nom lecteur externe (2To) dans la ligne:
+     ```
+     /dev/disk/by-uuid/<uuid> media/capteur/2To auto defaults,nofail,umask=000,noatime 0 2
+    ```
 
-
-+ Modifier smb.conf pour les bon noms de disque dur. (/media/capteur/2To)
-
-+ Lancer `install.sh`
-
-+ Dans le repertoire `~/program/piradar/piradar/scripts/` verifier que le path HOME est le bon.
-
-+ SYNC SYSTEM TIME AND SET TO UTC
-
++ Nom lecteur externe `2To` (`/media/capteur/2To`) doit être le même dans :
+  + (avant installation) smb.conf pour le bon nom de lecteur externe.
+  ```ini
+  [2To]
+   path = /media/capteur/2To
+  ```
+### Installation
+```bash
+ sudo bash install.sh
+  ```
+### Après l'installation:
+  + Nom du lecteur externe :
+    + `/home/capteur/.piradar/piradar_config.ini`
+      ```ini
+      [DRIVES]
+      drive_path = /media/capteur/2To
+      ```
 + WITTYPI configuration:
   + todo:
   + stop piradar.service (sudo systemctl stop piradar.service)
@@ -30,10 +49,4 @@ En construction...
     + Sync time with network (opt. 3)
     + chose the schedule_daily_reboot schedule. (opt. 6)
 
-
-+ Halo 20 none-available settings (or no directly):
-    + side lobe suppression
-    + local interference filter
-    + target separation
-    + target boost
-    + scan speed
+### Reboot !

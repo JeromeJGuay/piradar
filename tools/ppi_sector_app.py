@@ -69,9 +69,9 @@ class PpiLivePlotter:
         plt.show(block=True)
 
     def get_new_files(self):
-        return sorted(list(Path(self.data_directory).rglob("*.raw")))
+        #return sorted(list(Path(self.data_directory).rglob("*.raw")))
         #return sorted(list(Path(self.data_directory).rglob("*[1-3].raw")))
-        #return sorted(list(glob(os.path.join(self.data_directory, "*.raw"))))  # fixme
+        return sorted(list(Path(self.data_directory).rglob("*2.raw")))
 
     def fade_radar_plot(self):
         for plot in self.previous_radar_plots:
@@ -125,32 +125,36 @@ class PpiLivePlotter:
         self.file_id += 1
         self.ax.set_title(f"Radar PPI - {Path(raw_file).name}")
 
-        frames = read_raw(raw_file, is4bits=self.is4bits)
+        frame = read_raw(raw_file, is4bits=self.is4bits, merge=True)
+        #frame=frame.isel(spoke_number=slice(0, 2048))
 
-        if not frames:
+        if not frame:
             return None
 
-        for frame in frames:
-            self.max_radius = float(frame.attrs['max_range'])
+        #for frame in frames:
+        self.max_radius = float(frame.attrs['max_range'])
 
-            data = frame['intensity'].values.astype(float)
-            data[data < 1] = np.nan
+        data = frame['intensity'].values.astype(float)
+        data[data < 1] = np.nan
 
-            if self.is_polar:
-                radar_plot = self.ax.contourf(
-                    frame['azimuth'], frame['radius'], data.T,
-                    levels=16 if self.is4bits else 256, cmap="viridis", alpha=1
-                )
-            else:
-                x_coord = frame['radius'] * np.sin(frame['azimuth'])
-                y_coord = frame['radius'] * np.cos(frame['azimuth'])
+        heading=-10
+        frame['azimuth'] = frame['azimuth'] - np.deg2rad(heading)
 
-                radar_plot = self.ax.contourf(
-                    x_coord, y_coord, data.T,
+        if self.is_polar:
+            radar_plot = self.ax.contourf(
+                frame['azimuth'], frame['radius'], data.T,
                 levels=16 if self.is4bits else 256, cmap="viridis", alpha=1
-                )
+            )
+        else:
+            x_coord = frame['radius'] * np.sin(frame['azimuth'])
+            y_coord = frame['radius'] * np.cos(frame['azimuth'])
 
-            self.previous_radar_plots.append(radar_plot)
+            radar_plot = self.ax.contourf(
+                x_coord, y_coord, data.T,
+            levels=16 if self.is4bits else 256, cmap="viridis", alpha=1
+            )
+
+        self.previous_radar_plots.append(radar_plot)
 
         return radar_plot
 
@@ -161,11 +165,11 @@ if __name__ == "__main__":
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05\\processed"
     # data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\frames"
     #data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_data\\test_2025-05-05"
-    data_directory = "C:\\Users\\guayj\\Documents\\workspace\\data\\radar_test_terrain\\iap\\data\\20250606"
+    data_directory = r"C:\Users\guayj\Documents\workspace\data\radar_2025-07-30\10km\ivo\data\20250730\17"
     plp = PpiLivePlotter(
         data_directory=data_directory,
         fading_time=.5,
-        refresh_rate=.1,
-        is_polar=False
+        refresh_rate=1,
+        is_polar=True
     )
 
