@@ -1,48 +1,3 @@
-"""
-void NavicoReceive::InitializeLookupData() {
-  if (lookupData[5][255] == 0) {
-    for (int j = 0; j <= UINT8_MAX; j++) {
-      uint8_t low = lookupNibbleToByte[(j & 0x0f)];
-      uint8_t high = lookupNibbleToByte[(j & 0xf0) >> 4];
-
-      lookupData[LOOKUP_SPOKE_LOW_NORMAL][j] = (uint8_t)low;
-      lookupData[LOOKUP_SPOKE_HIGH_NORMAL][j] = (uint8_t)high;
-
-      switch (low) {
-        case 0xf4:
-          lookupData[LOOKUP_SPOKE_LOW_BOTH][j] = 0xff;
-          lookupData[LOOKUP_SPOKE_LOW_APPROACHING][j] = 0xff;
-          break;
-
-        case 0xe8:
-          lookupData[LOOKUP_SPOKE_LOW_BOTH][j] = 0xfe;
-          lookupData[LOOKUP_SPOKE_LOW_APPROACHING][j] = (uint8_t)low;
-          break;
-
-        default:
-          lookupData[LOOKUP_SPOKE_LOW_BOTH][j] = (uint8_t)low;
-          lookupData[LOOKUP_SPOKE_LOW_APPROACHING][j] = (uint8_t)low;
-      }
-
-      switch (high) {
-        case 0xf4:
-          lookupData[LOOKUP_SPOKE_HIGH_BOTH][j] = 0xff;
-          lookupData[LOOKUP_SPOKE_HIGH_APPROACHING][j] = 0xff;
-          break;
-
-        case 0xe8:
-          lookupData[LOOKUP_SPOKE_HIGH_BOTH][j] = 0xfe;
-          lookupData[LOOKUP_SPOKE_HIGH_APPROACHING][j] = (uint8_t)high;
-          break;
-
-        default:
-          lookupData[LOOKUP_SPOKE_HIGH_BOTH][j] = (uint8_t)high;
-          lookupData[LOOKUP_SPOKE_HIGH_APPROACHING][j] = (uint8_t)high;
-      }
-    }
-  }
-}
-"""
 from pathlib import Path
 import struct
 import datetime
@@ -85,8 +40,6 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
     spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
     """
 
-    #frame_header = struct.unpack(FRAME_HEADER, raw_frame[:FRAME_HEADER_SIZE])  # Size of <lBHHH is 11
-
     raw_header, raw_spokes = raw_frame.split(SPOKE_DATA_DELIMITER)[:2]
 
     unpacked_header = struct.unpack(FRAME_HEADER_FORMAT, raw_header)
@@ -126,6 +79,8 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
             "intensity": (["spoke_number", "radius"], frame_data["intensity"]),
             "time": (["spoke_number"], time),
             "raw_azimuth": (["spoke_number"], frame_data["raw_azimuth"]),
+
+
         },
         coords={
             "spoke_number": frame_data["spoke_number"],
@@ -143,6 +98,51 @@ def load_frame_data(raw_frame: bytes, is4bits=True) -> xr.Dataset:
     return dataset
 
 
+def load_frame_data_2(raw_frame: bytes, is4bits=True) -> xr.Dataset:
+    """
+    spoke_data.angle = _spoke_angle * 360 / 4096  # 0..4096 = 0..360
+    """
+
+    raw_header, raw_spokes = raw_frame.split(SPOKE_DATA_DELIMITER)[:2]
+
+    unpacked_header = struct.unpack(FRAME_HEADER_FORMAT, raw_header)
+
+    frame_data = {
+        "spoke_number": [],
+        "azimuth": [],
+        "raw_azimuth": [],
+        "radius": np.linspace(0, unpacked_header[2], 1024 if is4bits else 512),
+        "intensity": []
+    }
+
+    byte_pointer = 0
+    while byte_pointer + SPOKE_DATA_SIZE <= len(raw_spokes):
+        _raw_spoke = raw_spokes[byte_pointer: byte_pointer + SPOKE_DATA_SIZE]
+        unpacked_spoke = struct.unpack(SPOKE_DATA_FORMAT, _raw_spoke)
+        byte_pointer += SPOKE_DATA_SIZE
+
+        frame_data["spoke_number"].append(unpacked_spoke[0])
+        frame_data["azimuth"].append(unpacked_spoke[1] * 360 / 4096)
+        frame_data["raw_azimuth"].append(unpacked_spoke[1])
+
+        if is4bits:
+            frame_data["intensity"].append(unpack_4bit_gray_scale(unpacked_spoke[2:]))
+        else:
+            frame_data["intensity"].append(unpacked_spoke[2:])
+
+    for k in ["spoke_number", "azimuth", "intensity"]:
+        frame_data[k] = np.array(frame_data[k])
+
+    time = ["nat"] * frame_data['azimuth'].shape[0]
+    time[-1] = datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S")
+    time = np.array(time, dtype='datetime64[ns]')
+
+
+    frame_data['time'] = time
+
+    return frame_data
+
+
 def unpack_4bit_gray_scale(data):
     data_4bit = []
     for _bytes in data:
@@ -154,45 +154,41 @@ def unpack_4bit_gray_scale(data):
     return data_4bit
 
 
-# def convert_rawsector_v0_to_raw_frames(raw_file, out_dir, freq=10):
-#     #to update TODO
-#     with open(raw_file, "rb") as f:
-#         raw_data = f.read()
-#
-#     frame_counter = 0
-#     for rf in raw_data.split(FRAME_DELIMITER)[1:]:
-#         frame_counter += 1
-#
-#         frame_header = rf[:11]
-#         raw_spoke = b"".join(rf[11:].split(SPOKE_DATA_DELIMITER))
-#
-#         _ts = datetime.datetime.fromtimestamp(struct.unpack(FRAME_HEADER_FORMAT, frame_header)[0], datetime.UTC).strftime("%Y%m%dT%H%M%S%f")
-#         print(_ts, frame_counter, struct.unpack(FRAME_HEADER_FORMAT, frame_header)[0])
-#
-#         _spokes_number = []
-#
-#         for rs in rf[11:].split(SPOKE_DATA_DELIMITER)[1:]:
-#             _spokes_number.append(struct.unpack(SPOKE_DATA_FORMAT, rs)[0])
-#
-#         first_spoke = _spokes_number[0]
-#         last_spoke = _spokes_number[-1]
-#
-#         filename = f"{_ts}_{first_spoke}_{last_spoke}"
-#
-#         with open(Path(out_dir).joinpath(filename).with_suffix(".raw"), "wb") as f:
-#             f.write(FRAME_DELIMITER + frame_header + SPOKE_DATA_DELIMITER + raw_spoke)
-#
-#         time.sleep(1/freq)
+def get_file_by_scan(path):
+    scan_groups = {}
+    raw_files = list(Path(path).rglob("*.raw"))
+    for rf in raw_files:
+        scan_dt = rf.name.split("_")[0]
+        if scan_dt in scan_groups:
+            scan_groups[scan_dt].append(rf)
+        else:
+            scan_groups[scan_dt] = [rf]
+    return scan_groups
 
 
 if __name__ == "__main__":
     import matplotlib
-
     matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
 
-    data_directory = r"D:\data\20250606\14"
-    raw_files = list(Path(data_directory).rglob("*.raw"))
+    #data_directory = r"D:\data\20250606\14"
+    data_directory = r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\iap_2025-07-16\data\20250606"
 
-    i=11
-    ds = read_raw(raw_files[i], is4bits=True, merge=True)
+    #raw_files = list(Path(data_directory).rglob("*.raw"))
+
+    grouped_raw = get_file_by_scan(data_directory)
+
+    ds_list = []
+
+    #for rf in list(grouped_raw.values())[0]:
+    #    ds_list.append(read_raw(rf, is4bits=True, merge=True))
+    #ds = xr.concat(ds_list, 'scan')
+
+    rf=list(grouped_raw.values())[0][0]
+
+    ds = read_raw(rf,is4bits=True, merge=True)
+
+    azimuth = ds['azimuth'].values
+
+    _cuts = np.where(np.diff(azimuth) < 0)[0] + 1
+
