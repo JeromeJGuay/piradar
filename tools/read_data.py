@@ -172,7 +172,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     #data_directory = r"D:\data\20250606\14"
-    data_directory = r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\iap_2025-07-16\data\20250606"
+    data_directory = r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\iap_2025-07-16\data\20250607"
 
     #raw_files = list(Path(data_directory).rglob("*.raw"))
 
@@ -184,11 +184,9 @@ if __name__ == "__main__":
     #    ds_list.append(read_raw(rf, is4bits=True, merge=True))
     #ds = xr.concat(ds_list, 'scan')
 
-    rf=list(grouped_raw.values())[0][0]
+    rf = list(grouped_raw.values())[3]
 
-    ds = read_raw(rf,is4bits=True, merge=True)
+    ds = read_raw(rf[0],is4bits=True, merge=True)
+    print(ds.sizes)
 
-    azimuth = ds['azimuth'].values
-
-    _cuts = np.where(np.diff(azimuth) < 0)[0] + 1
 
