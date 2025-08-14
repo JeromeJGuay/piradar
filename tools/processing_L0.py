@@ -6,6 +6,9 @@ import numpy as np
 import xarray as xr
 import scipy as sp
 
+
+from tools.pool_utils import pool_function, starpool_function
+
 FRAME_DELIMITER = b"FH"
 FRAME_HEADER_FORMAT = "<LBHHH"
 FRAME_HEADER_SIZE = struct.calcsize(FRAME_HEADER_FORMAT) #11
@@ -13,6 +16,7 @@ FRAME_HEADER_SIZE = struct.calcsize(FRAME_HEADER_FORMAT) #11
 SPOKE_DATA_DELIMITER = b"SD"
 SPOKE_DATA_FORMAT = "<HH512B"
 SPOKE_DATA_SIZE = struct.calcsize(SPOKE_DATA_FORMAT)
+
 
 def radar_processing_L0(
         raw_root_path: str,
@@ -22,12 +26,15 @@ def radar_processing_L0(
         lat,
         lon,
 ):
+    start_time = datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
 
     for day_path in Path(raw_root_path).iterdir():
         scan_day = day_path.stem
-        if (datetime.datetime.strptime(scan_day, "%Y%m%d") - start_time).total_seconds() < 0:
+        if (datetime.datetime.strptime(scan_day, "%Y%m%d").date() - start_time.date()).total_seconds() < 0:
             print("Skipping", scan_day)
             continue
+
+        args_list = []
 
         for hour_path in day_path.iterdir():
             scan_hour = hour_path.stem
@@ -41,24 +48,30 @@ def radar_processing_L0(
 
             scan_groups = get_file_by_scan(raw_root_path, day=scan_day, hour=scan_hour)
 
-            for ts, raw_files in scan_groups.items():
-                _ds = _radar_scan_processing_L0(
-                    ts=ts,
-                    raw_files=raw_files,
-                    heading=0,
-                    latlon=latlon,
-                 )
-
-                fname = "_".join([
+            args_list += [
+                (
+                    raw_files,
+                    heading,
+                    lat,
+                    lon,
                     station,
-                    "L0",
-                    ts,
-                ])
+                    out_dir,
+                )
+                for raw_files in scan_groups.values()
+            ]
 
-                _ds.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf")
+        starpool_function(_radar_scan_processing_L0, args_list)
 
-                print(f"{station} | {ts} | L0 Done")
-
+            # for ts, raw_files in scan_groups.items():
+            #     _ds = _radar_scan_processing_L0(
+            #         raw_files=raw_files,
+            #         #ts=ts,
+            #         heading=heading,
+            #         lat=lat,
+            #         lon=lon,
+            #         station=station,
+            #         out_dir=out_dir,
+            #      )
 
 def get_file_by_scan(path, day, hour):
     scan_groups = {}
@@ -73,11 +86,16 @@ def get_file_by_scan(path, day, hour):
 
 
 def _radar_scan_processing_L0(
-        ts: str,
         raw_files: str,
+    #    ts: str,
         heading: float,
-        latlon: (float, float)
+        lat: float,
+        lon: float,
+        station: str,
+        out_dir: str,
 ):
+
+    ts = raw_files[0].name.split("_")[0]
 
     data = load_raw_scans(raw_files, is4bits=False)
 
@@ -94,26 +112,31 @@ def _radar_scan_processing_L0(
     dataset = dataset.isel(scan=slice(1, None))
 
     # add metadata
-    dataset.attrs['lat'] = latlon[0]
-    dataset.attrs['lon'] = latlon[1]
+    dataset.attrs['lat'] = lat
+    dataset.attrs['lon'] = lon
     dataset.attrs['processing'] = "piradar L0"
     dataset.attrs['processing_date'] = datetime.datetime.now().date().isoformat()
+
+    ### OUTPUT TO NETCDF ###
+    fname = "_".join([
+        station,
+        "L0",
+        ts,
+    ])
+
+    dataset.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf")
+
+    print(f"{station} | {ts} | L0 Done")
 
     return dataset
 
 
-def load_raw_scans(raw_files: str, is4bits=True):
+def load_raw_scans(raw_files: list[str], is4bits=True):
 
     frames = []
+
     for raw_file in raw_files:
-
-        with open(raw_file, "rb") as f:
-            raw_data = f.read()
-
-        for rf in raw_data.split(FRAME_DELIMITER)[1:]:
-            uf = unpack_raw_frame(raw_frame=rf, is4bits=is4bits)
-            uf['time'] = [uf['time']] * len(uf['spoke_number'])
-            frames.append(uf)
+        frames += _load_raw_scan_frames(raw_file=raw_file, is4bits=is4bits)
 
     data = {
         "range": [],
@@ -138,6 +161,28 @@ def load_raw_scans(raw_files: str, is4bits=True):
     data['time'] = np.array(data['time'], dtype='datetime64[s]')
 
     return data
+
+
+def _load_raw_scan_frames(raw_file: str, is4bits=True):
+    frames = []
+
+    with open(raw_file, "rb") as f:
+        raw_data = f.read()
+
+    for rf in raw_data.split(FRAME_DELIMITER)[1:]:
+        try:
+            uf = unpack_raw_frame(raw_frame=rf, is4bits=is4bits)
+        except ValueError:
+            print(f"Bad frame in {Path(raw_file).name}")
+            continue
+        except struct.error:
+            print(f"Bad frame in {Path(raw_file).name}")
+            continue
+
+        uf['time'] = [uf['time']] * len(uf['spoke_number'])
+        frames.append(uf)
+
+    return frames
 
 
 def unpack_raw_frame(raw_frame, is4bits=True):
@@ -175,6 +220,8 @@ def unpack_raw_frame(raw_frame, is4bits=True):
     return unpacked_frame
 
 
+# this could be removed since it would take too much place to save in 4 bits.
+# should be a function for later processing.
 def unpack_4bit_gray_scale(data):
     data_4bit = []
     for _bytes in data:
@@ -280,19 +327,11 @@ def correct_azimuth_misalignment(data: dict):
 
 def make_dataset_volume(data: dict, ts, is4bits=True, heading=0) -> xr.Dataset:
 
-    # Get the raw azimuth coordinates and making it start a 0.
-    # The offset is subtracted the heading to re-oriented the data later.
-
     uniques, count = np.unique(data['raw_azimuth'], return_counts=True)
     n_azimuth = len(uniques)
     n_scan = count.max()
 
     raw_azimuth_coord = data['raw_azimuth'][:n_azimuth]
-    #raw_azimuth_coord_offset = raw_azimuth_coord[0]
-    #raw_azimuth_coord_0 = (raw_azimuth_coord - raw_azimuth_coord_offset) % 4096
-
-    # this value should be subtracted to the azimuth to get true orientation.
-    # heading = heading - np.rad2deg(convert_raw_azimuth(raw_azimuth_coord_offset))
 
     intensity = data['intensity'].reshape((n_scan, n_azimuth, data['intensity'].shape[1]))
 
@@ -307,7 +346,6 @@ def make_dataset_volume(data: dict, ts, is4bits=True, heading=0) -> xr.Dataset:
         frame_time.astype('datetime64[s]'),
         dims=["scan", 'azimuth']
     ).mean("scan")
-
 
     dataset = xr.Dataset(
         {
@@ -339,14 +377,13 @@ def make_dataset_volume(data: dict, ts, is4bits=True, heading=0) -> xr.Dataset:
     return dataset
 
 
-
 def compute_radius(range: int | float, is4bits=True) -> np.ndarray:
     return np.linspace(0, range, 1024 if is4bits else 512)
 
 
 if __name__ == "__main__":
 
-    station = "ivo"
+    station = "ir"
 
     latlons = {
         "ive": [48.051246, -69.423985],
@@ -358,7 +395,7 @@ if __name__ == "__main__":
     headings = {
         "ive": 0,
         "ivo": 0,
-        "ir": 0,
+        "ir": -25,
         "iap": 0
     }
 
@@ -376,52 +413,18 @@ if __name__ == "__main__":
         "iap": ("2025-06-05T21:55:00", "2025-07-16T12:00:00")
     }
 
-    latlon = latlons[station]
+    lat, lon = latlons[station]
     raw_root_path = data_directories[station]
     heading = headings[station]
     recording_sequence = recording_sequences[station]
     out_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     start_time = recording_sequence[0]
 
-    #####
-    # PROCESSING L0
-
-    start_time = datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
-
-    for day_path in Path(raw_root_path).iterdir():
-        scan_day = day_path.stem
-        if (datetime.datetime.strptime(scan_day, "%Y%m%d") - start_time).total_seconds() < 0:
-            print("Skipping", scan_day)
-            continue
-
-        for hour_path in day_path.iterdir():
-            scan_hour = hour_path.stem
-            if (datetime.datetime.strptime(scan_day+scan_hour, "%Y%m%d%H") - start_time).total_seconds() < 0:
-                print("Skipping", scan_day, scan_hour)
-                continue
-
-            out_dir = Path(out_root_path).joinpath(station, scan_day, scan_hour)
-
-            Path(out_dir).mkdir(parents=True, exist_ok=True)
-
-            scan_groups = get_file_by_scan(raw_root_path, day=scan_day, hour=scan_hour)
-
-            for ts, raw_files in scan_groups.items():
-                _ds = _radar_scan_processing_L0(
-                    ts=ts,
-                    raw_files=raw_files,
-                    heading=0,
-                    latlon=latlon,
-                 )
-
-                fname = "_".join([
-                    station,
-                    "L0",
-                    ts,
-                ])
-
-                _ds.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf")
-
-                print(f"{station} | {ts} | L0 Done")
-
-        break
+    radar_processing_L0(
+        raw_root_path=raw_root_path,
+        out_root_path=out_root_path,
+        start_time=start_time,
+        heading=heading,
+        lat=lat,
+        lon=lon,
+    )

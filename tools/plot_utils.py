@@ -72,3 +72,70 @@ def basic_radar_plot(dataset: xr.Dataset, zoom=None, is_polar: bool = False,
         plt.tight_layout()
 
     return fig
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+
+    import cartopy
+    import cartopy.crs as ccrs
+    import cartopy.io.shapereader as shapereader
+
+    from processing_L1 import compute_lonlat_coordinates
+
+    path_to_nhnl_shp = r"C:\Users\guayj\Documents\workspace\data\national_hydro_network_layers_shapefile"
+
+    bank_shp_list = list(Path(path_to_nhnl_shp).glob("*BANK*.shp"))
+
+    bank_shp_data = [shapereader.Reader(_shp) for _shp in bank_shp_list]
+
+    data_dir = r"E:\OPP\ppo-qmm_analyses\data\radar\L1\ir\20250607"
+
+    L1_file = Path(data_dir).joinpath("ir_L1_20250607_00.nc")
+
+    ds = xr.open_dataset(L1_file)
+
+    ds.attrs['heading'] = 25
+
+
+    ds = compute_lonlat_coordinates(ds)
+
+    extent = np.array([
+        ds['lon'].min(),
+        ds['lon'].max(),
+        ds['lat'].min(),
+        ds['lat'].max(),
+    ])
+
+    central_lon = np.mean(extent[:2])
+    central_lat = np.mean(extent[2:])
+
+    plt.figure(figsize=(12, 8))
+
+    #ax = plt.axes(projection=ccrs.AlbersEqualArea(central_lon, central_lat))
+    ax = plt.axes(projection=ccrs.PlateCarree(central_lon))
+    ax.set_extent(extent)
+
+    for bank_shp in bank_shp_data:
+        ax.add_geometries(bank_shp.geometries(), ccrs.PlateCarree(), facecolor='lightgray', edgecolor='black')
+
+    radar_image = ds.max('time')['mean'].values
+
+    radar_image[radar_image == 0] = np.nan
+
+    im = ax.contourf(
+        ds.lon,
+        ds.lat,
+        radar_image,
+        zorder=100,
+        levels=255,
+        transform=ccrs.PlateCarree()
+    )
+
+    plt.colorbar(im, ax=ax, shrink=0.5)
+
+    ax.gridlines(draw_labels=True, lw=1.2, edgecolor="darkblue", zorder=12, facecolor='wheat')
+
+    plt.legend()
+
+    plt.show(block=True)

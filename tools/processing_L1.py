@@ -11,8 +11,8 @@ from tools.coordinate_transform import polar_to_cartesian, xy_to_en
 def integrate_scan(dataset: xr.Dataset) -> xr.Dataset:
     return xr.Dataset(
         {
-            "mean": dataset.intensity.mean("scan"),
-            "std": dataset.intensity.std("scan")
+            "mean": dataset.intensity.mean("scan").astype(np.float32),
+            "std": dataset.intensity.std("scan").astype(np.float32)
         },
         attrs={
             'processing': "piradar L1",
@@ -42,8 +42,10 @@ def convert_raw_azimuth(raw_azimuth: np.ndarray):
 
 
 def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
-    x_grid = dataset['radius'] * np.sin(dataset['azimuth'])
-    y_grid = dataset['radius'] * np.cos(dataset['azimuth'])
+    azimuth = dataset['azimuth'] + np.deg2rad(dataset.attrs['heading'])
+
+    x_grid = dataset['radius'] * np.sin(azimuth)
+    y_grid = dataset['radius'] * np.cos(azimuth)
 
     xy_grid = np.array([x_grid, y_grid]).T
 
@@ -64,11 +66,12 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
 
 
 if __name__ == "__main__":
-    station = "ivo"
+    station = "ir"
 
     L0_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     L1_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L1"
     ###
+
     # PROCESSING L1
     for day_path in Path(L0_root_path).joinpath(station).iterdir():
         scan_day = day_path.stem
@@ -103,30 +106,18 @@ if __name__ == "__main__":
                 scan_hour,
             ])
 
-            ds.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf")
+            encoding = {
+                "mean": dict(zlib=True, complevel=5),
+                "std": dict(zlib=True, complevel=5)
+            }
+
+            ds.to_netcdf(
+                Path(out_dir).joinpath(f"{fname}.nc"),
+                engine="h5netcdf",
+                encoding=encoding
+            )
             print(fname)
-            # break
-
-    # import matplotlib
-    #
-    # matplotlib.use('Qt5Agg')
-    # import matplotlib.pyplot as plt
-    #
-    # #radar_image = ds.isel(time=0)['mean'].values
-    # radar_image = ds.mean('time')['mean'].values
-    #
-    # radar_image[radar_image == 0] = np.nan
-    #
-    # plt.figure()
-    # plt.contourf(
-    #     ds.lon,
-    #     ds.lat,
-    #     radar_image,
-    # )
-    #
-    # plt.show(block=True)
-
-
+            break
 
 
 
