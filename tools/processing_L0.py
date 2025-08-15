@@ -6,8 +6,9 @@ import numpy as np
 import xarray as xr
 import scipy as sp
 
-
+from tools.unpack_utils import load_raw_file
 from tools.pool_utils import pool_function, starpool_function
+
 
 FRAME_DELIMITER = b"FH"
 FRAME_HEADER_FORMAT = "<LBHHH"
@@ -18,14 +19,7 @@ SPOKE_DATA_FORMAT = "<HH512B"
 SPOKE_DATA_SIZE = struct.calcsize(SPOKE_DATA_FORMAT)
 
 
-def radar_processing_L0(
-        raw_root_path: str,
-        out_root_path: str,
-        start_time: str,
-        heading,
-        lat,
-        lon,
-):
+def radar_processing_L0(raw_root_path: str, out_root_path: str, start_time: str, heading: float, lat:float, lon: float):
     start_time = datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
 
     for day_path in Path(raw_root_path).iterdir():
@@ -46,7 +40,7 @@ def radar_processing_L0(
 
             Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-            scan_groups = get_file_by_scan(raw_root_path, day=scan_day, hour=scan_hour)
+            grouped_scan_files = get_files_grouped_by_scan(raw_root_path, day=scan_day, hour=scan_hour)
 
             args_list += [
                 (
@@ -57,23 +51,16 @@ def radar_processing_L0(
                     station,
                     out_dir,
                 )
-                for raw_files in scan_groups.values()
+                for raw_files in grouped_scan_files.values()
             ]
+
+        if len(args_list) == 0:
+            continue
 
         starpool_function(_radar_scan_processing_L0, args_list)
 
-            # for ts, raw_files in scan_groups.items():
-            #     _ds = _radar_scan_processing_L0(
-            #         raw_files=raw_files,
-            #         #ts=ts,
-            #         heading=heading,
-            #         lat=lat,
-            #         lon=lon,
-            #         station=station,
-            #         out_dir=out_dir,
-            #      )
 
-def get_file_by_scan(path, day, hour):
+def get_files_grouped_by_scan(path, day, hour):
     scan_groups = {}
     raw_files = list(Path(path).joinpath(day, hour).glob("*.raw"))
     for rf in raw_files:
@@ -85,30 +72,25 @@ def get_file_by_scan(path, day, hour):
     return scan_groups
 
 
-def _radar_scan_processing_L0(
-        raw_files: str,
-    #    ts: str,
-        heading: float,
-        lat: float,
-        lon: float,
-        station: str,
-        out_dir: str,
-):
+def _radar_scan_processing_L0(raw_files: str, heading: float, lat: float, lon: float,station: str,out_dir: str)->xr.Dataset:
 
-    ts = raw_files[0].name.split("_")[0]
+    ts = Path(raw_files[0]).name.split("_")[0]
 
-    data = load_raw_scans(raw_files, is4bits=False)
+    data = load_raw_scans(raw_files)
 
-    fill_data_for_missing_spoke(data)
+    try:
+        fill_data_for_missing_spoke(data)
 
-    pad_data_for_incomplete_scan(data)
+        pad_data_for_incomplete_scan(data)
 
-    correct_azimuth_misalignment(data)
+        correct_azimuth_misalignment(data)
 
-    dataset = make_dataset_volume(data=data, ts=ts, is4bits=False, heading=heading)
+        dataset = make_dataset_volume(data=data, ts=ts, heading=heading)
+    except ValueError as e:
+        print(ts, e, "#######################")
+        return None
 
     # Removing the first scan as a precaution
-
     dataset = dataset.isel(scan=slice(1, None))
 
     # add metadata
@@ -131,12 +113,9 @@ def _radar_scan_processing_L0(
     return dataset
 
 
-def load_raw_scans(raw_files: list[str], is4bits=True):
+def load_raw_scans(raw_files: list[str]) -> dict[np.ndarray]:
 
-    frames = []
-
-    for raw_file in raw_files:
-        frames += _load_raw_scan_frames(raw_file=raw_file, is4bits=is4bits)
+    #frames = []
 
     data = {
         "range": [],
@@ -146,94 +125,28 @@ def load_raw_scans(raw_files: list[str], is4bits=True):
         "intensity": [],
     }
 
-    for frame in frames:
+    for raw_file in raw_files:
+        #frames += load_raw_file(raw_file=raw_file, is4bits=is4bits)
+        frame = load_raw_file(raw_file=raw_file, is4bits=False)
+
+    #for frame in frames:
         data['range'].append(frame['range'])
         data['time'] += frame['time']
         data['spoke_number'] += frame['spoke_number']
         data['raw_azimuth'] += frame['raw_azimuth']
         data['intensity'] += frame['intensity']
 
-    data['spoke_number'] = np.array(data['spoke_number'])
-
+    # Convert to numpy array with proper types.
+    data['spoke_number'] = np.array(data['spoke_number'], dtype=np.uint16)
     data['raw_azimuth'] = np.array(data['raw_azimuth'], dtype=float)
     data['intensity'] = np.array(data['intensity'], dtype=float)
-
     data['time'] = np.array(data['time'], dtype='datetime64[s]')
+    data['range'] = np.array(data['range'], dtype=float) # may int ? FIXME
 
     return data
 
 
-def _load_raw_scan_frames(raw_file: str, is4bits=True):
-    frames = []
-
-    with open(raw_file, "rb") as f:
-        raw_data = f.read()
-
-    for rf in raw_data.split(FRAME_DELIMITER)[1:]:
-        try:
-            uf = unpack_raw_frame(raw_frame=rf, is4bits=is4bits)
-        except ValueError:
-            print(f"Bad frame in {Path(raw_file).name}")
-            continue
-        except struct.error:
-            print(f"Bad frame in {Path(raw_file).name}")
-            continue
-
-        uf['time'] = [uf['time']] * len(uf['spoke_number'])
-        frames.append(uf)
-
-    return frames
-
-
-def unpack_raw_frame(raw_frame, is4bits=True):
-
-    raw_header, raw_spokes = raw_frame.split(SPOKE_DATA_DELIMITER)[:2]
-
-    unpacked_header = struct.unpack(FRAME_HEADER_FORMAT, raw_header)
-
-    unpacked_frame = {
-        "range": unpacked_header[2],
-        "time": datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S"),
-        "spoke_number": [],
-        "raw_azimuth": [],
-        "intensity": []
-    }
-
-    byte_pointer = 0
-    while byte_pointer + SPOKE_DATA_SIZE <= len(raw_spokes):
-        _raw_spoke = raw_spokes[byte_pointer: byte_pointer + SPOKE_DATA_SIZE]
-        unpacked_spoke = struct.unpack(SPOKE_DATA_FORMAT, _raw_spoke)
-        byte_pointer += SPOKE_DATA_SIZE
-
-        unpacked_frame["spoke_number"].append(unpacked_spoke[0])
-        unpacked_frame["raw_azimuth"].append(unpacked_spoke[1])
-
-        if is4bits:
-            unpacked_frame["intensity"].append(unpack_4bit_gray_scale(unpacked_spoke[2:]))
-        else:
-            unpacked_frame["intensity"].append(unpacked_spoke[2:])
-
-    time = datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S")
-
-    unpacked_frame["time"] = time
-
-    return unpacked_frame
-
-
-# this could be removed since it would take too much place to save in 4 bits.
-# should be a function for later processing.
-def unpack_4bit_gray_scale(data):
-    data_4bit = []
-    for _bytes in data:
-        low_nibble = _bytes & 0x0F
-        high_nibble = (_bytes >> 4) & 0x0F
-
-        data_4bit.extend([high_nibble, low_nibble])
-
-    return data_4bit
-
-
-def fill_data_for_missing_spoke(data: dict):
+def fill_data_for_missing_spoke(data: dict[np.ndarray]):
     """
     inplace modification
     """
@@ -325,7 +238,7 @@ def correct_azimuth_misalignment(data: dict):
     raw_azimuth[:] = np.tile(raw_azimuth_mode, Nx).flatten()
 
 
-def make_dataset_volume(data: dict, ts, is4bits=True, heading=0) -> xr.Dataset:
+def make_dataset_volume(data: dict, ts, heading=0) -> xr.Dataset:
 
     uniques, count = np.unique(data['raw_azimuth'], return_counts=True)
     n_azimuth = len(uniques)
@@ -349,18 +262,16 @@ def make_dataset_volume(data: dict, ts, is4bits=True, heading=0) -> xr.Dataset:
 
     dataset = xr.Dataset(
         {
-            "intensity": (["scan", "raw_azimuth", "radius"], intensity),
+            "intensity": (["scan", "raw_azimuth", "r_bins"], intensity),
             "scan_time": scan_time
         },
         coords={
-            #"azimuth": convert_raw_azimuth(raw_azimuth_coord),
             "raw_azimuth": raw_azimuth_coord.astype("uint16"),
-            "radius": compute_radius(data["range"][0], is4bits=is4bits),
             "time": np.datetime64(f"{ts[:4]}-{ts[4:6]}-{ts[6:8]}T{ts[9:11]}:{ts[11:13]}:{ts[13:15]}", 's')
         },
         attrs={
-            "max_range": data['range'][0],
-            'heading': np.round(heading, 4),
+            "range": data['range'][0],
+            'heading': heading,
         }
     )
 
@@ -377,8 +288,6 @@ def make_dataset_volume(data: dict, ts, is4bits=True, heading=0) -> xr.Dataset:
     return dataset
 
 
-def compute_radius(range: int | float, is4bits=True) -> np.ndarray:
-    return np.linspace(0, range, 1024 if is4bits else 512)
 
 
 if __name__ == "__main__":
@@ -396,7 +305,7 @@ if __name__ == "__main__":
         "ive": 0,
         "ivo": 0,
         "ir": -25,
-        "iap": 0
+        "iap": -97.5
     }
 
     data_directories = {
@@ -420,6 +329,8 @@ if __name__ == "__main__":
     out_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     start_time = recording_sequence[0]
 
+    #20250607T145900 attempt to get argmax of an empty sequence #######################
+    start_time = "2025-06-07T00:00:00"
     radar_processing_L0(
         raw_root_path=raw_root_path,
         out_root_path=out_root_path,

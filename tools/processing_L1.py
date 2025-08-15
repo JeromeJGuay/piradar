@@ -8,11 +8,79 @@ import xarray as xr
 from tools.coordinate_transform import polar_to_cartesian, xy_to_en
 
 
+from tools.pool_utils import pool_function, starpool_function
+
+from tools.unpack_utils import convert_raw_azimuth, compute_radius
+
+
+def l1_processing(station: str, L0_root_path: str, L1_root_path: str):
+    for day_path in Path(L0_root_path).joinpath(station).iterdir():
+        scan_day = day_path.stem
+        args = [
+            [scan_day, hour_path, L1_root_path, station] for hour_path in day_path.iterdir()
+        ]
+
+        starpool_function(
+            _l1_pre_processing_pool,
+            args
+        )
+
+
+def _l1_pre_processing_pool(
+        scan_day,
+        hour_path,
+        L1_root_path,
+        station,
+) -> xr.Dataset:
+
+    scan_hour = hour_path.stem
+
+    out_dir = Path(L1_root_path).joinpath(station, scan_day)
+
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+    ds_list = []
+
+    for L0_nc in hour_path.glob("*.nc"):
+        ds = xr.open_dataset(L0_nc)
+
+        ds = integrate_scan(dataset=ds)
+
+        ds = sort_by_azimuth(dataset=ds)
+
+        ds_list.append(ds)
+
+    #                print(L0_nc)
+
+    ds = xr.concat(ds_list, dim='time')
+    ds = compute_lonlat_coordinates(ds)
+
+    fname = "_".join([
+        station,
+        "L1",
+        scan_day,
+        scan_hour,
+    ])
+
+    encoding = {
+        "mean": dict(zlib=True, complevel=5),
+        "std": dict(zlib=True, complevel=5)
+    }
+
+    ds.to_netcdf(
+        Path(out_dir).joinpath(f"{fname}.nc"),
+        engine="h5netcdf",
+        encoding=encoding
+    )
+    print(fname)
+    return ds
+
+
 def integrate_scan(dataset: xr.Dataset) -> xr.Dataset:
     return xr.Dataset(
         {
-            "mean": dataset.intensity.mean("scan").astype(np.float32),
-            "std": dataset.intensity.std("scan").astype(np.float32)
+            "scan_mean": dataset.intensity.mean("scan").astype(np.float32),
+            "scan_std": dataset.intensity.std("scan").astype(np.float32)
         },
         attrs={
             'processing': "piradar L1",
@@ -24,7 +92,7 @@ def integrate_scan(dataset: xr.Dataset) -> xr.Dataset:
     )
 
 
-def align_for_azimuth(dataset: xr.Dataset) -> xr.Dataset:
+def sort_by_azimuth(dataset: xr.Dataset) -> xr.Dataset:
 
     dataset = dataset.sortby("raw_azimuth")
 
@@ -35,10 +103,6 @@ def align_for_azimuth(dataset: xr.Dataset) -> xr.Dataset:
     dataset = dataset.drop_vars("raw_azimuth")
 
     return dataset
-
-
-def convert_raw_azimuth(raw_azimuth: np.ndarray):
-    return ((2 * np.pi) / 4096) * raw_azimuth
 
 
 def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
@@ -64,60 +128,11 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
     return dataset.set_coords(['lon', 'lat'])
 
 
-
 if __name__ == "__main__":
-    station = "ir"
+    station = "iap"
 
     L0_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     L1_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L1"
-    ###
 
-    # PROCESSING L1
-    for day_path in Path(L0_root_path).joinpath(station).iterdir():
-        scan_day = day_path.stem
-
-        for hour_path in day_path.iterdir():
-            scan_hour = hour_path.stem
-
-            out_dir = Path(L1_root_path).joinpath(station, scan_day)
-
-            Path(out_dir).mkdir(parents=True, exist_ok=True)
-
-            ds_list = []
-
-            for L0_nc in hour_path.glob("*.nc"):
-                ds = xr.open_dataset(L0_nc)
-
-                ds = integrate_scan(dataset=ds)
-
-                ds = align_for_azimuth(dataset=ds)
-
-                ds_list.append(ds)
-
-                print(L0_nc)
-
-            ds = xr.concat(ds_list, dim='time')
-            ds = compute_lonlat_coordinates(ds)
-
-            fname = "_".join([
-                station,
-                "L1",
-                scan_day,
-                scan_hour,
-            ])
-
-            encoding = {
-                "mean": dict(zlib=True, complevel=5),
-                "std": dict(zlib=True, complevel=5)
-            }
-
-            ds.to_netcdf(
-                Path(out_dir).joinpath(f"{fname}.nc"),
-                engine="h5netcdf",
-                encoding=encoding
-            )
-            print(fname)
-            break
-
-
+    l1_processing(L0_root_path=L0_root_path, L1_root_path=L1_root_path, station=station)
 
