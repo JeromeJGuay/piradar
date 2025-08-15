@@ -11,8 +11,60 @@ SPOKE_DATA_DELIMITER = b"SD"
 SPOKE_DATA_FORMAT = "<HH512B"
 SPOKE_DATA_SIZE = struct.calcsize(SPOKE_DATA_FORMAT)
 
+# FRAME_SIZE = (len(FRAME_DELIMITER) + FRAME_HEADER_SIZE +
+#               len(SPOKE_DATA_DELIMITER) + 32 * SPOKE_DATA_SIZE)
 
-def load_raw_file(raw_file: str, is4bits: bool) -> list[dict[int]]:
+
+def load_raw_file(raw_file: str, is4bits: bool):
+    frames = []
+    with open(raw_file, "rb") as f:
+        while f.read(1):
+            f.seek(-1, 1)
+
+            if f.read(2) == FRAME_DELIMITER:
+                raw_header = f.read(FRAME_HEADER_SIZE)
+                try:
+                    unpacked_header = struct.unpack(FRAME_HEADER_FORMAT, raw_header)
+                    #print("ok")
+                except struct.error:
+                    print("not ok", f.tell(), len(raw_header), raw_header, raw_file)
+
+                unpacked_frame = {
+                    "range": unpacked_header[2],
+                    "time": datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime(
+                        "%Y-%m-%dT%H:%M:%S"),
+                    "spoke_number": [],
+                    "raw_azimuth": [],
+                    "intensity": []
+                }
+
+                if f.read(2) == SPOKE_DATA_DELIMITER:
+                    for i in range(32):
+                        _raw_spoke = f.read(SPOKE_DATA_SIZE)
+                        unpacked_spoke = struct.unpack(SPOKE_DATA_FORMAT, _raw_spoke)
+
+                        unpacked_frame["spoke_number"].append(unpacked_spoke[0])
+                        unpacked_frame["raw_azimuth"].append(unpacked_spoke[1])
+
+                        if is4bits:
+                            unpacked_frame["intensity"].append(unpack_4bit_gray_scale(unpacked_spoke[2:]))
+                        else:
+                            unpacked_frame["intensity"].append(unpacked_spoke[2:])
+
+                time = datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S")
+                unpacked_frame["time"] = 32 * [time]
+
+                frames.append(unpacked_frame)
+            #else:
+                #print("mhmmmm")
+                #f.seek(-1, 1)
+
+            #frames['time'] = [frames['time']] * len(frames['spoke_number'])
+
+    return frames
+
+
+def _x_load_raw_file(raw_file: str, is4bits: bool) -> list[dict[int]]:
     """
     Return the unpacked data as a list of unpacked frames.
     """

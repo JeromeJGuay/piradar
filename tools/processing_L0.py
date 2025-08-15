@@ -106,7 +106,8 @@ def _radar_scan_processing_L0(raw_files: str, heading: float, lat: float, lon: f
         ts,
     ])
 
-    dataset.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf")
+    encoding = {'intensity': {'zlib':True, 'complevel': 9}}
+    dataset.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf", encoding=encoding)
 
     print(f"{station} | {ts} | L0 Done")
 
@@ -127,14 +128,14 @@ def load_raw_scans(raw_files: list[str]) -> dict[np.ndarray]:
 
     for raw_file in raw_files:
         #frames += load_raw_file(raw_file=raw_file, is4bits=is4bits)
-        frame = load_raw_file(raw_file=raw_file, is4bits=False)
+        frames = load_raw_file(raw_file=raw_file, is4bits=False)
 
-    #for frame in frames:
-        data['range'].append(frame['range'])
-        data['time'] += frame['time']
-        data['spoke_number'] += frame['spoke_number']
-        data['raw_azimuth'] += frame['raw_azimuth']
-        data['intensity'] += frame['intensity']
+        for frame in frames:
+            data['range'].append(frame['range'])
+            data['time'] += frame['time']
+            data['spoke_number'] += frame['spoke_number']
+            data['raw_azimuth'] += frame['raw_azimuth']
+            data['intensity'] += frame['intensity']
 
     # Convert to numpy array with proper types.
     data['spoke_number'] = np.array(data['spoke_number'], dtype=np.uint16)
@@ -289,7 +290,6 @@ def make_dataset_volume(data: dict, ts, heading=0) -> xr.Dataset:
 
 
 
-
 if __name__ == "__main__":
 
     station = "ir"
@@ -329,8 +329,7 @@ if __name__ == "__main__":
     out_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     start_time = recording_sequence[0]
 
-    #20250607T145900 attempt to get argmax of an empty sequence #######################
-    start_time = "2025-06-07T00:00:00"
+
     radar_processing_L0(
         raw_root_path=raw_root_path,
         out_root_path=out_root_path,
@@ -339,3 +338,14 @@ if __name__ == "__main__":
         lat=lat,
         lon=lon,
     )
+
+ #   bad_file = r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\ir_2025-07-25\data\20250606\17\20250606T173600_s01.raw"
+
+#    frames = load_raw_file(bad_file, False)
+
+    # idx = 892461
+    #
+    # with open(bad_file, "rb") as f:
+    #     raw = f.read()
+    #
+    # print(raw[idx-10:idx+10])
