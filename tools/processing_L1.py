@@ -145,7 +145,7 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
 
 if __name__ == "__main__":
     import time
-    station = "iap"
+    station = "ive"
 
     L0_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     L1_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L1"

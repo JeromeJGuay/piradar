@@ -291,7 +291,7 @@ def make_dataset_volume(data: dict, ts, heading=0) -> xr.Dataset:
 
 if __name__ == "__main__":
 
-    station = "ir"
+    station = "ive"
 
     latlons = {
         "ive": [48.051246, -69.423985],
@@ -300,8 +300,7 @@ if __name__ == "__main__":
         "iap": [48.106456, -69.321692]
     }
 
-    headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -99.5}
-
+    headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -98.5}
 
     data_directories = {
         "ive": r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\test_ive_2025-07-30\data",
@@ -323,8 +322,6 @@ if __name__ == "__main__":
     recording_sequence = recording_sequences[station]
     out_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     start_time = recording_sequence[0]
-
-    #start_time = "2025-06-12T00:00:00"
 
     radar_processing_L0(
         raw_root_path=raw_root_path,
