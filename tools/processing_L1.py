@@ -5,7 +5,7 @@ from pathlib import Path
 
 import xarray as xr
 
-from tools.coordinate_transform import polar_to_cartesian, xy_to_en
+from tools.coordinate_transform import xy_to_en
 
 
 from tools.pool_utils import pool_function, starpool_function
@@ -33,6 +33,7 @@ def _l1_pre_processing_pool(
         station,
 ) -> xr.Dataset:
 
+
     scan_hour = hour_path.stem
 
     out_dir = Path(L1_root_path).joinpath(station, scan_day)
@@ -48,11 +49,15 @@ def _l1_pre_processing_pool(
 
         ds = sort_by_azimuth(dataset=ds)
 
+        ds = add_radius_coords(dataset=ds)
+
         ds_list.append(ds)
 
-    #                print(L0_nc)
+    if len(ds_list) == 0:
+        return
 
     ds = xr.concat(ds_list, dim='time')
+
     ds = compute_lonlat_coordinates(ds)
 
     fname = "_".join([
@@ -63,8 +68,8 @@ def _l1_pre_processing_pool(
     ])
 
     encoding = {
-        "mean": dict(zlib=True, complevel=5),
-        "std": dict(zlib=True, complevel=5)
+        "scan_mean": dict(zlib=True, complevel=9),
+        "scan_std": dict(zlib=True, complevel=9)
     }
 
     ds.to_netcdf(
@@ -88,8 +93,18 @@ def integrate_scan(dataset: xr.Dataset) -> xr.Dataset:
             'heading': dataset.attrs['heading'],
             'lon': dataset.attrs['lon'],
             'lat': dataset.attrs['lat'],
+            'range': dataset.attrs['range']
         }
     )
+
+
+def add_radius_coords(dataset: xr.Dataset) -> xr.Dataset:
+
+    _range = compute_radius(dataset.attrs['range'], is4bits=False)
+
+    dataset = dataset.assign_coords({"radius": ('r_bins', _range)})
+
+    return dataset
 
 
 def sort_by_azimuth(dataset: xr.Dataset) -> xr.Dataset:
@@ -129,10 +144,12 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
 
 
 if __name__ == "__main__":
+    import time
     station = "iap"
 
     L0_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     L1_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L1"
 
     l1_processing(L0_root_path=L0_root_path, L1_root_path=L1_root_path, station=station)
+
 

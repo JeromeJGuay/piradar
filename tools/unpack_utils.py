@@ -11,9 +11,6 @@ SPOKE_DATA_DELIMITER = b"SD"
 SPOKE_DATA_FORMAT = "<HH512B"
 SPOKE_DATA_SIZE = struct.calcsize(SPOKE_DATA_FORMAT)
 
-# FRAME_SIZE = (len(FRAME_DELIMITER) + FRAME_HEADER_SIZE +
-#               len(SPOKE_DATA_DELIMITER) + 32 * SPOKE_DATA_SIZE)
-
 
 def load_raw_file(raw_file: str, is4bits: bool):
     frames = []
