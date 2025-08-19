@@ -21,7 +21,7 @@ from pool_utils import pool_function
 
 fig_save_root_path = r"C:\Users\guayj\Documents\workspace\figures\radar"
 
-headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -99.5}
+headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -98.5}
 
 stations = ['ive', 'ivo', 'ir', 'iap']
 
@@ -45,7 +45,7 @@ extent = np.array([
 central_lon = np.mean(extent[:2])
 central_lat = np.mean(extent[2:])
 
-station = "iap"
+station = "ir"
 
 fig_save_path = Path(fig_save_root_path).joinpath(station)
 fig_save_path.mkdir(parents=True, exist_ok=True)
@@ -55,6 +55,7 @@ L1_files = list(Path(data_dir).rglob(f"*.nc"))
 
 
 def hourly_plot(L1_file):
+    print(f"Loading: {L1_file}")
     ds = xr.open_dataset(L1_file)
     ds.attrs['heading'] = headings[station]
     ds = compute_lonlat_coordinates(ds)
@@ -73,9 +74,8 @@ def hourly_plot(L1_file):
     fname = f"{station}_{str(ds.time.values[0])[0:19]}"
 
     plt.suptitle(fname)
-
     for i_slice, color in zip(range(ds.sizes['time']), colors):
-
+        #print(f"{i_slice} / {ds.sizes['time']}")
         ds_tmp = ds.isel(time=i_slice)
         radar_image = ds_tmp['scan_mean'].interpolate_na('azimuth').values
         radar_image[radar_image == 0] = np.nan
@@ -92,6 +92,7 @@ def hourly_plot(L1_file):
 
         ax.gridlines(draw_labels=True, lw=1.2, edgecolor="darkblue", zorder=12, facecolor='wheat')
 
+
     # Convert time to minutes since the start
     time_minutes = (ds.time - ds.time[0]) / np.timedelta64(1, 'm')
 
@@ -100,18 +101,25 @@ def hourly_plot(L1_file):
     sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])  # Required for colorbar
 
-    # Create a divider to place the colorbar outside the main axes
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.1)  # Adjust pad and size as needed
+    plt.tight_layout()
 
     # Add the colorbar
-    cbar = plt.colorbar(sm, ax=ax, cax=cax, orientation='vertical', pad=0.02, shrink=0.7)
+    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', pad=0.02, shrink=0.7)
     cbar.set_label('Time (minutes)', fontsize=12)
 
+    pos = cbar.ax.get_position()
+    pos.x0 = 0.9
+    cbar.ax.set_position(pos)
+
     _fname = fname.replace("-", "").replace(":", "")
-    print(_fname)
+
     plt.savefig(fig_save_path.joinpath(f"{_fname}.png"), dpi=200)
+    print(f"{_fname} Saved !")
     plt.close()
 
 if __name__ == "__main__":
-    pool_function(hourly_plot, L1_files)
+
+    ds = xr.open_dataset(L1_files[20])
+    #for L1_file in L1_files:
+    #    hourly_plot(L1_file)
+    #pool_function(hourly_plot, L1_files)
