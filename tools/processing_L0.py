@@ -7,16 +7,7 @@ import xarray as xr
 import scipy as sp
 
 from tools.unpack_utils import load_raw_file
-from tools.pool_utils import pool_function, starpool_function
-
-
-FRAME_DELIMITER = b"FH"
-FRAME_HEADER_FORMAT = "<LBHHH"
-FRAME_HEADER_SIZE = struct.calcsize(FRAME_HEADER_FORMAT) #11
-
-SPOKE_DATA_DELIMITER = b"SD"
-SPOKE_DATA_FORMAT = "<HH512B"
-SPOKE_DATA_SIZE = struct.calcsize(SPOKE_DATA_FORMAT)
+from tools.pool_utils import starpool_function
 
 
 def radar_processing_L0(raw_root_path: str, out_root_path: str, start_time: str, heading: float, lat:float, lon: float):
@@ -87,7 +78,7 @@ def _radar_scan_processing_L0(raw_files: str, heading: float, lat: float, lon: f
 
         dataset = make_dataset_volume(data=data, ts=ts, heading=heading)
     except ValueError as e:
-        print(ts, e, "#######################")
+        print(ts, e, "error in radar_scan_processing_L0")
         return None
 
     # Removing the first scan as a precaution
@@ -291,7 +282,7 @@ def make_dataset_volume(data: dict, ts, heading=0) -> xr.Dataset:
 
 if __name__ == "__main__":
 
-    station = "ive"
+    station = "ivo"
 
     latlons = {
         "ive": [48.051246, -69.423985],
@@ -323,22 +314,13 @@ if __name__ == "__main__":
     out_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     start_time = recording_sequence[0]
 
-    radar_processing_L0(
-        raw_root_path=raw_root_path,
-        out_root_path=out_root_path,
-        start_time=start_time,
-        heading=heading,
-        lat=lat,
-        lon=lon,
-    )
+    #start_time = "2025-07-25T12:00:00"
 
- #   bad_file = r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\ir_2025-07-25\data\20250606\17\20250606T173600_s01.raw"
-
-#    frames = load_raw_file(bad_file, False)
-
-    # idx = 892461
-    #
-    # with open(bad_file, "rb") as f:
-    #     raw = f.read()
-    #
-    # print(raw[idx-10:idx+10])
+    # radar_processing_L0(
+    #     raw_root_path=raw_root_path,
+    #     out_root_path=out_root_path,
+    #     start_time=start_time,
+    #     heading=heading,
+    #     lat=lat,
+    #     lon=lon,
+    # )

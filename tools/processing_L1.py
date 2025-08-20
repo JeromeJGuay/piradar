@@ -7,8 +7,7 @@ import xarray as xr
 
 from tools.coordinate_transform import xy_to_en
 
-
-from tools.pool_utils import pool_function, starpool_function
+from tools.pool_utils import starpool_function
 
 from tools.unpack_utils import convert_raw_azimuth, compute_radius
 
@@ -26,12 +25,7 @@ def l1_processing(station: str, L0_root_path: str, L1_root_path: str):
         )
 
 
-def _l1_pre_processing_pool(
-        scan_day,
-        hour_path,
-        L1_root_path,
-        station,
-) -> xr.Dataset:
+def _l1_pre_processing_pool(scan_day, hour_path, L1_root_path, station) -> xr.Dataset:
 
 
     scan_hour = hour_path.stem
@@ -57,6 +51,12 @@ def _l1_pre_processing_pool(
         return
 
     ds = xr.concat(ds_list, dim='time')
+
+    # interpolate missing azimuth
+    # Some scan will have raw azimuht of: 1,3,5, ..., 4095 and the next 2,4,6,...,4094.
+    # These values are interpolated to have continuous grids. Should not affect the accuracy of the data
+
+    ds = ds.interpolate_na('azimuth')
 
     ds = compute_lonlat_coordinates(ds)
 
@@ -144,8 +144,7 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
 
 
 if __name__ == "__main__":
-    import time
-    station = "ive"
+    station = "ivo"
 
     L0_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
     L1_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L1"

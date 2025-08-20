@@ -3,8 +3,6 @@ import xarray as xr
 
 import matplotlib
 
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
@@ -12,12 +10,11 @@ matplotlib.rcParams['path.simplify'] = True
 
 from pathlib import Path
 
-import cartopy
 import cartopy.crs as ccrs
 import cartopy.io.shapereader as shapereader
 
-from processing_L1 import compute_lonlat_coordinates
-from pool_utils import pool_function
+from tools.processing_L1 import compute_lonlat_coordinates
+from tools.pool_utils import pool_function
 
 fig_save_root_path = r"C:\Users\guayj\Documents\workspace\figures\radar"
 
@@ -45,12 +42,13 @@ extent = np.array([
 central_lon = np.mean(extent[:2])
 central_lat = np.mean(extent[2:])
 
-station = "ir"
+station = "ivo"
 
 fig_save_path = Path(fig_save_root_path).joinpath(station)
 fig_save_path.mkdir(parents=True, exist_ok=True)
 
-data_dir = Path(data_root_dir).joinpath(station)#, day)
+data_dir = Path(data_root_dir).joinpath(station)
+#_day = "20250725"
 L1_files = list(Path(data_dir).rglob(f"*.nc"))
 
 
@@ -90,7 +88,7 @@ def hourly_plot(L1_file):
             alpha=.5,
         )
 
-        ax.gridlines(draw_labels=True, lw=1.2, edgecolor="darkblue", zorder=12, facecolor='wheat')
+    ax.gridlines(draw_labels=True, lw=1.2, edgecolor="darkblue", zorder=12, facecolor='wheat')
 
 
     # Convert time to minutes since the start
@@ -117,9 +115,8 @@ def hourly_plot(L1_file):
     print(f"{_fname} Saved !")
     plt.close()
 
-if __name__ == "__main__":
 
-    ds = xr.open_dataset(L1_files[20])
-    #for L1_file in L1_files:
-    #    hourly_plot(L1_file)
-    #pool_function(hourly_plot, L1_files)
+if __name__ == "__main__":
+#    for L1_file in L1_files:
+#        hourly_plot(L1_file)
+    pool_function(hourly_plot, L1_files)

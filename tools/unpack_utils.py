@@ -22,9 +22,8 @@ def load_raw_file(raw_file: str, is4bits: bool):
                 raw_header = f.read(FRAME_HEADER_SIZE)
                 try:
                     unpacked_header = struct.unpack(FRAME_HEADER_FORMAT, raw_header)
-                    #print("ok")
                 except struct.error:
-                    print("not ok", f.tell(), len(raw_header), raw_header, raw_file)
+                    print("Error unpacking header", f.tell(), len(raw_header), raw_header, raw_file)
 
                 unpacked_frame = {
                     "range": unpacked_header[2],
@@ -52,37 +51,6 @@ def load_raw_file(raw_file: str, is4bits: bool):
                 unpacked_frame["time"] = 32 * [time]
 
                 frames.append(unpacked_frame)
-            #else:
-                #print("mhmmmm")
-                #f.seek(-1, 1)
-
-            #frames['time'] = [frames['time']] * len(frames['spoke_number'])
-
-    return frames
-
-
-def _x_load_raw_file(raw_file: str, is4bits: bool) -> list[dict[int]]:
-    """
-    Return the unpacked data as a list of unpacked frames.
-    """
-    frames = []
-
-    with open(raw_file, "rb") as f:
-        raw_data = f.read()
-
-    for rf in raw_data.split(FRAME_DELIMITER)[1:]:
-        try:
-            uf = unpack_raw_frame(raw_frame=rf, is4bits=is4bits)
-        except ValueError:
-            print(f"Bad frame in {raw_file}")
-            continue
-        except struct.error:
-            print(f"Bad frame in {raw_file}")
-            continue
-
-        uf['time'] = [uf['time']] * len(uf['spoke_number'])
-        frames.append(uf)
-
     return frames
 
 
@@ -114,9 +82,6 @@ def unpack_raw_frame(raw_frame, is4bits=True) -> dict[int]:
         else:
             unpacked_frame["intensity"].append(unpacked_spoke[2:])
 
-    time = datetime.datetime.fromtimestamp(unpacked_header[0], datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S")
-
-    unpacked_frame["time"] = time
 
     return unpacked_frame
 
