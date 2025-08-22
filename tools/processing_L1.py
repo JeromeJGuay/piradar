@@ -1,6 +1,7 @@
 import datetime
 
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 import xarray as xr
@@ -11,8 +12,93 @@ from tools.pool_utils import starpool_function
 
 from tools.unpack_utils import convert_raw_azimuth, compute_radius
 
+from tools.processing_utils import sel_raw_file_by_time
 
-def l1_processing(station: str, L0_root_path: str, L1_root_path: str):
+
+def radar_processing_L1(station: str, L0_file_index: str, out_root_dir: str, start_time: str=None, end_time: str=None):
+
+        out_path = Path(out_root_dir).joinpath(station)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        L0_index_df = pd.read_csv(L0_file_index)
+        L0_index_df = sel_raw_file_by_time(dataframe=L0_index_df, start_time=start_time, end_time=end_time)
+
+        L0_index_df['date'] = L0_index_df['timestamp'].dt.date
+
+        args_list = []
+
+        L0_index_df['date'] = L0_index_df['timestamp'].dt.date
+        L0_index_df['hour'] = L0_index_df['timestamp'].dt.hour
+        for date, date_group in L0_index_df.groupby('date'):
+            for hour, hour_group in date_group.groupby('hour'):
+                ts = f"{date}T{hour:02}".replace('-', '')
+                args_list.append([
+                    ts,
+                    hour_group['path'].values,
+                    station,
+                    out_path
+                ])
+
+        L1_file_index = starpool_function(
+            _radar_processing_L1,
+            args_list
+        )
+
+        df = pd.DataFrame(L1_file_index, columns=['station', 'start_time', 'end_time', 'number_of_scan', 'path'])
+
+        df.to_csv(Path(out_root_dir).joinpath(f'{station}_L1_index.csv'), index=False)
+
+
+def _radar_processing_L1(date, L0_files, station, out_path) -> xr.Dataset:
+    ds_list = []
+
+    for L0_nc in L0_files:
+        ds_list.append(_radar_pre_processing_L1(L0_nc))
+
+
+    ds = xr.concat(ds_list, dim='time')
+    # interpolate missing azimuth
+    # Some scan will have raw azimuht of: 1,3,5, ..., 4095 and the next 2,4,6,...,4094.
+    # These values are interpolated to have continuous grids. Should not affect the accuracy of the data
+    ds = ds.interpolate_na('azimuth')
+
+    ds = compute_lonlat_coordinates(ds)
+
+    fname = "_".join([
+        station,
+        "L1",
+        date
+    ])
+
+    encoding = {
+        "scan_mean": dict(zlib=True, complevel=9),
+        "scan_std": dict(zlib=True, complevel=9)
+    }
+
+    _out_path = out_path.joinpath(f"{fname}.nc")
+    ds.to_netcdf(
+        _out_path,
+        engine="h5netcdf",
+        encoding=encoding
+    )
+    print(f"{fname} done !")
+    return station, str(ds.time.min().values), str(ds.time.max().values), ds.sizes['time'], _out_path
+
+
+
+def _radar_pre_processing_L1(L0_nc: str) -> xr.Dataset:
+    dataset = xr.open_dataset(L0_nc)
+
+    dataset = integrate_scan(dataset=dataset)
+
+    dataset = sort_by_azimuth(dataset=dataset)
+
+    dataset = add_radius_coords(dataset=dataset)
+
+    return dataset
+
+
+def radar_processing_L1_2(station: str, L0_root_path: str, L1_root_path: str):
     for day_path in Path(L0_root_path).joinpath(station).iterdir():
         scan_day = day_path.stem
         args = [
@@ -20,13 +106,12 @@ def l1_processing(station: str, L0_root_path: str, L1_root_path: str):
         ]
 
         starpool_function(
-            _l1_pre_processing_pool,
+            _radar_processing_L1,
             args
         )
 
 
-def _l1_pre_processing_pool(scan_day, hour_path, L1_root_path, station) -> xr.Dataset:
-
+def _radar_processing_L1_2(scan_day, hour_path, L1_root_path, station) -> xr.Dataset:
 
     scan_hour = hour_path.stem
 
@@ -55,7 +140,6 @@ def _l1_pre_processing_pool(scan_day, hour_path, L1_root_path, station) -> xr.Da
     # interpolate missing azimuth
     # Some scan will have raw azimuht of: 1,3,5, ..., 4095 and the next 2,4,6,...,4094.
     # These values are interpolated to have continuous grids. Should not affect the accuracy of the data
-
     ds = ds.interpolate_na('azimuth')
 
     ds = compute_lonlat_coordinates(ds)
@@ -144,11 +228,57 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
 
 
 if __name__ == "__main__":
-    station = "ivo"
+    station = "ir"
 
-    L0_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
-    L1_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L1"
+    root_path = Path(rf"E:\OPP\ppo-qmm_analyses\data\radar_2")
 
-    l1_processing(L0_root_path=L0_root_path, L1_root_path=L1_root_path, station=station)
+    L0_file_index = root_path.joinpath("L0", f'{station}_L0_file_index.csv')
 
+    radar_processing_L1(
+        station=station,
+        L0_file_index=L0_file_index,
+        out_root_dir=root_path.joinpath("L1"),
+        start_time="2025-06-06T23:00:00",
+        end_time="2025-06-07T00:00:00"
+    )
 
+    # out_root_dir=root_path.joinpath("L1")
+    # start_time="2025-06-06T23:00:00"
+    # end_time="2025-06-07T00:00:00"
+    #
+    # out_path = Path(out_root_dir).joinpath(station)
+    # out_path.mkdir(parents=True, exist_ok=True)
+    #
+    # L0_index_df = load_file_index(path=L0_file_index)
+    # L0_index_df = sel_raw_file_by_time(dataframe=L0_index_df, start_time=start_time, end_time=end_time)
+    #
+    # L0_index_df['date'] = L0_index_df['timestamp'].dt.date
+    #
+    # args_list = []
+    #
+    # L0_index_df['date'] = L0_index_df['timestamp'].dt.date
+    # L0_index_df['hour'] = L0_index_df['timestamp'].dt.hour
+    # for date, date_group in L0_index_df.groupby('date'):
+    #     for hour, hour_group in date_group.groupby('hour'):
+    #         ts = f"{date}T{hour:02}".replace('-', '')
+    #         args_list.append([
+    #             ts,
+    #             hour_group['path'].values,
+    #             station,
+    #             out_path
+    #         ])
+    #
+    # L0_files = args_list[0][1]
+    #
+    # ds_list = []
+    #
+    # for L0_nc in L0_files:
+    #     ds = _radar_pre_processing_L1(L0_nc)
+    #
+    # ds_list.append(ds)
+    #
+    # print(ds.sizes)
+    #
+    # # ds_list = pool_function(_radar_pre_processing_L1, L0_files)
+    #
+    # ds = xr.concat(ds_list, dim='time')

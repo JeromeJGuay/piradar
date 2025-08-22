@@ -1,71 +1,104 @@
 from pathlib import Path
-import struct
 import datetime
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 import scipy as sp
 
 from tools.unpack_utils import load_raw_file
 from tools.pool_utils import starpool_function
+from tools.processing_utils import load_raw_file_index, sel_raw_file_by_time
 
 
-def radar_processing_L0(raw_root_path: str, out_root_path: str, start_time: str, heading: float, lat:float, lon: float):
-    start_time = datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+def radar_processing_L0(
+        raw_file_index: str,
+        out_root_dir: str,
+        station: str,
+        start_time: str,
+        end_time: str,
+        heading: float,
+        lat: float,
+        lon: float,
+        time_offset: int,
+        ):
+    """
 
-    for day_path in Path(raw_root_path).iterdir():
-        scan_day = day_path.stem
-        if (datetime.datetime.strptime(scan_day, "%Y%m%d").date() - start_time.date()).total_seconds() < 0:
-            print("Skipping", scan_day)
-            continue
+    Parameters
+    ----------
+    raw_file_index
+    out_root_dir
+    station
+    start_time
+    end_time
+    heading
+    lat
+    lon
+    time_offset: In minutes:
+        realtime = radar_time - time_offset
 
-        args_list = []
+    Returns
+    -------
 
-        for hour_path in day_path.iterdir():
-            scan_hour = hour_path.stem
-            if (datetime.datetime.strptime(scan_day+scan_hour, "%Y%m%d%H") - start_time).total_seconds() < 0:
-                print("Skipping", scan_day, scan_hour)
-                continue
+    """
 
-            out_dir = Path(out_root_path).joinpath(station, scan_day, scan_hour)
+    rf_index_df = load_raw_file_index(raw_file_index)
 
-            Path(out_dir).mkdir(parents=True, exist_ok=True)
+    rf_index_df = sel_raw_file_by_time(dataframe=rf_index_df, start_time=start_time, end_time=end_time)
 
-            grouped_scan_files = get_files_grouped_by_scan(raw_root_path, day=scan_day, hour=scan_hour)
+    args_list = []
 
-            args_list += [
-                (
-                    raw_files,
-                    heading,
-                    lat,
-                    lon,
-                    station,
-                    out_dir,
-                )
-                for raw_files in grouped_scan_files.values()
-            ]
+    for ts, group in rf_index_df.groupby('timestamp'):
+        _date = ts.split(" ")[0]
+        out_path = Path(out_root_dir).joinpath(station, _date)
+        out_path.mkdir(parents=True, exist_ok=True)
 
-        if len(args_list) == 0:
-            continue
+        args_list.append(
+            (
+                group['path'].values,
+                out_path,
+                station,
+                heading,
+                lat,
+                lon,
+                time_offset,
+            )
+        )
 
-        starpool_function(_radar_scan_processing_L0, args_list)
+    L0_file_index = starpool_function(_radar_processing_L0, args_list)
 
+    df = pd.DataFrame(L0_file_index, columns=['station', 'timestamp', 'path'])
 
-def get_files_grouped_by_scan(path, day, hour):
-    scan_groups = {}
-    raw_files = list(Path(path).joinpath(day, hour).glob("*.raw"))
-    for rf in raw_files:
-        scan_dt = rf.name.split("_")[0]
-        if scan_dt in scan_groups:
-            scan_groups[scan_dt].append(rf)
-        else:
-            scan_groups[scan_dt] = [rf]
-    return scan_groups
+    df.to_csv(Path(out_root_dir).joinpath(f'{station}_L0_file_index.csv'), index=False)
 
 
-def _radar_scan_processing_L0(raw_files: str, heading: float, lat: float, lon: float,station: str,out_dir: str)->xr.Dataset:
+def _radar_processing_L0(
+        raw_files: str,
+        out_path: str,
+        station: str,
+        heading: float,
+        lat: float,
+        lon: float,
+        time_offset: int
+) -> xr.Dataset:
+    """
 
-    ts = Path(raw_files[0]).name.split("_")[0]
+    Parameters
+    ----------
+    raw_files
+    station
+    out_path
+    heading
+    lat
+    lon
+    time_offset: in minutes.
+        realtime = radar_time - time_offset
+
+    Returns
+    -------
+
+    """
+    ts = Path(raw_files[0]).stem.split("_")[0]
 
     data = load_raw_scans(raw_files)
 
@@ -77,6 +110,12 @@ def _radar_scan_processing_L0(raw_files: str, heading: float, lat: float, lon: f
         correct_azimuth_misalignment(data)
 
         dataset = make_dataset_volume(data=data, ts=ts, heading=heading)
+
+        if time_offset:# not None or 0
+            dt = np.timedelta64(time_offset * 60, 's')
+            dataset['time'].values = dataset['time'].values - dt
+            dataset['scan_time'].values = dataset['scan_time'].values - dt
+
     except ValueError as e:
         print(ts, e, "error in radar_scan_processing_L0")
         return None
@@ -98,15 +137,15 @@ def _radar_scan_processing_L0(raw_files: str, heading: float, lat: float, lon: f
     ])
 
     encoding = {'intensity': {'zlib':True, 'complevel': 9}}
-    dataset.to_netcdf(Path(out_dir).joinpath(f"{fname}.nc"), engine="h5netcdf", encoding=encoding)
+    save_path = Path(out_path).joinpath(f"{fname}.nc")
+    dataset.to_netcdf(save_path, engine="h5netcdf", encoding=encoding)
 
     print(f"{station} | {ts} | L0 Done")
 
-    return dataset
+    return station, str(dataset.time.values), save_path
 
 
 def load_raw_scans(raw_files: list[str]) -> dict[np.ndarray]:
-
 
     data = {
         "range": [],
@@ -117,7 +156,6 @@ def load_raw_scans(raw_files: list[str]) -> dict[np.ndarray]:
     }
 
     for raw_file in raw_files:
-        #frames += load_raw_file(raw_file=raw_file, is4bits=is4bits)
         frames = load_raw_file(raw_file=raw_file, is4bits=False)
 
         for frame in frames:
@@ -277,50 +315,3 @@ def make_dataset_volume(data: dict, ts, heading=0) -> xr.Dataset:
     dataset['scan_time'].encoding["calendar"] = "gregorian"
 
     return dataset
-
-
-
-if __name__ == "__main__":
-
-    station = "ivo"
-
-    latlons = {
-        "ive": [48.051246, -69.423985],
-        "ivo": [47.995305, -69.483108],
-        "ir":  [48.069522, -69.554446],
-        "iap": [48.106456, -69.321692]
-    }
-
-    headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -98.5}
-
-    data_directories = {
-        "ive": r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\test_ive_2025-07-30\data",
-        "ivo": r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\test_ivo_2025-07-30\data",
-        "ir": r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\ir_2025-07-25\data",
-        "iap": r"\\nas4\DATA\measurements\radars\2025-05_IML-2025-023\iap_2025-07-16\data",
-    }
-
-    recording_sequences = {
-        "ive": ("2025-06-13T14:30:00", "2025-07-30T13:18:00"),
-        "ivo": ("2025-06-13T17:55:00", "2025-07-30T14:13:00"),
-        "ir": ("2025-06-06T16:52:00", "2025-07-25T18:13:00"),
-        "iap": ("2025-06-05T21:55:00", "2025-07-16T12:00:00")
-    }
-
-    lat, lon = latlons[station]
-    raw_root_path = data_directories[station]
-    heading = headings[station]
-    recording_sequence = recording_sequences[station]
-    out_root_path = rf"E:\OPP\ppo-qmm_analyses\data\radar\L0"
-    start_time = recording_sequence[0]
-
-    #start_time = "2025-07-25T12:00:00"
-
-    # radar_processing_L0(
-    #     raw_root_path=raw_root_path,
-    #     out_root_path=out_root_path,
-    #     start_time=start_time,
-    #     heading=heading,
-    #     lat=lat,
-    #     lon=lon,
-    # )

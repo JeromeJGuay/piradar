@@ -1,3 +1,6 @@
 h5netcdf
 pyproj
 cartopy
+xarray
+pandas
+numpy
