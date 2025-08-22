@@ -2,7 +2,7 @@ from pathlib import Path
 from processing_L0 import radar_processing_L0
 
 if __name__ == "__main__":
-    root_dir = Path(r"E:\OPP\ppo-qmm_analyses\data\radar_2")
+    root_path = Path(r"E:\OPP\ppo-qmm_analyses\data\radar_2")
 
     stations_metadata = {
         'ive': {
@@ -44,9 +44,10 @@ if __name__ == "__main__":
     }
 
     for station, metadata in stations_metadata.items():
+        print(f"L0 Processing | station: {station}")
         radar_processing_L0(
-            raw_file_index=root_dir.joinpath(metadata['raw_file_index']),
-            out_root_dir=root_dir.joinpath('L0'),
+            raw_file_index=root_path.joinpath(metadata['raw_file_index']),
+            out_root_dir=root_path.joinpath('L0'),
             station=station,
             start_time=metadata['start_time'],
             end_time=metadata['end_time'],
