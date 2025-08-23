@@ -54,9 +54,8 @@ def _radar_processing_L1(date, L0_files, station, out_path) -> xr.Dataset:
 
     for L0_nc in L0_files:
         ds_list.append(_radar_pre_processing_L1(L0_nc))
-
-
     ds = xr.concat(ds_list, dim='time')
+
     # interpolate missing azimuth
     # Some scan will have raw azimuht of: 1,3,5, ..., 4095 and the next 2,4,6,...,4094.
     # These values are interpolated to have continuous grids. Should not affect the accuracy of the data

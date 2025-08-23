@@ -49,7 +49,7 @@ def radar_processing_L0(
     args_list = []
 
     for ts, group in rf_index_df.groupby('timestamp'):
-        _date = ts.split(" ")[0]
+        _date = str(ts).split(" ")[0]
         out_path = Path(out_root_dir).joinpath(station, _date)
         out_path.mkdir(parents=True, exist_ok=True)
 

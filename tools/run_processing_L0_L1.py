@@ -1,5 +1,6 @@
 from pathlib import Path
 from processing_L0 import radar_processing_L0
+from processing_L1 import radar_processing_L1
 
 if __name__ == "__main__":
     root_path = Path(r"E:\OPP\ppo-qmm_analyses\data\radar_2")
@@ -45,6 +46,7 @@ if __name__ == "__main__":
 
     for station, metadata in stations_metadata.items():
         print(f"L0 Processing | station: {station}")
+
         radar_processing_L0(
             raw_file_index=root_path.joinpath(metadata['raw_file_index']),
             out_root_dir=root_path.joinpath('L0'),
@@ -55,4 +57,19 @@ if __name__ == "__main__":
             lat=metadata['lat'],
             lon=metadata['lon'],
             time_offset=metadata['time_offset']
+        )
+
+
+    for station in stations_metadata.keys():
+        print(f"L1 Processing | station: {station}")
+        L0_file_index = root_path.joinpath("L0", f'{station}_L0_file_index.csv')
+
+        if not L0_file_index.is_file():
+            print(f"No L0_file_index for {station}")
+            continue
+
+        radar_processing_L1(
+            station=station,
+            L0_file_index=L0_file_index,
+            out_root_dir=root_path.joinpath("L1"),
         )
