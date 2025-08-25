@@ -17,7 +17,9 @@ from tools.processing_utils import sel_raw_file_by_time
 
 def radar_processing_L1(station: str, L0_file_index: str, out_root_dir: str, start_time: str=None, end_time: str=None):
 
-        out_path = Path(out_root_dir).joinpath(station)
+        L1_out_path = Path(out_root_dir).joinpath("L1")
+
+        out_path = L1_out_path.joinpath(station)
         out_path.mkdir(parents=True, exist_ok=True)
 
         L0_index_df = pd.read_csv(L0_file_index)
@@ -46,7 +48,7 @@ def radar_processing_L1(station: str, L0_file_index: str, out_root_dir: str, sta
 
         df = pd.DataFrame(L1_file_index, columns=['station', 'start_time', 'end_time', 'number_of_scan', 'path'])
 
-        df.to_csv(Path(out_root_dir).joinpath(f'{station}_L1_index.csv'), index=False)
+        df.to_csv(L1_out_path.joinpath(f'{station}_L1_index.csv'), index=False)
 
 
 def _radar_processing_L1(date, L0_files, station, out_path) -> xr.Dataset:

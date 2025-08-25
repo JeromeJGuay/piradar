@@ -59,7 +59,6 @@ if __name__ == "__main__":
             time_offset=metadata['time_offset']
         )
 
-
     for station in stations_metadata.keys():
         print(f"L1 Processing | station: {station}")
         L0_file_index = root_path.joinpath("L0", f'{station}_L0_file_index.csv')
@@ -71,5 +70,5 @@ if __name__ == "__main__":
         radar_processing_L1(
             station=station,
             L0_file_index=L0_file_index,
-            out_root_dir=root_path.joinpath("L1"),
+            out_root_dir=root_path,
         )

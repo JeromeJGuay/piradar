@@ -47,7 +47,7 @@ if __name__ == "__main__":
         print(f"L0 Processing | station: {station}")
         radar_processing_L0(
             raw_file_index=root_path.joinpath(metadata['raw_file_index']),
-            out_root_dir=root_path.joinpath('L0'),
+            out_root_dir=root_path,
             station=station,
             start_time=metadata['start_time'],
             end_time=metadata['end_time'],

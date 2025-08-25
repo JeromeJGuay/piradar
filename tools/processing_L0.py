@@ -48,9 +48,11 @@ def radar_processing_L0(
 
     args_list = []
 
+    L0_out_path = Path(out_root_dir).joinpath("L0")
+
     for ts, group in rf_index_df.groupby('timestamp'):
         _date = str(ts).split(" ")[0]
-        out_path = Path(out_root_dir).joinpath(station, _date)
+        out_path = L0_out_path.joinpath(station, _date)
         out_path.mkdir(parents=True, exist_ok=True)
 
         args_list.append(
@@ -69,7 +71,7 @@ def radar_processing_L0(
 
     df = pd.DataFrame(L0_file_index, columns=['station', 'timestamp', 'path'])
 
-    df.to_csv(Path(out_root_dir).joinpath(f'{station}_L0_file_index.csv'), index=False)
+    df.to_csv(L0_out_path.joinpath(f'{station}_L0_index.csv'), index=False)
 
 
 def _radar_processing_L0(
