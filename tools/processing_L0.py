@@ -8,7 +8,7 @@ import scipy as sp
 
 from tools.unpack_utils import load_raw_file
 from tools.pool_utils import starpool_function
-from tools.processing_utils import load_raw_file_index, sel_raw_file_by_time
+from tools.processing_utils import load_raw_file_index, sel_file_by_time_slice
 
 
 def radar_processing_L0(
@@ -44,7 +44,7 @@ def radar_processing_L0(
 
     rf_index_df = load_raw_file_index(raw_file_index)
 
-    rf_index_df = sel_raw_file_by_time(dataframe=rf_index_df, start_time=start_time, end_time=end_time)
+    rf_index_df = sel_file_by_time_slice(dataframe=rf_index_df, start_time=start_time, end_time=end_time)
 
     args_list = []
 

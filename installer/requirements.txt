@@ -1,0 +1,8 @@
+psutil
+
+schedule
+
+scipy
+numpy
+xarray
+pandas

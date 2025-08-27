@@ -133,13 +133,22 @@ cd
 ## Installing piradar ##
 ########################
 
-mkdir -p "$HOME/program"
-cd "$HOME/program"
+#mkdir -p "$HOME/program"
+#cd "$HOME/program"
 #git clone https://github.com/JeromeJGuay/piradar.git
-git clone -b main-v0.2.0 https://github.com/JeromeJGuay/piradar.git
+#git clone -b main-v0.2.0 https://github.com/JeromeJGuay/piradar.git
 
+PIRADAR_INSTALL_DIR="$HOME/program"
+mkdir -p "$PIRADAR_INSTALL_DIR"
+cd "$PIRADAR_INSTALL_DIR"
 
-cd piradar
+mkdir -p "$INSTALL_DIR/piradar"
+cp -r "$SCRIPT_DIR/piradar"    "$PIRADAR_INSTALL_DIR/piradar/"
+cp    "$SCRIPT_DIR/setup.py"   "$PIRADAR_INSTALL_DIR/piradar/"
+cp    "$SCRIPT_DIR/requirements.txt" "$PIRADAR_INSTALL_DIR/piradar/"
+cp -r "$SCRIPT_DIR/installer"  "$PIRADAR_INSTALL_DIR/piradar/"
+
+cd "$PIRADAR_INSTALL_DIR/piradar"
 
 python3 -m venv .venv
 .venv/bin/python3 -m pip install -r requirements.txt

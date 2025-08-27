@@ -1,9 +1,11 @@
-psutil
-
 schedule
-
-scipy
-matplotlib
-numpy
+psutil
+h5netcdf
 xarray
 pandas
+numpy
+
+matplotlib
+scipy
+pyproj
+cartopy

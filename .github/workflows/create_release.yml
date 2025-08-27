@@ -24,7 +24,7 @@ jobs:
     - name: Create ZIP of installer files
       run: |
         mkdir release_artifacts
-        zip -r release_artifacts/installer.zip installer
+        zip -r release_artifacts/release_bundle.zip installer piradar setup.py readme.md
 
     - name: Extract Tag Name
       id: extract_tag
@@ -39,7 +39,7 @@ jobs:
       with:
         tag_name: ${{ env.tag_name }}
         release_name: Release ${{ env.tag_name }}
-        body: "This release contains the installer files."
+        body: "This release contains the installer directory, piradar sub-package, and setup.py."
         draft: false
         prerelease: false
 
@@ -49,6 +49,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: release_artifacts/installer.zip
-        asset_name: installer.zip
+        asset_path: release_artifacts/release_bundle.zip
+        asset_name: release_bundle.zip
         asset_content_type: application/zip

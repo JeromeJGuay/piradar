@@ -90,7 +90,6 @@ def hourly_plot(L1_file):
 
     ax.gridlines(draw_labels=True, lw=1.2, edgecolor="darkblue", zorder=12, facecolor='wheat')
 
-
     # Convert time to minutes since the start
     time_minutes = (ds.time - ds.time[0]) / np.timedelta64(1, 'm')
 
@@ -119,4 +118,28 @@ def hourly_plot(L1_file):
 if __name__ == "__main__":
 #    for L1_file in L1_files:
 #        hourly_plot(L1_file)
-    pool_function(hourly_plot, L1_files)
+    #pool_function(hourly_plot, L1_files)
+    import pandas as pd
+
+    root_path = Path(rf"E:\OPP\ppo-qmm_analyses\data\radar_2")
+
+    station = "ir"
+
+    L1_index_file = root_path.joinpath("L1", f'{station}_L1_index.csv')
+
+    index_df = pd.read_csv(L1_index_file)
+    index_df['start_time'] = index_df['start_time'].astype('datetime64[s]')
+    index_df['end_time'] = index_df['end_time'].astype('datetime64[s]')
+
+    start_time = np.datetime64("2025-07-01T00:00:00", 's')
+    end_time = np.datetime64("2025-07-05T00:00:00", 's')
+    dt_min = np.timedelta64(10 * 60, "s")
+    time_vector = np.arange(start_time, end_time, dt_min)
+
+
+    for i in range(time_vector.shape[0] - 1):
+        print(time_vector[i], time_vector[i+1])
+        mask = (index_df['start_time'] <= time_vector[i]) & (index_df['end_time'] > time_vector[i+1])
+        L1_files = index_df[mask].path.values
+        print(L1_files, index_df[mask].start_time.values, index_df[mask].end_time.values)
+

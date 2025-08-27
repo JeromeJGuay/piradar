@@ -12,7 +12,7 @@ from tools.pool_utils import starpool_function
 
 from tools.unpack_utils import convert_raw_azimuth, compute_radius
 
-from tools.processing_utils import sel_raw_file_by_time
+from tools.processing_utils import sel_file_by_time_slice
 
 
 def radar_processing_L1(station: str, L0_file_index: str, out_root_dir: str, start_time: str=None, end_time: str=None):
@@ -23,7 +23,7 @@ def radar_processing_L1(station: str, L0_file_index: str, out_root_dir: str, sta
         out_path.mkdir(parents=True, exist_ok=True)
 
         L0_index_df = pd.read_csv(L0_file_index)
-        L0_index_df = sel_raw_file_by_time(dataframe=L0_index_df, start_time=start_time, end_time=end_time)
+        L0_index_df = sel_file_by_time_slice(dataframe=L0_index_df, start_time=start_time, end_time=end_time)
 
         L0_index_df['date'] = L0_index_df['timestamp'].dt.date
 
