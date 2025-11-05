@@ -50,4 +50,21 @@ def sel_file_by_time_slice(dataframe: pd.DataFrame, start_time: str = None, end_
     if dataframe.empty:
         raise ValueError("No values exist for the given start_time and end_time")
 
-    return dataframe
+    return dataframe.reset_index()
+
+if __name__ == "__main__":
+    root_path = Path(r"\\nas4\DATA\measurements\radars\2025-10-14_IML-2025-053_PPO_Perley\IR\data")
+
+    root_dirs = {
+        "iap": r"\\nas4\DATA\measurements\radars\2025-10-14_IML-2025-053_PPO_Perley\IAP\data",
+        "ir": r"\\nas4\DATA\measurements\radars\2025-10-14_IML-2025-053_PPO_Perley\IR\data",
+        "ive": r"\\nas4\DATA\measurements\radars\2025-10-14_IML-2025-053_PPO_Perley\IV-E\data",
+        "ivo": r"\\nas4\DATA\measurements\radars\2025-10-14_IML-2025-053_PPO_Perley\IV-O\data",
+    }
+
+    for station in root_dirs.keys():
+        make_raw_file_index(
+            station=station,
+            root_dir=root_dirs[station],
+            out_dir=r"E:\OPP\ppo-qmm_analyses\data\radar_2025-10-14"
+        )

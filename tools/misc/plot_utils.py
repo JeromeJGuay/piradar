@@ -25,7 +25,7 @@ import cartopy.io.shapereader as shapereader
 
 from tools.processing_utils import sel_file_by_time_slice
 
-L1_ROOT_DIR = r"E:\OPP\ppo-qmm_analyses\data\radar_2\L1"
+L1_ROOT_DIR = r"E:\OPP\ppo-qmm_analyses\data\radar_2025-10-14"
 
 _path_to_nhnl_shp = r"C:\Users\guayj\Documents\workspace\data\national_hydro_network_layers_shapefile"
 
@@ -40,7 +40,7 @@ def add_bank(ax):
 
 
 def get_station_L1_index_df(station: str) -> pd.DataFrame:
-    return pd.read_csv(Path(L1_ROOT_DIR).joinpath(f'{station}_L1_index.csv'))
+    return pd.read_csv(Path(L1_ROOT_DIR).joinpath("L1", f'{station}_L1_index.csv'))
 
 
 def initiate_figure(extent):
@@ -76,9 +76,9 @@ if __name__ == "__main__":
         48.4,
     ])
 
-    station = "ive"
-    start_time = "2025-07-07T12:00:00"
-    end_time = "2025-07-07T15:00:00"
+    station = "iap"
+    start_time = "2025-07-25T00:00:00"
+    end_time = "2025-08-01T00:00:00"
 
     anim_save_path = Path(out_save_path).joinpath(station)
     anim_save_path.mkdir(exist_ok=True, parents=True)
@@ -87,14 +87,19 @@ if __name__ == "__main__":
 
     L1_files = sel_file_by_time_slice(L1_index_df, start_time, end_time)['path'].values
 
-    ds = load_L1_nc_files(L1_files)
+    def _prepros(dataset):
+        return dataset[['scan_mean', 'scan_std']]
+
+    ds = xr.open_mfdataset(L1_files, preprocess=_prepros)
+
+    ds_lonlat = xr.open_dataset(L1_files[0])
 
     print("L1 Data loaded")
 
-    lon = ds['lon'].values
-    lat = ds['lat'].values
+    lon = ds_lonlat['lon'].values
+    lat = ds_lonlat['lat'].values
     time = ds['time'].values
-
+    ds = ds.chunk({'azimuth': -1})
     ds = ds.interpolate_na('azimuth')
 
 
@@ -127,7 +132,7 @@ if __name__ == "__main__":
 
         mesh_obj[0:trail-1] = mesh_obj[1:]
 
-        mesh_obj[-1] = ax.pcolormesh(lon, lat, radar_images[i], zorder=100, transform=ccrs.PlateCarree(), cmap=cmap, shading='nearest')
+        mesh_obj[-1] = ax.pcolormesh(lon, lat, radar_images[i], zorder=100, transform=ccrs.PlateCarree(), cmap=cmap, shading='nearest',)
 
         ts = np.datetime_as_string(time[i], unit='s')
         fig.suptitle(ts)

@@ -4,9 +4,9 @@ from processing_L1 import radar_processing_L1
 
 
 if __name__ == "__main__":
-    root_path = Path(rf"E:\OPP\ppo-qmm_analyses\data\radar_2")
+    root_path = Path(r"_output_root_dir__") ### CHANGE HERE ##
 
-    stations = ["ir", "iap", "ive", "ivo"]
+    stations = ["_station_"] ### change here ###
 
     for station in stations:
         print(f"L1 Processing | station: {station}")

@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-
+import pandas as pd
 import matplotlib
 
 matplotlib.use('Qt5Agg')
@@ -15,10 +15,11 @@ import cartopy.io.shapereader as shapereader
 
 from tools.processing_L1 import compute_lonlat_coordinates
 from tools.pool_utils import pool_function
+from tools.processing_utils import sel_file_by_time_slice
 
 fig_save_root_path = r"C:\Users\guayj\Documents\workspace\figures\radar"
 
-headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -98.5}
+headings = {'ive': 103.0, 'ivo': -42.0, 'ir': -26.5, 'iap': -100.0}
 
 stations = ['ive', 'ivo', 'ir', 'iap']
 
@@ -30,7 +31,7 @@ bank_shp_list = list(Path(path_to_nhnl_shp).glob("*BANK*.shp"))
 
 bank_shp_data = [shapereader.Reader(_shp) for _shp in bank_shp_list]
 
-data_root_dir = r"E:\OPP\ppo-qmm_analyses\data\radar\L1"
+root_path = Path(rf"E:\OPP\ppo-qmm_analyses\data\radar_2025-10-14")
 
 extent = np.array([
     -69.9,
@@ -42,14 +43,16 @@ extent = np.array([
 central_lon = np.mean(extent[:2])
 central_lat = np.mean(extent[2:])
 
-station = "ivo"
+station = "ir"
 
 fig_save_path = Path(fig_save_root_path).joinpath(station)
 fig_save_path.mkdir(parents=True, exist_ok=True)
 
-data_dir = Path(data_root_dir).joinpath(station)
-#_day = "20250725"
-L1_files = list(Path(data_dir).rglob(f"*.nc"))
+start_time = "2025-07-25T00:00:00"
+end_time = "2025-10-14T13:00:00"
+
+L1_index_df = pd.read_csv(Path(root_path).joinpath("L1", f'{station}_L1_index.csv'))
+L1_files = sel_file_by_time_slice(L1_index_df, start_time, end_time)['path'].values
 
 
 def hourly_plot(L1_file):
@@ -109,37 +112,11 @@ def hourly_plot(L1_file):
     cbar.ax.set_position(pos)
 
     _fname = fname.replace("-", "").replace(":", "")
-
-    plt.savefig(fig_save_path.joinpath(f"{_fname}.png"), dpi=200)
-    print(f"{_fname} Saved !")
+    _fsp= fig_save_path.joinpath(f"{_fname}.png")
+    plt.savefig(_fsp, dpi=200)
+    print(f"{_fsp} Saved !")
     plt.close()
 
-
 if __name__ == "__main__":
-#    for L1_file in L1_files:
-#        hourly_plot(L1_file)
-    #pool_function(hourly_plot, L1_files)
-    import pandas as pd
-
-    root_path = Path(rf"E:\OPP\ppo-qmm_analyses\data\radar_2")
-
-    station = "ir"
-
-    L1_index_file = root_path.joinpath("L1", f'{station}_L1_index.csv')
-
-    index_df = pd.read_csv(L1_index_file)
-    index_df['start_time'] = index_df['start_time'].astype('datetime64[s]')
-    index_df['end_time'] = index_df['end_time'].astype('datetime64[s]')
-
-    start_time = np.datetime64("2025-07-01T00:00:00", 's')
-    end_time = np.datetime64("2025-07-05T00:00:00", 's')
-    dt_min = np.timedelta64(10 * 60, "s")
-    time_vector = np.arange(start_time, end_time, dt_min)
-
-
-    for i in range(time_vector.shape[0] - 1):
-        print(time_vector[i], time_vector[i+1])
-        mask = (index_df['start_time'] <= time_vector[i]) & (index_df['end_time'] > time_vector[i+1])
-        L1_files = index_df[mask].path.values
-        print(L1_files, index_df[mask].start_time.values, index_df[mask].end_time.values)
+    pool_function(hourly_plot, L1_files)
 
