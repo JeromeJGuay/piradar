@@ -176,15 +176,8 @@ def compute_lonlat_coordinates(dataset: xr.Dataset) -> xr.Dataset:
     lon_grid = en_grid[..., 0]
     lat_grid = en_grid[..., 1]
 
-    print(x_grid.sizes)
-
-    try:
-        dataset['lon'] = xr.DataArray(lon_grid, dims=('azimuth', "r_bins"))
-        dataset['lat'] = xr.DataArray(lat_grid, dims=('azimuth', "r_bins"))
-        print(dataset.sizes, lon_grid.shape, lat_grid.shape)
-    except ValueError:
-
-        print("--", dataset.sizes, lon_grid.shape, lat_grid.shape)
+    dataset['lon'] = xr.DataArray(lon_grid, dims=('azimuth', "r_bins"))
+    dataset['lat'] = xr.DataArray(lat_grid, dims=('azimuth', "r_bins"))
 
     return dataset.set_coords(['lon', 'lat'])
 
